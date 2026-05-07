@@ -73,6 +73,8 @@ When you have already WebFetched the source page during this phase, populate the
 
 Populating these three optional fields here means `/dossier-build` and `/agent-index` render from data instead of guessing — the highest-leverage v1.1 improvement.
 
+**Worked example:** see `~/Claude/research_toolkit/tests/fixtures/medium_topic_calibration_subset/bib_ledger.yml` — a 22-entry calibration-subset fixture that demonstrates the v1.1+ format, including which entries have `code_url` populated (entries with a known canonical repo) and which omit it (pre-2010 classics with no canonical code release).
+
 If no claim_family from the plan fits, flag this to the user — either the plan's taxonomy is missing a category, or the source is genuinely off-scope.
 
 ### Phase 4: write bib_ledger.yml

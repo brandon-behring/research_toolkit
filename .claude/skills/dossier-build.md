@@ -72,6 +72,8 @@ Inside each topic file, group entries into sub-sections using the **per-file let
 
 This convention is enforced by `tests/test_recreation_diff.py` and surfaced as cross-references in the agent-index. It propagates as a hard rule from the templates; do not invent new schemes.
 
+**Worked example:** see `~/Claude/research_toolkit/tests/fixtures/medium_topic_calibration_subset/dossier/01_calibration_methods_metrics.md` — a 22-entry rendered dossier file that demonstrates the canonical 7-column schema with v1.1+ optional fields (authors, venue, code_url) populated. Mirror its row format exactly.
+
 Render verbatim title (no title-casing); apply citation rules from `references/citation_rules.md` for URL canonical forms.
 
 #### Cell rendering rules (HARD RULES — reproduced 2x as 404s in vol27/vol28 dogfood)

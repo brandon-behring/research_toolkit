@@ -47,6 +47,26 @@ def validate_audit_trail(text: str) -> list[str]:
             errors.append(
                 f"audit-trail: round {round_num} date {date!r} not in YYYY-MM-DD form"
             )
+
+    # v1.5.1: sequence rule — if any rounds exist, they must be 1..N contiguous.
+    # Catches the "subagent lost count across multi-round audits" failure mode.
+    # Zero rounds is allowed (fresh agent_index, no audit run yet).
+    if seen_rounds:
+        sorted_rounds = sorted(seen_rounds)
+        if sorted_rounds[0] != 1:
+            errors.append(
+                f"audit-trail: round sequence must start at 1, got "
+                f"{sorted_rounds[0]} (missing rounds {list(range(1, sorted_rounds[0]))})"
+            )
+        else:
+            expected = list(range(1, sorted_rounds[-1] + 1))
+            missing = sorted(set(expected) - seen_rounds)
+            if missing:
+                errors.append(
+                    f"audit-trail: round sequence has gap(s); "
+                    f"present={sorted_rounds}, missing={missing}"
+                )
+
     return errors
 
 

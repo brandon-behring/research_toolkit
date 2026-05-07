@@ -657,6 +657,30 @@ A "real" E2E would mock WebSearch+WebFetch + drive Claude Code agents through th
 - 0 unresolved high-severity BURN_IN items (`burn_in_query.py --severity high --status surfaced` returns empty).
 - vol25/recreated, vol26, vol27, vol28 all logged in metrics CSV; vol29+ slot ready.
 
+## v1.5.1 — applied 2026-05-07
+
+**Theme:** small post-audit alignment patch — close 3 gaps that v1.x left unfinished.
+
+**Items shipped (all 3):**
+
+- **/agent-index skill references cross_stage validator.** v1.2 added `validators/cross_stage.py` but the `/agent-index` skill body's `## Validation` section only ran the per-stage validator. Now mentions cross_stage with rationale (claim_family taxonomy drift + orphan-arxiv detection) and notes that `--strict` promotes warnings to errors.
+- **/research-gather + /dossier-build skill bodies reference the medium fixture.** Both skills now point at `tests/fixtures/medium_topic_calibration_subset/` as the canonical worked example for v1.1+ schema (research-gather points at the bib_ledger.yml; dossier-build points at the rendered dossier file). Subagents reading the skill bodies cold can now find a concrete reference.
+- **`validators/audit_trail.py` enforces contiguous sequential round numbering.** Rounds must be `[1, 2, ..., N]`; gap or non-1 start is a hard error. Catches the failure mode where a multi-round audit subagent loses count. Zero rounds (fresh agent_index) still passes.
+
+**Tests (NEW: tests/test_v1_5_1_fixes.py, 12 cases):**
+- 3 skill-body lint tests (substring presence in `## Validation` section / Phase sections)
+- 9 audit_trail sequence tests: positive (zero rounds, single round 1, contiguous 1-2-3, out-of-order-but-contiguous); negative (gap, larger gap with 3 missing reported, non-1 start, duplicate); regression check on all 4 real-world fixture READMEs
+
+**Verification:**
+- `make test`: **109 passed + 2 xfailed** (up from v1.5's 97 + 2)
+- All 7 real READMEs (mini, medium, vol25/real, vol25/recreated, vol26/27/28) pass the new audit_trail sequence rule
+- 0 unresolved high-severity BURN_IN items unchanged
+
+**Why this is v1.5.1 not v1.6:**
+No breaking changes to ledger schema or skill workflows; just three small alignments + a tightened validator. Patch version is correct.
+
+---
+
 **Out-of-v1.5 scope (truly deferred — out of v1.x charter):**
 - ~~Re-running vol25 recreation under v1.1+v1.2+v1.3 skills to close the 2 xfailed baselines~~ — **partially done 2026-05-07 post-v1.5**: applied v1.5 per-file letter-prefix anchor convention to `tests/fixtures/vol25_snapshot/recreated/dossier/` + `agent_index/` files 02-07 (A→B/C/D/E/F/G prefixes). Result:
   - **File 02 now fully matches real/** (4 sub-sections each, B-prefix anchors aligned). The v1.5 codification works as designed.

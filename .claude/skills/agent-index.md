@@ -119,6 +119,14 @@ python ~/Claude/research_toolkit/validators/agent_index.py <output_dir>
 
 Validator checks: AGENT-INDEX comment in README; scope-boundary callout; lookup recipes section; glossary present; every entry has Source bullet with URL/bibkey; canonical 5-bullet ordering on paper-synthesis entries (those with Result bullet); footer entry counts match grep counts.
 
+After the per-stage validator passes, also run the v1.2 cross-stage validator from the project root (one level above `<output_dir>` if the output is `<project_dir>/agent_index/`, or however your project is laid out):
+
+```bash
+python ~/Claude/research_toolkit/validators/cross_stage.py <project_dir>
+```
+
+This catches **claim_family taxonomy drift** (a bib_ledger entry uses a `claim_family` not in `research_plan.md`'s taxonomy — the per-stage validators miss this) and **orphan arXiv IDs** (a `**Source:**` line points at an arXiv ID that has no matching ledger entry — common when the synthesis cross-references foundational papers without adding them to the bibliography). Default mode emits warnings; pass `--strict` to fail on orphan/stale findings.
+
 ## Output / handoff
 
 **Produces:**
