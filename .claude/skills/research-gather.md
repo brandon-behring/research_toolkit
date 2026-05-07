@@ -58,13 +58,20 @@ Use `WebSearch` for each query. For results that look promising, use `WebFetch` 
 
 Skip items already listed in `Known landmark papers` — note them as pre-populated, don't re-search.
 
-### Phase 3: assign bibkey + claim_family
+### Phase 3: assign bibkey + claim_family + (optional) populate downstream fields
 
 For each accepted source:
 - Bibkey: `{firstauthor_lowercase}{year}{slug}` (per `citation_rules.md`)
-- Resolve title verbatim from the primary source
+- Resolve title verbatim from the primary source — DO NOT abbreviate or substitute practitioner nicknames. The arXiv `<title>` field is the source of truth.
 - Classify under the plan's claim_family taxonomy
-- Initial status: `unverified`
+- Initial status: `unverified` (default; promote only via Phase 4 verification)
+
+When you have already WebFetched the source page during this phase, populate the bib_ledger's optional fields too:
+- `authors`: e.g., "Hu et al. (2021)" / "Brier (1950)" — directly from the abstract page's author list
+- `venue`: e.g., "ICLR 2022", "NeurIPS 2024 Spotlight", or "arXiv preprint" — based on the abstract page's published-in field. **If you do not know the venue, write "arXiv preprint" — do not guess from memory.**
+- `code_url`: ONLY if the abstract page or the project page links to a code repository. Common locations: arXiv "Code" tab, abstract page footer, paper PDF first-page footnote. **Do NOT guess `<firstauthor>/<paper-slug>` GitHub patterns** — vol27/vol28 dogfood produced ~3% hard-404 rate from this pattern. Omit the field entirely when uncertain; downstream stages render `—`.
+
+Populating these three optional fields here means `/dossier-build` and `/agent-index` render from data instead of guessing — the highest-leverage v1.1 improvement.
 
 If no claim_family from the plan fits, flag this to the user — either the plan's taxonomy is missing a category, or the source is genuinely off-scope.
 
@@ -83,13 +90,35 @@ If `--cache-pdfs` was passed:
 
 PDFs are gitignored at the toolkit level (`papers/` typically isn't committed).
 
-### Phase 6: verify
+### Phase 6: verify (HARD REQUIREMENTS — failures here block downstream stages)
 
 Before exit:
-- Every entry in `bib_ledger.yml` has all 5 required fields.
+
+**Schema checks (the validator enforces these; you should pre-check):**
+- Every entry has all 5 required fields (`bibkey`, `primary_url`, `title`, `status`, `claim_family`).
 - All bibkeys are unique.
 - All `claim_family` values appear in the plan's taxonomy.
 - All `primary_url` values are valid http(s) URLs.
+- arxiv.org URLs use the canonical `arxiv.org/abs/<id>` form (no `/pdf/`, no version suffix unless intentional).
+
+**Verification protocol (governs the `status` field):**
+
+`status` semantics are strict:
+- `unverified` (default): bibkey + URL are syntactically valid, but title/first-author/year have NOT been WebFetch-confirmed.
+- `verified`: WebFetch on `primary_url` returned a page whose title matches `title` AND first author surname matches the bibkey's `{firstauthor}` AND year matches the bibkey's `{year}`. Promote to `verified` only with this evidence.
+- `mismatched`: WebFetch returned different attribution than the entry claims. Surface as a CORRECT candidate; do not silently fix.
+
+When time-pressed, default ALL entries to `unverified`. The downstream `/dossier-audit` stage runs the WebFetch confirmation and promotes entries based on evidence. **Avoid the v1.0 anti-pattern of marking all entries `verified` from memory** — vol28 produced 1 misattribution-out-of-88 this way that only Stage 5 caught.
+
+**Count-assertion (HARD REQUIREMENT for the final report):**
+
+Your final report's "total entries" count MUST match the actual file count. Compute programmatically before reporting:
+
+```bash
+grep -c "^- bibkey:" <output_dir>/bib_ledger.yml
+```
+
+The narrative count in your final report must equal that number. vol28 Stage 2 reported "73 entries" but the file had 88 — silently inconsistent self-reporting. If your count and the file's grep-count differ, recount before reporting.
 
 If any check fails, do NOT report success — fix the issue or surface it for user resolution.
 

@@ -13,13 +13,17 @@
 
 <1–2 paragraphs explicitly stating what this folder is NOT — point readers to where the related material lives if they're in the wrong folder>
 
+**Cross-vol overlap convention:** when an entry is methodologically relevant to multiple research vols (e.g., calibration of PEFT'd models touches both vol27 PEFT and vol28 calibration), pick ONE primary location based on claim_family and reference adjacency in this scope-boundary callout. **Do NOT duplicate entries across vols** — the duplicate-detection rule lives here, not in the synthesis files.
+
 ## How this is organized
+
+Sub-section anchors use a per-file letter prefix (`## A1.` in file 01, `## B1.` in file 02, etc.) — see the dossier's section-anchor convention for the full table. Lookup recipes in this README reference these anchors.
 
 | File | Topic | When to read |
 |---|---|---|
 | `00_overview.md` | <if present: navigation + glossary + threat model> | Start here if new to <topic> |
-| `01_<area>.md` | <topic 1> | <when this is the right entry point> |
-| `02_<area>.md` | <topic 2> | <…> |
+| `01_<area>.md` | <topic 1> (anchors A1./A2./...) | <when this is the right entry point> |
+| `02_<area>.md` | <topic 2> (anchors B1./B2./...) | <…> |
 
 ## Lookup recipes
 

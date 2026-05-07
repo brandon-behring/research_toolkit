@@ -321,8 +321,8 @@ entries:
   status: unverified
   claim_family: attack_indirect_pi
 - bibkey: kim2024selfreminder
-  primary_url: ''
-  title: Defending ChatGPT
+  primary_url: https://www.nature.com/articles/s42256-023-00765-8
+  title: Defending ChatGPT against jailbreak attack via self-reminders
   status: unverified
   claim_family: other
 - bibkey: greshake2023ipi

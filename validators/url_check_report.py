@@ -16,6 +16,9 @@ import re
 import sys
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from validators._common import cli_main
 
 H1_RE = re.compile(r"^# URL Freshness Report\b", re.MULTILINE)

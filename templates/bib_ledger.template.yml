@@ -1,12 +1,30 @@
 # Bibliography ledger template
 # Maintained by /research-gather. Validated by validators/bib_ledger.py.
 #
-# Schema per entry:
+# Required fields per entry:
 #   bibkey         (str, required, unique) — convention: {firstauthor}{year}{slug}
 #   primary_url    (str, required, valid http(s) URL)
-#   title          (str, required, non-empty)
+#                   When the URL is on arxiv.org, must be the canonical
+#                   `arxiv.org/abs/<id>` form. /pdf/ URLs are rejected.
+#   title          (str, required, non-empty) — verbatim from primary source
 #   status         (str, enum) — unverified | verified | mismatched
+#                   `verified` requires WebFetch confirmation of title +
+#                   first-author + year against the primary URL. Default
+#                   to `unverified`; promote only with evidence.
 #   claim_family   (str, required, must appear in research_plan.md taxonomy)
+#
+# Optional fields (v1.1 schema extension — eliminates downstream guessing):
+#   authors        (str, optional) — first-author display string used by
+#                   /dossier-build and /agent-index, e.g., "Hu et al. (2021)"
+#                   or "Brier (1950)". Populating this here means downstream
+#                   stages render rather than guess.
+#   venue          (str, optional) — "ICLR 2022", "NeurIPS 2024 Spotlight",
+#                   "arXiv preprint", etc. Same rationale as `authors`.
+#   code_url       (str, optional, valid URL when present) — canonical code URL.
+#                   Omit the field entirely when no canonical repo exists; do
+#                   NOT guess `<author>/<paper-slug>` patterns. Reproduced 2x
+#                   across vol27/vol28 dogfood: ~3% of guessed GitHub URLs hit
+#                   hard 404s.
 
 entries:
 - bibkey: example2024fooexample
@@ -19,3 +37,7 @@ entries:
   title: 'Another Example: Different Domain'
   status: verified
   claim_family: example_family
+  # Optional fields — populate for entries you have verified, omit otherwise:
+  authors: Smith et al. (2025)
+  venue: NeurIPS 2025
+  code_url: https://github.com/example-org/another-bar

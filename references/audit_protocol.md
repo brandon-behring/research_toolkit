@@ -22,6 +22,28 @@ Two postures, parameterized by the round's risk tolerance:
 
 Pass `aggressiveness=aggressive` to escalate. Document the choice in the round's audit-trail note.
 
+## Default arXiv-ID spot-check (v1.1)
+
+When `/research-gather` reports memory-based or time-pressed verification (i.e., entries marked `verified` without per-entry WebFetch confirmation), Stage 5 must include a default 10-entry random arXiv-ID spot-check ALONGSIDE the focus-area work:
+
+1. Pick 10 random entries spanning all topic files (no clustering on one sub-area).
+2. For each, WebFetch `primary_url` and confirm: title matches, first author surname matches the bibkey's `{firstauthor}`, year matches the bibkey's `{year}`.
+3. Report results in a SPOT-CHECK PASSED table separate from focus-area findings.
+
+Rationale: vol28 dogfood produced 1 misattribution-out-of-88 (Yin → Zhang at arXiv:2305.18153) that only Stage 5 caught. The fixed-cost 10-entry sweep catches transposition errors and sloppy attribution at low marginal cost (~10 WebFetches ≈ 5 minutes).
+
+Skip the spot-check only when Stage 2 explicitly reports per-entry WebFetch verification on every entry.
+
+## Display-title preservation rule (v1.1)
+
+Audit must check that display titles match the canonical (arXiv) title verbatim. Practitioner nicknames substituted during synthesis are CORRECT findings:
+
+- "Verbalized Confidence" → "Teaching Models to Express Their Uncertainty in Words" (Lin et al. 2022)
+- "LMs (Mostly) Know" → "Language Models (Mostly) Know What They Know" (Kadavath et al. 2022)
+- "DoRA" alone → "DoRA: Weight-Decomposed Low-Rank Adaptation"
+
+Section headers and lookup recipes carry the practitioner nickname; the bullet-entry display title carries the canonical paper title. Two slots, two purposes — do not collapse them.
+
 ## DROP / CORRECT / FLAG / SPOT-CHECK PASSED report shape
 
 Every round produces a report with these sections:

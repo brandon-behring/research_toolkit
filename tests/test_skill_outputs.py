@@ -14,13 +14,16 @@ from validators import agent_index, bib_ledger, dossier
 
 # ---------- vol25 snapshot — known violations + everything else clean ----------
 
-def test_vol25_bib_ledger_has_one_known_violation(vol25_dir: Path) -> None:
-    """Entry 63 (kim2024selfreminder) has empty primary_url. Documented in fixture README."""
-    errors = bib_ledger.validate(vol25_dir / "bib_ledger.yml")
-    assert len(errors) == 1, f"expected 1 known error, got {len(errors)}: {errors}"
-    assert "entries[63]" in errors[0]
-    assert "primary_url" in errors[0]
-    assert "must be non-empty" in errors[0]
+def test_vol25_bib_ledger_passes_cleanly(vol25_dir: Path) -> None:
+    """Vol25 bib_ledger validates cleanly under v1.1.
+
+    Historical note: under v1.0, entry 63 (kim2024selfreminder) had an empty
+    primary_url that was a known violation. The v1.1 cleanup populated the
+    URL with the canonical Nature MI publication and the test was renamed
+    to assert the post-fix clean state. This catches future regressions
+    where the violation could re-surface.
+    """
+    assert bib_ledger.validate(vol25_dir / "bib_ledger.yml") == []
 
 
 def test_vol25_dossier_passes_cleanly(vol25_dir: Path) -> None:

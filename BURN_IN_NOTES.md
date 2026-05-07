@@ -486,6 +486,57 @@ These four items represent the post-v1.0 design backlog. A consolidated v1.1 PR 
 
 ---
 
+## v1.1 — applied 2026-05-07
+
+All cross-vol findings above are now fixed in skill bodies, templates, validators, and tested.
+
+### Changes shipped
+
+**Validators**
+- `validators/bib_ledger.py` — added optional `authors` / `venue` / `code_url` fields (string, validated when present); added arXiv URL canonical-form check (rejects `/pdf/` URLs and malformed IDs); added URL-format check on `code_url` when present.
+- `validators/{research_plan,bib_ledger,dossier,agent_index,audit_trail,url_check_report}.py` — added `if __package__ in (None, "")` path-injection so `python validators/<x>.py path` works without `pip install -e .` or `python -m`. Was a silent friction pre-v1.1.
+
+**Templates**
+- `templates/bib_ledger.template.yml` — documented optional `authors` / `venue` / `code_url` fields with comment guidance ("omit field entirely when uncertain; do NOT guess `<author>/<paper-slug>` patterns").
+- `templates/dossier_table.template.md` — added explicit per-file letter-prefix anchor convention (A/B/C/D/E/F by file position).
+- `templates/agent_index_README.template.md` — added cross-vol overlap convention ("pick ONE primary location, do NOT duplicate") and per-file anchor reference.
+
+**Skills**
+- `.claude/skills/research-gather.md` — Phase 3 now opportunistically populates `authors`/`venue`/`code_url` when the abstract is already WebFetched. Phase 6 codifies strict `unverified` → `verified` promotion (must have WebFetch evidence). Added count-assertion: subagent's narrative entry-count must match `grep -c "^- bibkey:"` of the file.
+- `.claude/skills/dossier-build.md` — added per-file letter-prefix anchor convention. Added Cell-rendering hard rules: display title verbatim from bib_ledger, GitHub `—` if not directly known (no `<firstauthor>/<paper-slug>` guessing), default Venue to "arXiv preprint" not memory-guessed.
+- `.claude/skills/agent-index.md` — same hard rules carried up: display title verbatim, no GitHub URL guessing, append `(no widely-known repo)` / `(uncertain venue)` flags to Status when uncertain.
+- `.claude/skills/url-freshness-check.md` — replaced negative char-class regex (silently 0 on macOS) with positive form `[a-zA-Z0-9./?=&_~%#:+-]+`. Added `if N≥50 use inline curl bulk-check` fast-path branch (60s for 100+ URLs vs WebFetch timeout). Added URL-extraction sanity check.
+
+**References**
+- `references/audit_protocol.md` — added "Default arXiv-ID spot-check" section: when Stage 2 reports memory-based work, Stage 5 must include a 10-entry random arXiv-ID spot-check by default. Added "Display-title preservation rule" with worked examples from vol28 corrections.
+
+**Tests**
+- `tests/test_v1_1_fixes.py` (NEW, 27 tests) — covers all v1.1 changes:
+  - Optional bib_ledger fields round-trip + reject malformed (4 tests)
+  - arXiv canonical-form check accept/reject parametrized (10 tests)
+  - Non-arxiv URLs pass through unchecked (1 test)
+  - code_url URL-format rejection (1 test)
+  - Positive URL-extraction regex extracts mixed-content URLs (2 tests)
+  - Standalone validator invocation per-validator (6 tests)
+  - Backward-compat regression on existing fixtures (3 tests)
+
+**Test fixture cleanup**
+- `tests/fixtures/vol25_snapshot/real/bib_ledger.yml` — entry 63 (`kim2024selfreminder`) had empty `primary_url` (a v1.0-era known defect that the validator silently flagged because no test exercised vol25/real). Populated with `https://www.nature.com/articles/s42256-023-00765-8` and renamed `test_vol25_bib_ledger_has_one_known_violation` → `test_vol25_bib_ledger_passes_cleanly`.
+
+### Verification
+
+- `make test`: 45 pass + 2 known-baseline fail (vol25 recreation_diff entry-counts + section-anchors — unchanged from v1.0; flagged in BURN_IN as deliberate v1.0 gaps not in v1.1 scope).
+- `python -m pytest tests/test_v1_1_fixes.py -v`: 27 / 27 pass in <1 s.
+- All 6 real-world bib_ledgers (mini, vol25/real, vol25/recreated, vol26, vol27, vol28) validate cleanly under v1.1 schema.
+- Standalone invocation `python validators/<x>.py path` now works for all 6 validators.
+
+### Out-of-v1.1 scope (deferred to v1.2 or never)
+
+- v1.0 BURN_IN's two recreation_diff baseline fails (entry-counts within tolerance, section-anchors match) — these reflect the recreation's structural divergence from real, not a tooling defect. Resolving would require either re-running vol25 recreation with v1.1 skills or relaxing the tolerances; both are beyond v1.1's "fix the tooling" charter.
+- Pydantic / config-framework / packaging changes — out of scope per project instructions.
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")

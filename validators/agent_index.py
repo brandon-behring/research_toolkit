@@ -33,6 +33,9 @@ import re
 import sys
 from pathlib import Path
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from validators._common import URL_RE, cli_main
 from validators.audit_trail import validate_audit_trail
 

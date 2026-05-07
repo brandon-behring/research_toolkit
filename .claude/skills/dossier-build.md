@@ -64,12 +64,28 @@ Read `~/Claude/research_toolkit/templates/dossier_table.template.md` for the can
 
 For non-paper content (vendor profiles, standards documents), use a different table schema with column 2 ≠ "Authors (year)" — see `templates/dossier_table.template.md` § "Non-paper variants".
 
-Inside each topic file, group entries into sub-sections:
-- `## A1. <sub-area>` for the first sub-section
-- `## A2. <sub-area>` for the second
-- etc., matching the research_plan's sub-area numbering when applicable
+Inside each topic file, group entries into sub-sections using the **per-file letter-prefix anchor convention**:
+- File 01 uses `## A1.`, `## A2.`, ...
+- File 02 uses `## B1.`, `## B2.`, ...
+- File 03 uses `## C1.`, ...
+- etc., matching the research_plan's sub-area numbering when applicable.
+
+This convention is enforced by `tests/test_recreation_diff.py` and surfaced as cross-references in the agent-index. It propagates as a hard rule from the templates; do not invent new schemes.
 
 Render verbatim title (no title-casing); apply citation rules from `references/citation_rules.md` for URL canonical forms.
+
+#### Cell rendering rules (HARD RULES — reproduced 2x as 404s in vol27/vol28 dogfood)
+
+For each row, prefer the bib_ledger's optional `authors`, `venue`, `code_url` fields when populated:
+
+- **Title**: copy `bib_ledger.title` verbatim. Do NOT abbreviate to a practitioner nickname (e.g., write "Language Models (Mostly) Know What They Know", not "LMs Mostly Know"). Display title = arXiv title verbatim.
+- **Authors (year)**: use `bib_ledger.authors` if present. Otherwise derive from bibkey using the heuristic ("Hu et al. (2021)" / "Brier (1950)") and flag `(uncertain authors)` in the row's status text.
+- **Venue**: use `bib_ledger.venue` if present. Otherwise default to "arXiv preprint" — DO NOT guess venues from memory; honest "arXiv preprint" beats wrong "ICML 2024".
+- **arXiv/DOI**: derive from `bib_ledger.primary_url`. For arxiv URLs the validator requires the canonical `arxiv.org/abs/<id>` form.
+- **GitHub**: use `bib_ledger.code_url` if present. Otherwise write `—`. **Do NOT guess `<firstauthor>/<paper-slug>` patterns.** The vol27 dogfood found 7/117 such guesses 404'd; vol28 found 3/137 more. Real code lives at lab repos (`pilancilab/spectral_adapter`), author handles that don't match the bibkey (`EricLBuehler/xlora`), or doesn't exist at all. Empty cell `—` is correct when uncertain; the URL-freshness-check stage will surface real repos via inline correction if found.
+- **One-line description**, **Key contribution**: factual, neutral, no hype.
+
+If you find yourself writing a GitHub URL based on the pattern `github.com/<paper-firstauthor>/<paper-name>`, STOP. That's the failing pattern. Use `—`.
 
 ### Phase 4: update bib_ledger status
 

@@ -38,21 +38,51 @@ Read `~/Claude/research_toolkit/references/url_check_protocol.md` — covers the
 
 ### Phase 2: extract URLs
 
-Walk the target folder; extract all unique URLs from every `*.md` file:
+Walk the target folder; extract all unique URLs from every `*.md` file. **Use the positive char-class regex** — the negative char-class form silently returns 0 URLs on macOS grep (high-priority BURN_IN finding from vol26):
 
 ```bash
 mkdir -p .url_check_tmp
-grep -hroE 'https?://[^[:space:]\)\]"\<]+' "$TARGET_FOLDER" \
+grep -hroE 'https?://[a-zA-Z0-9./?=&_~%#:+-]+' "$TARGET_FOLDER" \
   | sort -u \
   | sed 's/[\.,:;]\+$//' \
   > .url_check_tmp/urls.txt
 ```
 
+**Do NOT use** the negative char-class form `[^[:space:]\)\]"\<]+` — on macOS `grep -E`, the bracketed escape sequences silently produce 0 matches (no error). vol26 lost an entire URL-check run to this. The positive form `[a-zA-Z0-9./?=&_~%#:+-]+` works on both macOS and Linux grep.
+
 Trailing punctuation cleanup matters — Markdown often appends `.`, `,`, or `:` to URL boundaries.
 
-### Phase 3: HEAD-check in parallel chunks
+#### Sanity check
 
-Split into 50-URL chunks; run ~10 chunks in parallel. Per `references/url_check_protocol.md`:
+Before continuing, verify URL extraction returned a sensible count:
+
+```bash
+N=$(wc -l < .url_check_tmp/urls.txt)
+test "$N" -gt 0 || { echo "FATAL: extracted 0 URLs — regex bug?" >&2; exit 1; }
+echo "Extracted $N unique URLs"
+```
+
+A well-rendered agent_index typically has ~1.5–2 URLs per entry. If `$N` is below ~50% of that estimate, the regex is broken — investigate before proceeding.
+
+### Phase 3: HEAD-check (inline curl when N>50)
+
+**Performance note (vol27 BURN_IN):** when running this skill via a subagent on a 100+ URL artifact, the WebFetch tool path can rate-limit / time out. For artifacts with N ≥ 50 URLs, use the inline `curl -L -G` bulk-check below, which completes in ~60 seconds for 100+ URLs without hitting WebFetch quotas. Use the WebFetch path only when N < 50 OR when you specifically need WebFetch's robots.txt / allowlist behavior.
+
+#### Fast path (recommended, N ≥ 50)
+
+```bash
+while IFS= read -r url; do
+  status=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-time 8 \
+                -A "Mozilla/5.0" "$url" 2>/dev/null || echo "000")
+  echo "$status $url"
+done < .url_check_tmp/urls.txt > .url_check_tmp/results.txt
+```
+
+`-L` follows redirects (200/301/302 all map to "ok"); `--max-time 8` keeps any single hung URL from blocking the run. ~80–100 ms per URL on typical residential bandwidth.
+
+#### Parallel-chunk path (alternative, fine-grained control)
+
+If you want per-chunk parallelism (helpful on multi-thousand-URL collections), split first:
 
 ```bash
 split -l 50 .url_check_tmp/urls.txt .url_check_tmp/chunk_

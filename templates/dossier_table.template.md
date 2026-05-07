@@ -2,7 +2,24 @@
 
 A 1–2 sentence intro establishing what this file covers and what's in scope.
 
+## Section-anchor convention (per-file letter prefix)
+
+Sub-section anchors use a **letter prefix that matches the file's position** in the dossier:
+
+| File | Anchor prefix | Example anchors |
+|---|---|---|
+| `01_<topic>.md` | A | `## A1.`, `## A2.`, `## A3.` |
+| `02_<topic>.md` | B | `## B1.`, `## B2.` |
+| `03_<topic>.md` | C | `## C1.` |
+| `04_<topic>.md` | D | ... |
+| `05_<topic>.md` | E | ... |
+| `06_<topic>.md` | F | ... |
+
+This convention is enforced by `tests/test_recreation_diff.py` and propagates to `/agent-index` (which mirrors the dossier's anchor scheme). Do NOT use bare `## 1.`, `## I.`, or topic-named anchors — those collide across files when content is grepped or cross-referenced.
+
 ## A1. <Sub-section name>
+
+(For file `01_<topic>.md`. For file 02 use B1; file 03 C1; etc.)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
