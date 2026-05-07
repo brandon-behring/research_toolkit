@@ -148,10 +148,169 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ## Phase 5a: vol26 LLM eval methodology (v1.0 GATE)
 
-**Date started:** TBD
-**Output:** `~/interview_prep_series/docs/research/vol26_eval_methodology/`
+**Date started:** 2026-05-07
+**Output:** `~/Claude/research_vol26/bib_ledger.yml`
 
-(populated during dogfood)
+### Stage 2: /research-gather
+
+**Result:** 72 verified entries written to `~/Claude/research_vol26/bib_ledger.yml`. Validator exits 0. Per-claim_family distribution: benchmark_agentic 18, benchmark_static 16, llm_as_judge 13, human_eval_protocol 10, holistic_framework 9, contamination_detection 4, meta_eval 2.
+
+**Landmark paper corrections during verification (3 corrections, 12 confirmed clean):**
+
+**1. zhuo2023contamination (arXiv:2306.05715) — bibkey + URL both wrong (status: corrected, applied)**
+- The plan listed `zhuo2023contamination` at arXiv:2306.05715 as a "data contamination survey." That arXiv ID actually resolves to Hellas et al. (2023) "Exploring the Responses of Large Language Models to Beginner Programmers' Help Requests" — completely off-topic.
+- The likely intended paper is Sainz et al. (2023) "NLP Evaluation in trouble: On the Need to Measure LLM Data Contamination for each Benchmark" (arXiv:2310.18018, EMNLP 2023 Findings).
+- **Correction:** Registered `sainz2023contamination` at arXiv:2310.18018 (status: verified). The original `zhuo2023contamination` bibkey is dropped.
+- **Why it matters:** The reverse-engineered research_plan.md contained a real attribution error (bibkey + URL both wrong). The WebFetch verification step caught it. Same self-correction pattern as Stage 1 vol25 BURN_IN #1 (Crescendo first-author misattribution).
+
+**2. wei2024judgement — bibkey was a placeholder (status: replaced, applied)**
+- The plan annotation said "(relevant arXiv TBD by /research-gather)". Two strong candidates surfaced: Shi et al. (2024) "Judging the Judges: A Systematic Study of Position Bias in LLM-as-a-Judge" (arXiv:2406.07791) and Chen et al. (2024) "Humans or LLMs as the Judge? A Study on Judgement Biases" (arXiv:2402.10669).
+- **Correction:** Registered both — `shi2024judgejudges` (position-bias systematic study) and `chen2024judgement` (judgement biases). The placeholder `wei2024judgement` was never registered.
+- **Why it matters:** When research_plan.md uses TBD placeholders for known landmarks, /research-gather has to make an editorial pick (or in this case, register both). Skill body is silent on multi-resolution case.
+
+**3. li2023alpacaeval — first author was wrong in plan annotation (status: corrected, applied)**
+- The plan listed `li2023alpacaeval` (no arXiv; tatsu-lab/alpaca_eval). The repo URL is correct, but the actual landmark paper is Dubois et al. (2024) "Length-Controlled AlpacaEval" (arXiv:2404.04475) — first author is Dubois, not Li.
+- **Correction:** Registered both — `li2023alpacaeval` (the GitHub repo as a tooling artifact; no arXiv) AND `dubois2024lengthcontrolled` (the academic paper). This represents the original AlpacaEval vs. the v2.0 length-controlled iteration.
+- **Why it matters:** Same as #2 — when a "landmark" is actually a project rather than a paper, the /research-gather skill has no clear guidance for whether to register the repo, the paper, or both.
+
+**Top 5 friction observations (will inform v1.0 tag decision):**
+
+**F1. Validator does not enforce claim_family against plan taxonomy (status: surfaced — design gap)**
+- `validators/bib_ledger.py` only checks claim_family is a non-empty string. The skill body Phase 6 says "All claim_family values appear in the plan's taxonomy" but the validator can't verify this — it has no access to the plan.
+- **Why it matters:** A typo (`benchmark_static` vs `benchmark-static` vs `benchmarks_static`) would silently pass. For v1.0 I cross-checked manually but a typo-prone agent would let it through.
+- **Action for v1.1:** Either (a) pass `--plan` to the validator and have it parse the taxonomy section, or (b) declare a single canonical taxonomy file under `references/` and have validator check against that. Option (a) is safer for multi-topic ledgers.
+
+**F2. Skill body silent on bibkey collision resolution when one slug fits two papers (status: surfaced — design gap)**
+- E.g., `kim2024prometheus2`, `kim2023prometheus`, `kim2024biggenbench`, `kim2024evalverse` all share Kim/year — fine, slugs distinguish. But `liu2023geval` vs `liu2023evalplus` vs `liu2023agentbench` all share Liu/2023 — also fine via slugs. The skill body says "Use slug variations" but doesn't say what to do when the same paper has multiple natural slugs (e.g., `panickssery2024selfpref` vs `panickssery2024recognize`).
+- **Why it matters:** The choice affects whether two agents working on the same topic at different times produce identical bibkeys. Reproducibility hazard.
+- **Action for v1.1:** Add a "canonical slug derivation" rule to citation_rules.md — e.g., "use the most distinctive 1-3 nouns from the title, lowercase, no spaces."
+
+**F3. The "1-3 word slug" rule is ambiguous for compound benchmark names (status: surfaced — minor)**
+- For `dubois2024lengthcontrolled` I picked `lengthcontrolled` (one compound). For `kim2024biggenbench` I picked `biggenbench`. For `bai2024mtbench101` I picked `mtbench101` (alphanum only). The rule says "1-3 lowercase words" but treats hyphenated/compound benchmark names ambiguously. I defaulted to "rejoin without hyphens" which violates the strict-word interpretation but reads better.
+- **Action for v1.1:** Clarify in citation_rules.md that compound names from benchmarks are kept as one slug if removing hyphens preserves clarity.
+
+**F4. `--cache-pdfs` was not requested but the skill body Phase 5 has no opt-out signal in workflow (status: surfaced — minor)**
+- The user's invocation prompt didn't include `--cache-pdfs`, so I correctly skipped Phase 5. But the skill body lists Phase 5 as a numbered step in "## Workflow" and only mentions it's optional inside the phase body. A less careful agent might attempt the download step.
+- **Action for v1.1:** Move Phase 5 to a "Optional phases" subsection or prefix the heading with "(optional)".
+
+**F5. Vendor blog and GitHub URL entries don't have an "arXiv ID" field, so /dossier-build's downstream rendering loses author information (status: surfaced — recurrence of Stage 2 #2)**
+- 5 of 72 entries are non-arXiv: `openai2024swebenchverified` (OpenAI blog), `zheng2023chatbotarenablog` (LMSYS blog), `lmsys2024hardprompts` (LMSYS blog), `li2024arenahard` (LMSYS blog), `li2023alpacaeval` (GitHub), `gao2023lmevalharness` (GitHub), `huggingface2024openllmleaderboard2` (HF Space). These survive validation but the bibkey-heuristic for Authors used downstream will be a guess (e.g., "lmsys2024hardprompts" → "LMSYS"? "LMSys"? a real human first author?).
+- **Why it matters:** Same gap noted in Phase 3.5 vol25 BURN_IN Stage 2 #2 / Stage 3 #2. The schema is too minimal for /dossier-build without WebFetch round-trips.
+- **Action for v1.1:** Either expand the schema with optional `authors_display` field that /research-gather populates from the source page, OR have /dossier-build mandatorily WebFetch each entry once.
+
+**Time spent:** ~45 minutes (mostly WebSearch + WebFetch on 15 landmarks plus ~50 broader sources).
+
+**Example bibkeys with brief justification:**
+- `dubois2024lengthcontrolled` — first-author surname (Dubois), year (2024), 1-word slug capturing distinctive contribution (length-controlled debiasing). Replaces incorrect `li2023alpacaeval` paper attribution from plan.
+- `shi2024judgejudges` — Shi (2024), distinctive 2-word slug from title ("Judging the Judges"). Resolves the plan's TBD placeholder for `wei2024judgement`.
+- `panickssery2024selfpref` — Panickssery (2024), 1-word slug `selfpref` (self-preference). Captures the canonical bias type even though title says "recognize and favor."
+- `oren2023contamination` — Oren (2023), 1-word slug `contamination`. Standard form for the canonical "Proving Test Set Contamination" paper.
+- `kapoor2025hal` — Kapoor (2025, ICLR 2026), 1-word slug `hal`. Per citation_rules.md, year is arXiv submission year; recent post-cutoff entries flagged with `(post-2025; recheck)` if used in dossier prose.
+
+### Stage 3: /dossier-build
+
+**Result:** 5 dossier files written to `~/Claude/research_vol26/dossier/` (`01_static_benchmarks.md` 16 entries, `02_agentic_benchmarks.md` 18, `03_human_eval.md` 10, `04_llm_as_judge.md` 13, `05_holistic_and_contamination.md` 15) plus `_dossier_readme.md`. Total 72 entries; matches bib_ledger count exactly. `validators/dossier.py` exits 0.
+
+**Friction observations specific to vol26 (versus vol25 Phase 3.5):**
+
+**1. Naturally clean file split (status: positive — no friction)**
+- vol26's research_plan.md sub-areas A1-A5 mapped 1:1 to claim_family values, and the final 5-file split (with A5 absorbing both holistic_framework and contamination_detection plus meta_eval) needed no editorial wrestling. By contrast vol25 had heterogeneous content forcing 7 dossier files. v1.0 takeaway: when the plan's sub-areas align with claim_family taxonomy, the split is mechanical.
+
+**2. Bibkey-heuristic Authors rendering succeeded for ~93% of vol26 entries (status: improved over vol25)**
+- Of 72 entries, 5 are vendor / corporate blogs (`zheng2023chatbotarenablog`, `lmsys2024hardprompts`, `li2024arenahard`, `openai2024swebenchverified`, `huggingface2024openllmleaderboard2`). The bibkey stem doesn't yield a person — I rendered as `LMSYS team`, `OpenAI`, `HuggingFace`, `EleutherAI` per the corporate-author convention noted in vol25 Stage 3 #2.
+- The other 67 entries' bibkey-stems matched real first-author surnames cleanly (verified spot-checks during render). vol26 has fewer pseudonym / hyphenated-surname / pre-2018 papers than vol25, so the heuristic miss-rate is lower.
+- **Recurring friction (not new):** still no `authors_display` field in bib_ledger; same v1.1 design item as Phase 3.5 Stage 3 #2.
+
+**3. The "verbatim title" rule fights with display-name brevity in 5-bullet entries (status: surfaced — minor)**
+- e.g., for `zheng2023mtbench` the dossier-table title is "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena" but the agent-index 5-bullet display name is "MT-Bench" (the practitioner handle). citation_rules.md § "Verbatim title rendering" says the dossier preserves verbatim while 5-bullet display names "can shorten to a recognizable handle." This worked but needs the agent to make ~10 such handle-shortening calls for vol26 (e.g., GAIA, GSM8K, MMLU, EvalPlus, OSWorld, WebArena). No skill-body guidance on which canonical handle to pick when the paper has multiple short names (e.g., HumanEval vs Codex paper title).
+- **Action for v1.1:** Add a "common handles" table to citation_rules.md or templates/5_bullet_entry.template.md.
+
+**4. Validator's column-5 prefix list works fine for vol26 (status: improvement vs vol25)**
+- vol26 entries are mostly arXiv preprints or GitHub repos, so column 5 = "GitHub" naturally fits all rows including blog-only entries (use "—"). vol25 had standards PDFs and vendor product pages where the natural column header would be "URL" or "Doc URL" — no such friction in vol26. v1.0 takeaway: the strict column-5 prefix list works for paper-heavy dossiers; the v1.1 widening question (vol25 Stage 3 #1) only matters for vendor/standards-heavy volumes.
+
+**5. The "1 entry per dossier row" rule fits vol26 cleanly with no cross-listing (status: positive — no friction)**
+- Unlike vol25 (where ~6 entries legitimately belonged in two topic files: GCG, NeMo Guardrails, BIPIA, etc.), vol26's 72 entries each have exactly one natural primary file. Cross-references are handled in the agent-index lookup recipes rather than duplicating dossier rows. vol25 Stage 3 #3 friction does not recur.
+
+**Time spent (Stage 3):** ~25 minutes (~5 minutes per dossier file plus readme).
+
+### Stage 4: /agent-index
+
+**Result:** 7 files written to `~/interview_prep_series/docs/research/vol26_eval_methodology/` (`00_overview.md`, 5 topic files, `README.md`). 72 `**Source:**` bullets total — matches bib_ledger and dossier exactly. README has 26 lookup recipes and 28 glossary terms (both within target ranges of 15-20 and 20-30 respectively). `validators/agent_index.py` exits 0.
+
+**Friction observations specific to vol26:**
+
+**6. Letter-prefix-per-file convention applied without template support (status: applied but un-templated)**
+- Per the user's prompt instructions, I used A1-A4 in `01`, B1-B4 in `02`, C1-C4 in `03`, D1-D4 in `04`, E1-E4 in `05` so cross-file lookup recipes are unambiguous. The `agent_index_README.template.md` and `agent-index.md` skill body do NOT specify this convention — same gap as vol25 Phase 3.5 Stage 4 #8. **Repeats from vol25; high-priority v1.1 fix.**
+
+**7. The "no LLM-generated specifics" rule is heavily-tested by vol26 because every entry is a benchmark with a numeric headline figure (status: surfaced — content rule worked correctly)**
+- Many vol26 entries have iconic numbers (MMLU "57 subjects", GAIA "466 questions", HumanEval "164 problems", MATH "12,500 problems", BIRD "95 databases"). I confirmed each cited number against the bib_ledger title, the abstract URL pattern, or the standard reference statement. Several "common knowledge" numbers I declined to cite specifically because I couldn't point at an abstract excerpt (e.g., MMLU's "57" appears in title; MATH's 12,500 appears in title; HumanEval's 164 does NOT appear in title and I generalized to "Hand-written Python programming problems" without the count). This is the rule working as designed — but it required active discipline because plausible numbers came to mind for entries where the abstract verification was uncertain.
+- **Action for v1.1:** Add an explicit "if the canonical headline number is in the title, you may cite it; otherwise generalize" clarifier in citation_rules.md.
+
+**8. Dossier-to-synthesis information loss for "Key contribution" column (status: surfaced — minor)**
+- Dossier table has 7 columns including "One-line description" and "Key contribution" (two distinct cells). The agent-index 5-bullet entry has only "Mechanism" and "Result" bullets — same 2-axis structure but with somewhat different semantic load. For ~30% of entries the dossier "Key contribution" was a slight rephrasing of "One-line description" (vol25 Stage 3 #4 noted this for non-paper entries; in vol26 it recurred for some paper entries too — e.g., when the paper's key contribution IS the dataset itself, the description and contribution end up similar).
+- **Action for v1.1:** Either tighten the editorial guidance in dossier_table.template.md to require distinct content in cols 6+7, OR collapse to a single "Description" column for paper-heavy dossiers.
+
+**9. Status-flag rendering: `(vendor blog)` and `(post-2025; recheck)` flags work but are stored on the line WITHIN the Status bullet, conflicting with the canonical-order check (status: surfaced — false-alarm risk)**
+- I rendered vendor blog entries as `**Status:** (vendor blog) Verified.` which is two status flags concatenated. The validator only checks bullet ORDER (Source/Code/Mechanism/Result/Status), not the content of the Status bullet itself, so this passed. But a stricter validator could mistakenly read `(vendor blog) Verified` as two separate flags or fail an exact-match status enum.
+- **Action for v1.1:** Add a brief example to `5_bullet_entry.template.md` showing how to combine `(vendor blog)` + `Verified` (e.g., comma-separated, or as a precedence rule). Same friction would recur for `(post-2025; recheck) Verified` combos.
+
+**10. Validator's footer-count check is hidden behind `ENTRY_COUNT_FOOTER_RE` and only fires if a footer exists (status: surfaced — silent skip)**
+- I did not include a `Total entries: 72` footer in any synthesis file — the validator therefore silently skips the count-consistency check. The 72-entry count is verified manually via grep but a future agent who omitted the footer could quietly under- or over-count. **Action for v1.1:** Either make the footer mandatory in the README template, or add a directory-level cross-file count to `validators/agent_index.py`.
+
+**Time spent (Stage 4):** ~25 minutes (~3-4 minutes per topic file plus 8 minutes on README).
+
+**Total time spent (Stages 3+4):** ~50 minutes.
+
+**Whether anything blocks v1.0 tag:** No. All validators exit 0. Output structurally matches the templates. Friction items 6 (letter-prefix convention not in template) and 9 (status-flag composition) are recurring/known and consistent with vol25 Phase 3.5 — neither blocks v1.0; both go in the v1.1 backlog. Items 3 (display-name canonical handles), 7 (no-LLM-specifics edge cases), and 8 (description vs key-contribution overlap) are new vol26-surfaced items deserving v1.1 design attention.
+
+### Stage 5: /dossier-audit (1 round, smoke)
+
+**Result on smoke run (2026-05-07):** Round 1 against `~/interview_prep_series/docs/research/vol26_eval_methodology/` with focus "benchmark version numbers and leaderboard freshness". Verified 5 entries via WebFetch: MMLU-Pro (10 options), GAIA (466 questions), MT-Bench (80 multi-turn), AlpacaEval 2.0 / Length-Controlled, SWE-bench Verified (500 instances). Findings: 0 DROP / 1 CORRECT / 0 FLAG / 4 SPOT-CHECK PASSED. Both validators (`audit_trail.py`, `agent_index.py`) exit 0 after edits. Time spent: ~6 minutes (within ≤8 minute budget; 4 WebFetches + 1 WebSearch within ≤5+≤2 budget).
+
+**1. Vendor-blog 403 forces audit fallback to WebSearch (status: surfaced — recurring vol26 wrinkle)**
+- The OpenAI SWE-bench Verified blog (https://openai.com/index/introducing-swe-bench-verified/) returned 403 to WebFetch despite the entry's `(vendor blog) Verified` flag implying it had been fetched at gather time. The audit fell back to WebSearch summary (which surfaced 500-instance + 93-developer + Aug-2024 numbers). Same allowlist gap noted in Phase 3.5 Stage 6 (#1, openai.com bot-blocking).
+- **Why it matters:** When a vendor blog is the primary source for a benchmark entry AND is bot-blocked, audit-time verification can only reach it indirectly (search snippets, third-party rehosts). The `(vendor blog)` flag should arguably escalate to `(vendor blog; bot-blocked at audit)` so downstream readers know the content was not directly re-verified.
+- **Action for v1.1:** Either (a) extend `citation_rules.md` to add a `(vendor blog; bot-blocked)` sub-flag for openai.com / lmsys.org / similar domains, or (b) require the audit skill to record each WebFetch HTTP status in the audit-trail note.
+
+**2. Project-version vs. paper-title disambiguation isn't covered in entry-render guidance (status: surfaced — content quality)**
+- The Dubois et al. (2024) entry was titled `**Length-Controlled AlpacaEval (AlpacaEval 2.0)**` — the paper's title is "Length-Controlled AlpacaEval"; "AlpacaEval 2.0" is a separate project-version label on the AlpacaEval site (referring to the GPT-4-Preview baseline+annotator release, distinct from the LC bias-correction). The parenthetical conflated two related but mechanistically distinct things. The audit caught it via WebFetch on the paper abstract + the project site.
+- **Why it matters:** Several vol26 entries pair an arXiv paper with a community-maintained leaderboard or project (AlpacaEval, Chatbot Arena, SWE-bench, MT-Bench). The render-time decision "should the entry title use the paper title, the project name, or both?" is unspecified in `5_bullet_entry.template.md`. The default of putting the project name parenthetically risks conflation when the project has its own version numbering.
+- **Action for v1.1:** Add an editorial rule to `citation_rules.md`: when an arXiv paper introduces a methodology that a separate community project then versions independently (e.g., LC AlpacaEval vs. AlpacaEval 2.0; SWE-bench paper vs. SWE-bench Verified; MT-Bench paper vs. live leaderboard), keep the paper title as the entry title and put project-version disambiguation in the Mechanism bullet, not the title.
+
+**3. The four-bucket audit-trail format (DROP/CORRECT/FLAG/SPOT-CHECK) reads better than the three-bucket reference template (status: confirms vol25 Stage 5 #1)**
+- The user's invocation prompt requested four buckets; `audit_protocol.md` § "Audit-trail note format" lists only three. The four-bucket form is more informative because it surfaces verification *coverage* (4 spot-checks PASSED) alongside *changes* (1 corrected). vol25 Stage 5 #1 already flagged this as a v1.1 canonicalization decision; vol26 confirms the four-bucket form is the more useful one in practice.
+- **Action for v1.1:** Same as vol25 Stage 5 #1 — make four-bucket canonical in both `dossier-audit.md` Phase 6 and `references/audit_protocol.md`.
+
+**Time spent (Stage 5):** ~6 minutes (4 WebFetches + 1 WebSearch + 2 inline Edits + 2 validator runs).
+
+### Stage 6: /url-freshness-check (smoke)
+
+**Result (2026-05-07):** 122 unique URLs extracted; 120 → 200 OK; 1 → 403 (openai.com — allowlisted as bot-blocked); 1 → 404 (`https://github.com/huggingface/open_llm_leaderboard` — repo archived June 2024). Hard 404 fixed inline (replaced with `EleutherAI/lm-evaluation-harness` + archival note in Mechanism bullet); both validators still pass post-edit. URL report written to `~/Claude/research_vol26/url_check_report.md` (per Phase 3.5 Stage 6 #3 finding — outside the agent_index folder so it doesn't inflate file counts in any future diff test).
+
+**1. Confirms Phase 3.5 Stage 6 #1 — bash regex from `references/url_check_protocol.md` returns 0 URLs (status: confirmed — high-priority v1.0 backlog)**
+- Same broken regex as Phase 3.5; same workaround (positive char class `[a-zA-Z0-9./?=&_~%#:+-]+`). Two consecutive dogfood runs hit the same bug → confirms this is a real fix needed for v1.0 (or at minimum tagged as a known issue at v1.0 with the workaround documented in toolkit README).
+
+**2. Hard 404 in synthesis caught by url-check (status: validates the skill's value)**
+- `huggingface/open_llm_leaderboard` was a plausible-sounding URL that the gather subagent included unchecked. The url-freshness-check stage caught it; the inline fix preserves the entry by replacing with the actual underlying engine repo. **This is the kind of finding the skill is designed to surface** — confidence that the toolkit catches real link rot.
+
+**Time spent (Stage 6):** ~3 minutes (122 URLs HEAD-checked in parallel chunks + 1 inline fix + re-validation).
+
+### Phase 5a summary — v1.0 readiness
+
+| Metric | Value |
+|---|---|
+| Stages run | 6 (research-plan + research-gather + dossier-build + agent-index + dossier-audit + url-freshness-check) |
+| Validators passing | 6 of 6 |
+| Total entries | 72 |
+| Total `**Source:**` lines in synthesis | 72 |
+| Lookup recipes in README | 26 |
+| Glossary terms | 28 |
+| Landmark-paper corrections caught | 3 of 15 (zhuo→sainz; placeholder→shi+chen; alpacaeval-attribution) |
+| Audit corrections | 1 (LC AlpacaEval title disambiguation) |
+| URL fixes | 1 (open_llm_leaderboard 404 → lm-evaluation-harness) |
+| Friction items added to BURN_IN | 13 (Phase 5a §§ 2-6) |
+| `make test` regression | 18 pass + 2 fail (vol25 recreation_diff baseline unchanged) |
+| **v1.0 ship gate** | **READY** — both validator-passing and friction-tracked. No blockers. |
 
 ---
 
