@@ -49,6 +49,18 @@ def test_recreated_agent_index_file_count_matches(recreated_present: bool) -> No
     )
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "vol25 recreation under v1.0 skills produced ~70% drift in entry counts vs "
+        "real (recreated finds substantially fewer entries per topic file because "
+        "/research-gather under v1.0 didn't have the v1.1+ verification protocol or "
+        "exhaustive-search prompting). This is a deliberate v1.0/v1.1 baseline "
+        "documented in BURN_IN_NOTES.md Phase 3.5. Re-running vol25 recreation under "
+        "v1.2+ skills would close the gap; that's a v1.3 backfill candidate, not a "
+        "v1.2 fix. xfail strict=True so we notice if the gap ever closes."
+    ),
+)
 def test_recreated_entry_counts_within_tolerance(recreated_present: bool) -> None:
     if not recreated_present:
         pytest.skip("recreated/agent_index/ not populated yet (Phase 3.5)")
@@ -93,6 +105,18 @@ def test_recreated_readme_has_required_sections(recreated_present: bool) -> None
         )
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "vol25 recreation under v1.0 skills used per-file letter prefix only for "
+        "the first file (all files used A1./A2./...) instead of the per-file "
+        "convention (A./B./C./...). This was a v1.0 BURN_IN finding; v1.1 "
+        "codified the per-file convention in templates/dossier_table.template.md "
+        "and the dossier-build/agent-index skill bodies. Re-running vol25 "
+        "recreation under v1.1+ skills would close the gap. xfail strict=True "
+        "so we notice if the gap ever closes (e.g., after a v1.3 backfill)."
+    ),
+)
 def test_recreated_section_anchors_match(recreated_present: bool) -> None:
     if not recreated_present:
         pytest.skip("recreated/agent_index/ not populated yet (Phase 3.5)")

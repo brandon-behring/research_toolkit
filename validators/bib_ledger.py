@@ -18,6 +18,19 @@ When primary_url points at arxiv.org, this validator additionally requires the c
 break dossier rendering.
 
 Asserts bibkey uniqueness across the ledger.
+
+Memory-verification anti-cheat heuristic (v1.2):
+    If a ledger has ≥50 entries AND every single entry has `status: verified`,
+    that's the signature of a Stage 2 subagent that marked everything `verified`
+    from memory under time pressure rather than per-entry WebFetch. vol28 produced
+    1 misattribution-out-of-88 this way that only Stage 5 audit caught.
+
+    Default behavior: emit a warning to stderr (informational). The validator
+    returns success. Use `--strict` to promote the warning to an error.
+
+    Usage:
+        python -m validators.bib_ledger ledger.yml             # warns
+        python -m validators.bib_ledger ledger.yml --strict    # errors
 """
 from __future__ import annotations
 
@@ -56,8 +69,40 @@ def _validate_arxiv_url(url: str) -> str | None:
     )
 
 
-def validate(path: Path) -> list[str]:
+MEMORY_VERIFIED_THRESHOLD = 50  # ≥ this many entries triggers the anti-cheat check
+
+
+def _memory_verified_warning(entries: list[dict]) -> str | None:
+    """Detect Stage-2-marked-everything-verified-from-memory anti-pattern.
+
+    Returns a warning string if the heuristic fires, else None. The heuristic:
+    - At least MEMORY_VERIFIED_THRESHOLD (50) entries.
+    - 100% of entries have status: verified (zero unverified, zero mismatched).
+
+    This pattern is the signature of a subagent that skipped per-entry WebFetch
+    and bulk-marked everything as verified — a v1.0/v1.1 dogfood failure mode
+    (vol28 §2.1 BURN_IN). With per-entry verification done correctly, expect at
+    least a couple of mismatched/unverified entries on a 50+-entry run.
+    """
+    if len(entries) < MEMORY_VERIFIED_THRESHOLD:
+        return None
+    statuses = [e.get("status") for e in entries if isinstance(e, dict)]
+    if not statuses:
+        return None
+    if all(s == "verified" for s in statuses):
+        return (
+            f"WARN memory-verification suspected: {len(statuses)} entries, "
+            f"all marked 'verified' (no 'unverified' or 'mismatched'). Per-entry "
+            f"WebFetch verification typically produces ≥2 mismatched/unverified "
+            f"entries on a run this size. See BURN_IN_NOTES.md vol28 §2.1; "
+            f"--strict promotes to error"
+        )
+    return None
+
+
+def validate(path: Path, *, strict: bool = False) -> list[str]:
     errors: list[str] = []
+    warnings: list[str] = []
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as exc:
@@ -125,8 +170,48 @@ def validate(path: Path) -> list[str]:
                 f"{loc}.status: {status!r} not in {sorted(ALLOWED_STATUS)}"
             )
 
+    # Anti-cheat heuristic — memory-verified detection. Soft by default.
+    only_dicts = [e for e in entries if isinstance(e, dict)]
+    warning = _memory_verified_warning(only_dicts)
+    if warning:
+        if strict:
+            errors.append(warning)
+        else:
+            warnings.append(warning)
+
+    if warnings and not strict:
+        for w in warnings:
+            print(f"  - {w}", file=sys.stderr)
+
     return errors
 
 
+def _cli_with_strict(argv: list[str]) -> int:
+    """CLI entrypoint that supports --strict for the anti-cheat heuristic."""
+    strict = False
+    args = argv[1:]
+    if "--strict" in args:
+        strict = True
+        args = [a for a in args if a != "--strict"]
+    if len(args) != 1:
+        print(f"usage: {Path(argv[0]).name} [--strict] <path>", file=sys.stderr)
+        return 2
+    target = Path(args[0]).expanduser().resolve()
+    if not target.exists():
+        print(f"error: path does not exist: {target}", file=sys.stderr)
+        return 2
+    errors = validate(target, strict=strict)
+    if errors:
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        print(
+            f"VALIDATION FAILED: {len(errors)} error(s) in {target}",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"OK: {target}", file=sys.stderr)
+    return 0
+
+
 if __name__ == "__main__":
-    sys.exit(cli_main(sys.argv, validate))
+    sys.exit(_cli_with_strict(sys.argv))

@@ -539,6 +539,38 @@ All cross-vol findings above are now fixed in skill bodies, templates, validator
 
 ---
 
+## v1.2 — applied 2026-05-07
+
+**Theme:** defensive hardening — make the toolkit *resistant to subagents misbehaving* rather than just *requesting that subagents behave*.
+
+**Items shipped (all 4):**
+
+- **A2 cross_stage validator** (`validators/cross_stage.py`, NEW) — claim_family-vs-research-plan-taxonomy hard check; orphan-arxiv-ID soft warnings (dossier + agent_index); stale-ledger-entry warnings; `--strict` flag promotes warnings to errors. Fixes a real bug class: bib_ledger entries using a claim_family not in the plan's taxonomy were silently accepted before. Also surfaces vol25/real's 9 stale ledger entries (in ledger but not synthesized) and 202 cross-reference IDs (in synthesis but not in own ledger — vol25's intentional cross-reference pattern).
+- **A3 anti-cheat heuristic** (`validators/bib_ledger.py`) — if ≥50 entries AND every entry has `status: verified` (no `unverified` or `mismatched`), emit a "memory-verification suspected" warning. `--strict` promotes to error. Catches the vol28 §2.1 anti-pattern where Stage 2 marked all 88 entries `verified` from memory under time pressure. Validates correctly: warns on vol27 (67 entries) and vol28 (88 entries); silent on vol25/real (137 entries with mixed status) and mini fixture (small).
+- **A4 xfail baseline tests** (`tests/test_recreation_diff.py`) — the 2 vol25 recreation_diff fails (entry_counts_within_tolerance, section_anchors_match) marked `@pytest.mark.xfail(strict=True)` with BURN_IN-referencing reason. They reflect v1.0 recreation drift, not tooling bugs. `strict=True` means we'll be notified if they ever pass (e.g., after v1.3 backfill re-runs vol25 recreation).
+- **B6 CI workflow audit** — `.github/workflows/test.yml` audited: runs `python -m pytest` on push/PR for Python 3.11+3.12, installs `pip install -e ".[dev]"`. Functionally equivalent to `make test`. No gaps; v1.2 changes flow through automatically.
+
+**Tests (NEW: tests/test_v1_2_fixes.py, 14 cases):**
+- cross_stage validator: passes minimal project (1); skips on missing ledger (1); rejects unknown claim_family (1); warns on orphan dossier arxiv (1); --strict promotes (1); warns on stale ledger (1); standalone CLI (1); --strict CLI flag (1)
+- anti-cheat heuristic: quiet under threshold (1); quiet with mixed status (1); warns at 50+ all-verified (1); --strict promotes (1); --strict CLI (1)
+- backward compat: v1.2 changes don't break existing fixtures (1)
+
+**Verification:**
+- `make test`: **59 passed + 2 xfailed** (the 2 baselines from A4). Up from v1.1's 45 passed + 2 baseline fails.
+- All 6 real-world projects (mini, vol25/real, vol25/recreated, vol26, vol27, vol28) cross_stage-validate cleanly in default mode.
+- Anti-cheat correctly identifies vol27 + vol28 as memory-verified suspects (warning); silent on properly-mixed vol25/real.
+
+**Critical bug caught + fixed during v1.2 implementation:**
+- The cross_stage validator's first regex `arxiv\.org/abs/(\d{4}\.\d{4,5})` only matched URL-form references. Real-world dossiers use citation-form `arXiv:<id>` in the arXiv/DOI column. The validator silently passed on vol27/vol28 for the wrong reason (extracting 0 IDs). Fixed regex to `(?:arxiv\.org/abs/|arxiv:)(\d{4}\.\d{4,5})` (case-insensitive). Confirmed real-world matching works. **Lesson:** when a defensive validator passes on every fixture you point it at, suspect it's not actually doing the check before celebrating.
+
+**Out-of-v1.2 scope (deferred to v1.3+):**
+- Backfilling vol26/27/28 ledgers with `authors`/`venue`/`code_url` fields (v1.3 A1).
+- Medium fixture for stress-testing dossier-build at >5 entries (v1.3 C10).
+- E2E pipeline smoke test (v1.4 B5).
+- Re-running vol25 recreation under v1.2 skills to close the xfail'd baseline gap (v1.3 candidate).
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")
