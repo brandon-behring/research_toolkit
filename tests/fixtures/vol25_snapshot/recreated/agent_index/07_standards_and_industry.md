@@ -3,7 +3,7 @@
 **Scope:** standards bodies (NIST, OWASP, MITRE), regulatory frameworks (EU AI Act, UK AISI), frontier-lab voluntary safety frameworks (RSP, Preparedness, FSF), system cards, and industry reports.
 **Out of scope:** academic papers (see `01_direct_attacks.md` through `04_training_time_threats.md`); benchmarks (see `05_datasets_and_benchmarks.md`); vendor product pages (see `06_tools_and_vendors.md`).
 
-## A1. Standards bodies (NIST, OWASP, MITRE)
+## G1. Standards bodies (NIST, OWASP, MITRE)
 
 - **NIST AI 600-1 (GenAI Profile)** — NIST (2024).
   - **Source:** https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence
@@ -33,7 +33,7 @@
   - **Mechanism:** ATT&CK-style threat catalog for AI systems with structured tactics/techniques.
   - **Integration:** Field-standard adversarial-AI threat catalog.
 
-## A2. Regulatory frameworks (EU, UK)
+## G2. Regulatory frameworks (EU, UK)
 
 - **EU AI Act** — European Commission (2024).
   - **Source:** https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai
@@ -49,7 +49,7 @@
   - **Mechanism:** UK AI Security Institute frontier-AI trends report.
   - **Integration:** UK government's frontier-AI risk and trend assessment.
 
-## A3. Frontier-lab voluntary safety frameworks and system cards
+## G3. Frontier-lab voluntary safety frameworks and system cards
 
 - **Anthropic RSP** — Anthropic (2024).
   - **Source:** https://www.anthropic.com/responsible-scaling-policy
@@ -107,7 +107,7 @@
   - **Mechanism:** System card for the OpenAI o1 reasoning model.
   - **Integration:** Vendor disclosure of o1 reasoning-model safety evaluation.
 
-## A4. Other / cross-cutting tool references
+## G4. Other / cross-cutting tool references
 
 - **llm-attacks (cross-listing)** — Zou et al. (GitHub 2023).
   - **Source:** https://github.com/llm-attacks/llm-attacks

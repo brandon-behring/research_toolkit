@@ -3,7 +3,7 @@
 **Scope:** open-source tools, commercial vendors, eval-SaaS platforms, and red-team toolkit repos relevant to prompt-injection security. Vendor entries use a non-paper bullet schema (Source / Status / Product line / Mechanism / Integration).
 **Out of scope:** datasets and benchmarks (see `05_datasets_and_benchmarks.md`); academic papers underlying the tools (see `01_direct_attacks.md`, `02_indirect_and_agentic_attacks.md`, `03_defenses.md`).
 
-## A1. Open-source toolkits and red-team frameworks
+## F1. Open-source toolkits and red-team frameworks
 
 - **rebuff** — Protect AI (GitHub 2024).
   - **Source:** https://github.com/protectai/rebuff
@@ -117,7 +117,7 @@
   - **Mechanism:** Industry-run adaptive PI challenge with public participation.
   - **Integration:** Public-event adversarial-robustness program.
 
-## A2. Commercial vendors and platforms
+## F2. Commercial vendors and platforms
 
 - **Lakera Guard** — Lakera (vendor 2024).
   - **Source:** https://www.lakera.ai/lakera-guard

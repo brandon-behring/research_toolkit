@@ -3,7 +3,7 @@
 **Scope:** primary sources on prompt-injection threats originating outside the user's direct prompt — indirect PI (RAG/retrieved content), agentic exploits (tool use, browser, computer-use), multimodal adversarial inputs, and notable real-world incident disclosures.
 **Out of scope:** direct user-driven jailbreaks (see `01_direct_attacks.md`); training-time threats (see `04_training_time_threats.md`); defenses against these threats (see `03_defenses.md`).
 
-## A1. Indirect prompt injection (retrieved content + RAG)
+## B1. Indirect prompt injection (retrieved content + RAG)
 
 - **Indirect PI (Greshake)** — Greshake et al. (arXiv 2023).
   - **Source:** https://arxiv.org/abs/2302.12173
@@ -26,7 +26,7 @@
   - **Result:** Maps the prompt-attack threat surface as a single coherent model.
   - **Status:** Unverified
 
-## A2. Agentic attacks (tool-use, browser, computer-use)
+## B2. Agentic attacks (tool-use, browser, computer-use)
 
 - **InjecAgent** — Zhan et al. (arXiv 2024).
   - **Source:** https://arxiv.org/abs/2403.02691
@@ -84,7 +84,7 @@
   - **Result:** Frames agentic misalignment as an insider-threat risk model.
   - **Status:** (vendor blog)
 
-## A3. Multimodal adversarial inputs (vision + audio)
+## B3. Multimodal adversarial inputs (vision + audio)
 
 - **Visual Adversarial Examples** — Qi et al. (arXiv 2023).
   - **Source:** https://arxiv.org/abs/2306.13213
@@ -135,7 +135,7 @@
   - **Result:** Provides taxonomy and literature mapping for multimodal jailbreak field.
   - **Status:** Unverified
 
-## A4. Real-world incident disclosures
+## B4. Real-world incident disclosures
 
 - **EchoLeak: The First Real-World Zero-Click Prompt Injection Exploit in a Production LLM System** — Reddy (arXiv 2025; AAAI Fall Symposium 2025).
   - **Source:** https://arxiv.org/abs/2509.10540

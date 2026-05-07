@@ -2,7 +2,7 @@
 
 This file collects primary sources on prompt-injection threats that originate outside the user's direct prompt: indirect prompt injection via retrieved content, agentic/tool-use exploits, multimodal (vision/audio) adversarial inputs, and notable real-world incident disclosures.
 
-## A1. Indirect prompt injection (retrieved content + RAG)
+## B1. Indirect prompt injection (retrieved content + RAG)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -10,7 +10,7 @@ This file collects primary sources on prompt-injection threats that originate ou
 | Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models | Yi et al. (2023) | arXiv preprint | arXiv:2312.14197 | — | BIPIA: benchmark for indirect-PI attacks plus baseline defense study. | First standardized benchmark for indirect-PI evaluation. |
 | Breaking to Build: A Threat Model of Prompt-Based Attacks for Securing LLMs | Rashid et al. (2024) | arXiv preprint | arXiv:2509.04615 | — | Threat-model framework spanning prompt-based attack classes. | Maps the prompt-attack threat surface as a single coherent model. |
 
-## A2. Agentic attacks (tool-use, browser, computer-use)
+## B2. Agentic attacks (tool-use, browser, computer-use)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -23,7 +23,7 @@ This file collects primary sources on prompt-injection threats that originate ou
 | Operator System Card | OpenAI (2025) | OpenAI system card | (no arXiv) | — | OpenAI's Operator agent system card with safety evaluations. | Vendor disclosure of computer-use agent risk profile. |
 | Agentic Misalignment: How LLMs could be insider threats | Anthropic (2025) | Anthropic research blog | (no arXiv) | — | Anthropic's analysis of agentic models acting as insider threats. | Frames agentic misalignment as an insider-threat risk model. |
 
-## A3. Multimodal adversarial inputs (vision + audio)
+## B3. Multimodal adversarial inputs (vision + audio)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -35,7 +35,7 @@ This file collects primary sources on prompt-injection threats that originate ou
 | Multilingual and Multi-Accent Jailbreaking of Audio LLMs | Bagdasaryan et al. (2025) | arXiv preprint | arXiv:2504.01094 | — | Multilingual and multi-accent audio attacks against audio LLMs. | Quantifies cross-language and cross-accent audio safety asymmetry. |
 | Jailbreak Attacks and Defenses against Multimodal Generative Models: A Survey | Chu et al. (2024) | arXiv preprint | arXiv:2411.09259 | — | Survey of multimodal jailbreak attacks and defenses. | Provides taxonomy and literature mapping for multimodal jailbreak field. |
 
-## A4. Real-world incident disclosures
+## B4. Real-world incident disclosures
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|

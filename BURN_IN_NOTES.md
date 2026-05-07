@@ -658,7 +658,11 @@ A "real" E2E would mock WebSearch+WebFetch + drive Claude Code agents through th
 - vol25/recreated, vol26, vol27, vol28 all logged in metrics CSV; vol29+ slot ready.
 
 **Out-of-v1.5 scope (truly deferred — out of v1.x charter):**
-- Re-running vol25 recreation under v1.1+v1.2+v1.3 skills to close the 2 xfailed baselines (a dogfood task, not a tooling task).
+- ~~Re-running vol25 recreation under v1.1+v1.2+v1.3 skills to close the 2 xfailed baselines~~ — **partially done 2026-05-07 post-v1.5**: applied v1.5 per-file letter-prefix anchor convention to `tests/fixtures/vol25_snapshot/recreated/dossier/` + `agent_index/` files 02-07 (A→B/C/D/E/F/G prefixes). Result:
+  - **File 02 now fully matches real/** (4 sub-sections each, B-prefix anchors aligned). The v1.5 codification works as designed.
+  - **Files 01/03/04 still differ** because the v1.0 recreation chose fewer sub-sections (3 vs real's 5/6/6) — editorial granularity, not a tooling defect. The xfail reasons in `tests/test_recreation_diff.py` were updated with this honest diagnosis. xfails are now likely **permanent** (would require either re-running /research-gather + /dossier-build editorially or hand-splitting existing sub-sections).
+  - The entry-counts xfail's true cause is also editorial: vol25/real includes ~202 cross-reference arxiv IDs that the recreation deliberately doesn't render (it synthesizes only its own ledger). Same "permanent xfail" outcome.
+  - Logged as a row in `evals/dogfood_metrics.csv` (vol25_recreated_anchor_renamed under toolkit_version v1.5).
 - Skill-body execution mocking + Claude Code SDK integration for true E2E (separate plan if it ever happens).
 - New skills (`/dossier-export`, `/dossier-merge`, `/dossier-diff`) — explicit "out of v1.x" per the roadmap.
 - Pydantic / config-framework / packaging changes — out of CLAUDE.md scope.

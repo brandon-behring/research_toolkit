@@ -2,7 +2,7 @@
 
 This file collects primary sources on standards, regulatory frameworks, frontier-lab voluntary safety frameworks, system cards, and industry research reports relevant to prompt-injection security. Entries here use a non-paper schema where authorship is institutional rather than individual.
 
-## A1. Standards bodies (NIST, OWASP, MITRE)
+## G1. Standards bodies (NIST, OWASP, MITRE)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -11,14 +11,14 @@ This file collects primary sources on standards, regulatory frameworks, frontier
 | OWASP Top 10 for LLM Applications 2025 | OWASP (2025) | OWASP PDF publication | (no arXiv) | — | Full OWASP Top 10 for LLM Applications 2025 PDF. | Field-standard LLM application security top-10 list. |
 | MITRE ATLAS Adversarial Threat Landscape for Artificial-Intelligence Systems | MITRE (2024) | MITRE ATLAS site | (no arXiv) | — | MITRE's ATT&CK-style threat catalog for AI systems. | Field-standard adversarial-AI threat catalog. |
 
-## A2. Regulatory frameworks (EU, UK, US)
+## G2. Regulatory frameworks (EU, UK, US)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
 | AI Act: Shaping Europe's digital future | European Commission (2024) | European Commission policy page | (no arXiv) | — | EU AI Act regulatory framework page. | Authoritative EU regulatory text reference. |
 | Frontier AI Trends Report by The AI Security Institute (AISI) | UK AISI (2025) | UK AISI publication | (no arXiv) | — | UK AI Security Institute frontier-AI trends report. | UK government's frontier-AI risk and trend assessment. |
 
-## A3. Frontier-lab voluntary safety frameworks and system cards
+## G3. Frontier-lab voluntary safety frameworks and system cards
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -31,7 +31,7 @@ This file collects primary sources on standards, regulatory frameworks, frontier
 | GPT-4o System Card | OpenAI (2024) | OpenAI system card | (no arXiv) | — | System card for GPT-4o. | Vendor disclosure of GPT-4o safety evaluation. |
 | OpenAI o1 System Card | OpenAI (2024) | OpenAI system card | (no arXiv) | — | System card for the OpenAI o1 reasoning model. | Vendor disclosure of o1 reasoning-model safety evaluation. |
 
-## A4. Other / cross-cutting
+## G4. Other / cross-cutting
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|

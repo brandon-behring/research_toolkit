@@ -3,7 +3,7 @@
 **Scope:** primary sources on defenses against prompt-injection and jailbreak attacks: classifier-based detection, runtime smoothing/randomization, architectural separation of trusted/untrusted instructions, latent-space interventions, and alignment-as-defense.
 **Out of scope:** attacks themselves (see `01_direct_attacks.md` and `02_indirect_and_agentic_attacks.md`); detection benchmarks (see `05_datasets_and_benchmarks.md`).
 
-## A1. Detection classifiers
+## C1. Detection classifiers
 
 - **Llama Guard** — Inan et al. (arXiv 2023).
   - **Source:** https://arxiv.org/abs/2312.06674
@@ -68,7 +68,7 @@
   - **Result:** Widely-used open DeBERTa baseline classifier for PI detection.
   - **Status:** Unverified
 
-## A2. Smoothing and runtime-randomization defenses
+## C2. Smoothing and runtime-randomization defenses
 
 - **SmoothLLM** — Robey et al. (arXiv 2023).
   - **Source:** https://arxiv.org/abs/2310.03684
@@ -84,7 +84,7 @@
   - **Result:** Runtime decoding intervention without retraining.
   - **Status:** Unverified
 
-## A3. Architectural defenses (instruction hierarchy, spotlighting, StruQ, SecAlign, CaMeL)
+## C3. Architectural defenses (instruction hierarchy, spotlighting, StruQ, SecAlign, CaMeL)
 
 - **Instruction Hierarchy** — Wallace et al. (arXiv 2024).
   - **Source:** https://arxiv.org/abs/2404.13208
@@ -156,7 +156,7 @@
   - **Result:** Vendor disclosure of production PI-defense layering.
   - **Status:** (vendor blog)
 
-## A4. Latent-space defenses (circuit breakers, refusal direction, representation engineering)
+## C4. Latent-space defenses (circuit breakers, refusal direction, representation engineering)
 
 - **Circuit Breakers** — Zou et al. (arXiv 2024).
   - **Source:** https://arxiv.org/abs/2406.04313
@@ -179,7 +179,7 @@
   - **Result:** Provides field-level taxonomy of representation-engineering interventions.
   - **Status:** Unverified
 
-## A5. Alignment-as-defense
+## C5. Alignment-as-defense
 
 - **Constitutional AI** — Bai et al. (arXiv 2022).
   - **Source:** https://arxiv.org/abs/2212.08073

@@ -3,7 +3,7 @@
 **Scope:** primary sources on adversarial-prompt evaluation: standardized attack benchmarks, leaderboards, CTF / red-team programs, trustworthiness benchmarks, and dataset releases.
 **Out of scope:** open-source toolkits and red-team frameworks (see `06_tools_and_vendors.md`); the underlying attack/defense papers themselves (see `01_direct_attacks.md`, `02_indirect_and_agentic_attacks.md`, `03_defenses.md`).
 
-## A1. Attack benchmarks (HarmBench, JailbreakBench, AdvBench, StrongREJECT)
+## E1. Attack benchmarks (HarmBench, JailbreakBench, AdvBench, StrongREJECT)
 
 - **HarmBench** — Mazeika et al. (arXiv 2024).
   - **Source:** https://arxiv.org/abs/2402.04249
@@ -61,7 +61,7 @@
   - **Result:** Hosted release of JailBreakV-28K multimodal benchmark.
   - **Status:** Unverified
 
-## A2. Trustworthiness and surveys
+## E2. Trustworthiness and surveys
 
 - **DecodingTrust** — Wang et al. (arXiv 2023).
   - **Source:** https://arxiv.org/abs/2306.11698
@@ -84,7 +84,7 @@
   - **Result:** Synthesizes the jailbreak attack/defense literature.
   - **Status:** Unverified
 
-## A3. CTFs, red-team programs, agent benchmarks
+## E3. CTFs, red-team programs, agent benchmarks
 
 - **PINT-benchmark** — Lakera (2024).
   - **Source:** https://github.com/lakeraai/pint-benchmark

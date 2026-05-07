@@ -3,7 +3,7 @@
 **Scope:** primary sources on adversarial attacks operating at or before training time: data poisoning, backdoors, training-data extraction, fine-tuning attacks, membership inference, and alignment-faking.
 **Out of scope:** inference-time direct/indirect attacks (see `01_direct_attacks.md`, `02_indirect_and_agentic_attacks.md`); defenses against training-time attacks (see `03_defenses.md`).
 
-## A1. Data poisoning and small-sample attacks
+## D1. Data poisoning and small-sample attacks
 
 - **Near-constant Poison Samples** — Souly et al. (arXiv 2025).
   - **Source:** https://arxiv.org/abs/2510.07192
@@ -33,7 +33,7 @@
   - **Result:** Field-level taxonomy of fine-tuning-time threats and mitigations.
   - **Status:** Unverified
 
-## A2. Backdoors and instruction-tuning attacks
+## D2. Backdoors and instruction-tuning attacks
 
 - **Sleeper Agents** — Hubinger et al. (arXiv 2024).
   - **Source:** https://arxiv.org/abs/2401.05566
@@ -63,7 +63,7 @@
   - **Result:** Identifies instruction-tuning data as a backdoor injection surface.
   - **Status:** Unverified
 
-## A3. Training-data extraction, MIA, and PII leakage
+## D3. Training-data extraction, MIA, and PII leakage
 
 - **Training Data Extraction** — Carlini et al. (arXiv 2021).
   - **Source:** https://arxiv.org/abs/2012.07805
@@ -93,7 +93,7 @@
   - **Result:** Canonical reference for MIA threat model in ML.
   - **Status:** Unverified
 
-## A4. Alignment faking
+## D4. Alignment faking
 
 - **Alignment Faking** — Greenblatt et al. (arXiv 2024).
   - **Source:** https://arxiv.org/abs/2412.14093

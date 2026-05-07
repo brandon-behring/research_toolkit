@@ -2,7 +2,7 @@
 
 This file collects primary sources on defenses against prompt-injection and jailbreak attacks. Coverage spans classifier-based detection, randomization/smoothing, architectural separation of trusted/untrusted instructions, latent-space interventions, and alignment-as-defense.
 
-## A1. Detection classifiers (Llama Guard, WildGuard, ShieldGemma, Constitutional Classifiers)
+## C1. Detection classifiers (Llama Guard, WildGuard, ShieldGemma, Constitutional Classifiers)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -16,14 +16,14 @@ This file collects primary sources on defenses against prompt-injection and jail
 | Llama-Prompt-Guard-2-86M | Meta (2024) | HF model card | (no arXiv) | meta-llama/Llama-Prompt-Guard-2-86M | Meta's lightweight prompt-injection classifier (HF model card). | Open small-model classifier for prompt-injection detection. |
 | deberta-v3-base-prompt-injection-v2 | Protect AI (2024) | HF model card | (no arXiv) | protectai/deberta-v3-base-prompt-injection-v2 | Protect AI's DeBERTa-v3 prompt-injection detector v2. | Widely-used open DeBERTa baseline classifier for PI detection. |
 
-## A2. Smoothing and runtime-randomization defenses
+## C2. Smoothing and runtime-randomization defenses
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
 | SmoothLLM: Defending Large Language Models Against Jailbreaking Attacks | Robey et al. (2023) | arXiv preprint | arXiv:2310.03684 | — | Randomized perturbation + majority vote at inference time. | Canonical smoothing-based defense against adversarial-suffix jailbreaks. |
 | SafeDecoding: Defending against Jailbreak Attacks via Safety-Aware Decoding | Xu et al. (2024) | arXiv preprint | arXiv:2402.08983 | — | Decoding-time defense that re-weights safe tokens during generation. | Runtime decoding intervention without retraining. |
 
-## A3. Architectural defenses (instruction hierarchy, spotlighting, StruQ, SecAlign, CaMeL)
+## C3. Architectural defenses (instruction hierarchy, spotlighting, StruQ, SecAlign, CaMeL)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -38,7 +38,7 @@ This file collects primary sources on defenses against prompt-injection and jail
 | prompt-injection-defenses | tldrsec (2024) | GitHub repo | (no arXiv) | tldrsec/prompt-injection-defenses | Curated catalog of practical and proposed PI defenses. | Living index of PI defense techniques across the field. |
 | How Microsoft defends against indirect prompt injection attacks | Microsoft (2025) | Microsoft Security blog | (no arXiv) | — | Microsoft's disclosure of in-product PI defenses. | Vendor disclosure of production PI-defense layering. |
 
-## A4. Latent-space defenses (circuit breakers, refusal direction, representation engineering)
+## C4. Latent-space defenses (circuit breakers, refusal direction, representation engineering)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -46,7 +46,7 @@ This file collects primary sources on defenses against prompt-injection and jail
 | Refusal in Language Models Is Mediated by a Single Direction | Arditi et al. (2024) | arXiv preprint | arXiv:2406.11717 | — | Identifies a single linear direction mediating refusal in aligned LLMs. | Mechanistic finding: refusal is mediated by a one-dimensional subspace. |
 | Representation Engineering for Large-Language Models: Survey and Research Challenges | Zou et al. (2025) | arXiv preprint | arXiv:2502.17601 | — | Survey of representation-engineering methods for LLM alignment and robustness. | Provides field-level taxonomy of representation-engineering interventions. |
 
-## A5. Alignment-as-defense (Constitutional AI, RAIN, robust alignment, shallow-deep safety)
+## C5. Alignment-as-defense (Constitutional AI, RAIN, robust alignment, shallow-deep safety)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|

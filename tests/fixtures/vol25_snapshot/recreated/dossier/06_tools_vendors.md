@@ -2,7 +2,7 @@
 
 This file collects primary sources on open-source tools, commercial vendors, eval-SaaS platforms, and red-team toolkit repos relevant to prompt-injection security. Per `templates/dossier_table.template.md` § "Non-paper variants", entries here use a non-paper schema (column 2 = "Maintainer / vendor") because they are tools and platforms rather than papers.
 
-## A1. Open-source toolkits and red-team frameworks
+## F1. Open-source toolkits and red-team frameworks
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -23,7 +23,7 @@ This file collects primary sources on open-source tools, commercial vendors, eva
 | PurpleLlama: Set of tools to assess and improve LLM security | Meta (2024) | GitHub repo | (no arXiv) | meta-llama/PurpleLlama | Meta's umbrella project for LLM security tools (CyberSec eval, PromptGuard, LlamaGuard). | Meta's bundled security tooling stack for Llama-family models. |
 | Announcing the Adaptive Prompt Injection Challenge LLMail-Inject | Microsoft (2024) | Microsoft Security blog | (no arXiv) | — | Microsoft's announcement of the LLMail-Inject adaptive PI challenge. | Industry-run adaptive PI challenge with public participation. |
 
-## A2. Commercial vendors and platforms
+## F2. Commercial vendors and platforms
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|

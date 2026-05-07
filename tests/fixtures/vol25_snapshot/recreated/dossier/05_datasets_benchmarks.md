@@ -2,7 +2,7 @@
 
 This file collects primary sources on adversarial-prompt evaluation: standardized attack benchmarks, leaderboards, CTF / red-team programs, trustworthiness benchmarks, and dataset releases. Hosted models that double as eval baselines are included where appropriate.
 
-## A1. Attack benchmarks (HarmBench, JailbreakBench, AdvBench, StrongREJECT)
+## E1. Attack benchmarks (HarmBench, JailbreakBench, AdvBench, StrongREJECT)
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -15,7 +15,7 @@ This file collects primary sources on adversarial-prompt evaluation: standardize
 | TrustAIRLab/in-the-wild-jailbreak-prompts | TrustAIRLab (2024) | HF dataset card | (no arXiv) | TrustAIRLab/in-the-wild-jailbreak-prompts | HF dataset of in-the-wild jailbreak prompts. | Field-collected jailbreak prompts for evaluation. |
 | JailbreakV-28K/JailBreakV-28k | JailbreakV-28K (2024) | HF dataset card | (no arXiv) | JailbreakV-28K/JailBreakV-28k | HF dataset for the JailBreakV-28K multimodal jailbreak benchmark. | Hosted release of JailBreakV-28K multimodal benchmark. |
 
-## A2. Trustworthiness and surveys
+## E2. Trustworthiness and surveys
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
@@ -23,7 +23,7 @@ This file collects primary sources on adversarial-prompt evaluation: standardize
 | TrustLLM: Trustworthiness in Large Language Models | Huang et al. (2024) | arXiv preprint | arXiv:2401.05561 | — | Comprehensive multi-dimensional trustworthiness benchmark for LLMs. | Field-level reference benchmark for LLM trustworthiness. |
 | Jailbreak Attacks and Defenses Against Large Language Models: A Survey | Yi et al. (2024) | arXiv preprint | arXiv:2407.04295 | — | Survey of jailbreak attacks and defenses for LLMs. | Synthesizes the jailbreak attack/defense literature. |
 
-## A3. CTFs, red-team programs, agent benchmarks
+## E3. CTFs, red-team programs, agent benchmarks
 
 | Title | Authors (year) | Venue | arXiv/DOI | GitHub | One-line description | Key contribution |
 |-------|----------------|-------|-----------|--------|----------------------|------------------|
