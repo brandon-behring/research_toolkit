@@ -1,0 +1,20 @@
+# PDF cache metadata template
+# Maintained by /research-gather (optional — only when caching PDFs).
+# Top-level keys are arxiv IDs (or other source IDs). Each entry records
+# the resolved metadata of the cached PDF for fast re-lookup.
+
+arxiv:2401.12345:
+  authors:
+  - First Author
+  - Second Author
+  source: arxiv
+  title: Example Paper Title
+  url: https://arxiv.org/abs/2401.12345
+  year: '2024'
+arxiv:2503.67890:
+  authors:
+  - Solo Author
+  source: arxiv
+  title: 'Another Example: Different Domain'
+  url: https://arxiv.org/abs/2503.67890
+  year: '2025'
