@@ -1,0 +1,197 @@
+# Structured BURN_IN log — companion to BURN_IN_NOTES.md prose.
+#
+# This is the queryable index. BURN_IN_NOTES.md remains the authoritative
+# narrative; this file makes it grep-able and dashboard-able. New entries
+# get added here (and in BURN_IN_NOTES.md) when dogfood runs surface
+# friction.
+#
+# Schema per entry:
+#   id               (str, unique) — stable identifier; convention: <phase><stage>-<n>
+#                                    (e.g., "5b-3.1" = Phase 5b, Stage 3, item 1)
+#   phase            (str) — phase 3.5 / 5a / 5b / 5c / cross-cutting
+#   stage            (str) — research-plan / research-gather / dossier-build /
+#                            agent-index / dossier-audit / url-freshness-check /
+#                            multi-stage / N/A
+#   finding          (str, one-liner) — what was observed
+#   severity         (str, enum) — high / medium / low
+#                                  high = data-loss / silent-fail risk
+#                                  medium = workflow friction
+#                                  low = polish / cosmetic
+#   status           (str, enum) — surfaced / applied / deferred / wontfix
+#                                  surfaced = observed, not acted on
+#                                  applied = fix shipped (must have fix_version)
+#                                  deferred = ack'd, in backlog
+#                                  wontfix = out of v1.x scope
+#   fix_version      (str, optional) — version that addressed this; required when status=applied
+#   fix_commit       (str, optional) — commit hash; required when status=applied
+#   notes            (str, optional) — additional context
+#
+# Query helper: scripts/burn_in_query.py for filtering by status / severity / phase.
+#
+# Generated 2026-05-07; backfilled from BURN_IN_NOTES.md narrative entries.
+
+entries:
+
+# ---------------------------------------------------------------------------
+# Phase 3.5 — vol25 full-mode recreation
+# ---------------------------------------------------------------------------
+
+- id: 3.5-2.1
+  phase: phase-3.5
+  stage: research-gather
+  finding: 'Crescendo first-author misattribution (mehrotra → russinovich) caught + corrected during run'
+  severity: low
+  status: applied
+  fix_version: v1.0
+  notes: 'positive case for WebFetch-verify-landmarks step'
+
+- id: 3.5-2.2
+  phase: phase-3.5
+  stage: research-gather
+  finding: 'bib_ledger schema too minimal for /dossier-build (no authors/venue/code_url fields)'
+  severity: high
+  status: applied
+  fix_version: v1.1
+  fix_commit: '0f5a2d8'
+  notes: 'v1.1 added optional authors/venue/code_url fields; v1.3 backfilled vol26/27/28'
+
+- id: 3.5-3.1
+  phase: phase-3.5
+  stage: dossier-build
+  finding: 'validator column-5 prefix list (GitHub/HF/Code/Repo) fights non-paper tables'
+  severity: low
+  status: deferred
+  notes: 'workaround documented; consider widening prefix list in future'
+
+- id: 3.5-3.2
+  phase: phase-3.5
+  stage: dossier-build
+  finding: 'bibkey-heuristic Authors rendering breaks on multi-word surnames + corporate authors'
+  severity: medium
+  status: applied
+  fix_version: v1.1
+  fix_commit: '0f5a2d8'
+  notes: 'v1.1 added authors as optional bib_ledger field; backfill in v1.3 populates from dossier'
+
+# ---------------------------------------------------------------------------
+# Phase 5a — vol26 LLM eval methodology (v1.0 GATE)
+# ---------------------------------------------------------------------------
+
+- id: 5a-2.1
+  phase: phase-5a
+  stage: research-gather
+  finding: 'Subagent caught 3 of 15 landmark misattributions during WebFetch verification'
+  severity: low
+  status: applied
+  fix_version: v1.0
+  notes: 'positive case; design working as intended'
+
+- id: 5a-6.1
+  phase: phase-5a
+  stage: url-freshness-check
+  finding: 'macOS grep negative char-class regex returns 0 URLs silently'
+  severity: high
+  status: applied
+  fix_version: v1.1
+  fix_commit: '0f5a2d8'
+  notes: 'replaced with positive char-class; documented in skill body'
+
+# ---------------------------------------------------------------------------
+# Phase 5b — vol27 PEFT
+# ---------------------------------------------------------------------------
+
+- id: 5b-3.1
+  phase: phase-5b
+  stage: dossier-build
+  finding: 'dossier-build subagent guessed 7/117 GitHub URLs that 404d'
+  severity: high
+  status: applied
+  fix_version: v1.1
+  fix_commit: '0f5a2d8'
+  notes: 'codified dash-default rule in dossier-build + agent-index skills; HIGH PRIORITY because reproduced 2x'
+
+- id: 5b-2.3
+  phase: phase-5b
+  stage: research-gather
+  finding: 'year-of-record ambiguity for arXiv-vs-venue split (e.g., aghajanyan2020 vs ICLR 2021)'
+  severity: low
+  status: deferred
+  notes: 'minor; one-line guidance in /research-gather skill could help'
+
+# ---------------------------------------------------------------------------
+# Phase 5c — vol28 calibration & uncertainty
+# ---------------------------------------------------------------------------
+
+- id: 5c-2.1
+  phase: phase-5c
+  stage: research-gather
+  finding: 'Stage 2 subagent skipped per-entry WebFetch + bulk-marked 88 entries verified from memory'
+  severity: high
+  status: applied
+  fix_version: v1.1+v1.2
+  fix_commit: '183e600'
+  notes: 'v1.1 codified strict unverified→verified promotion rule; v1.2 added anti-cheat heuristic warning at ≥50 entries + 100% verified'
+
+- id: 5c-2.2
+  phase: phase-5c
+  stage: research-gather
+  finding: 'Stage 2 subagent self-counting drift (reported 73, file had 88)'
+  severity: medium
+  status: applied
+  fix_version: v1.1
+  fix_commit: '0f5a2d8'
+  notes: 'v1.1 added count-assertion to research-gather skill body'
+
+- id: 5c-5.2
+  phase: phase-5c
+  stage: dossier-audit
+  finding: 'Display-title drift: 2 of 3 audit corrections were nickname → actual title fixes'
+  severity: medium
+  status: applied
+  fix_version: v1.1
+  fix_commit: '0f5a2d8'
+  notes: 'v1.1 added display-title-verbatim rule to dossier-build + agent-index skills + audit_protocol'
+
+- id: 5c-6.1
+  phase: phase-5c
+  stage: url-freshness-check
+  finding: 'Subagent timeout on 137 URLs; inline curl bulk-check is much faster'
+  severity: medium
+  status: applied
+  fix_version: v1.1
+  fix_commit: '0f5a2d8'
+  notes: 'v1.1 added "if N≥50 use inline curl" branch to url-freshness-check skill'
+
+# ---------------------------------------------------------------------------
+# Cross-cutting (validator + workflow)
+# ---------------------------------------------------------------------------
+
+- id: cross-1
+  phase: cross-cutting
+  stage: N/A
+  finding: 'validators cannot be run standalone (`python validators/x.py`) without venv'
+  severity: medium
+  status: applied
+  fix_version: v1.1
+  fix_commit: '0f5a2d8'
+  notes: 'added if __package__ in (None, "") path-injection at top of each validator'
+
+- id: cross-2
+  phase: cross-cutting
+  stage: N/A
+  finding: 'no cross-stage consistency check between bib_ledger / dossier / agent_index'
+  severity: high
+  status: applied
+  fix_version: v1.2
+  fix_commit: '183e600'
+  notes: 'v1.2 introduced validators/cross_stage.py with claim_family-vs-taxonomy hard check + orphan/stale soft warnings'
+
+- id: cross-3
+  phase: cross-cutting
+  stage: N/A
+  finding: 'no E2E test harness — validator chain only tested per-stage'
+  severity: medium
+  status: applied
+  fix_version: v1.4
+  fix_commit: '2325684'
+  notes: 'v1.4 added tests/test_pipeline_e2e.py with 9 cases covering chain + idempotency + regression detection'

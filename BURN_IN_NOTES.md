@@ -633,6 +633,38 @@ A "real" E2E would mock WebSearch+WebFetch + drive Claude Code agents through th
 
 ---
 
+## v1.5 — applied 2026-05-07
+
+**Theme:** ops + ergonomics — lower the cliff for future-you / future Claude Code agents reading the repo cold; make BURN_IN queryable; track reliability metrics across runs for vol29+.
+
+**Items shipped (all 3):**
+
+- **B7 docs** — `docs/getting_started.md` (118 lines) + `docs/troubleshooting.md` (177 lines). Tight, audience-appropriate for "future-self + future agents reading the repo cold" per the user's audience choice in the roadmap. Getting-started covers install, 5-minute end-to-end run, validating in progress, where-things-live. Troubleshooting covers the 7 most-recurring failure modes from BURN_IN with symptom→cause→fix structure (URL extraction silent fail, validator import error, GitHub URL 404 cluster, memory-verification warning, claim_family taxonomy mismatch, subagent count drift, the 2 xfailed baselines).
+
+- **C8 structured BURN_IN log** — `burn_in.yml` (16 entries) is the queryable companion to `BURN_IN_NOTES.md` prose. Schema: `{id, phase, stage, finding, severity, status, fix_version?, fix_commit?, notes?}`. Backfilled all v1.0/v1.1/v1.2/v1.3/v1.4 findings from BURN_IN_NOTES.md narrative entries.
+  - `scripts/burn_in_query.py` — filter by status/severity/phase/stage/fix_version with table/yaml/ids output formats.
+  - As of v1.5: 5 high-severity items, all `applied`. 0 unresolved high-severity. Rest are 4 medium + 7 low (mostly `applied` or `deferred`).
+
+- **C9 dogfood metrics CSV** — `evals/dogfood_metrics.csv` with 4 backfilled rows (vol25_recreated baseline, vol26 v1.0 gate, vol27 v1.1, vol28 v1.1). Columns: date, vol, total_entries, total_urls, hard_404_count, attribution_corrections_in_audit, toolkit_version, notes. Future runs (vol29+) append a row each. Trend visible after 2-3 future runs.
+
+**Tests (NEW: tests/test_v1_5_artifacts.py, 12 cases):**
+- B7: getting_started + troubleshooting exist with reasonable size; getting_started mentions all 6 skills; troubleshooting covers 5 known failure topics (4 cases)
+- C8: burn_in.yml parses; entries well-formed (id uniqueness, required fields, severity/status enums, fix_version when applied); query script runs; all 3 output formats produce non-empty output; high-severity items all resolved (5 cases)
+- C9: dogfood_metrics.csv parses with required columns; dates in YYYY-MM-DD; includes vol26+vol27+vol28 baselines (3 cases)
+
+**Verification:**
+- `make test`: **97 passed + 2 xfailed** (up from v1.4's 85 + 2; up from v1.0's pre-v1.1 48 baseline by 2x).
+- 0 unresolved high-severity BURN_IN items (`burn_in_query.py --severity high --status surfaced` returns empty).
+- vol25/recreated, vol26, vol27, vol28 all logged in metrics CSV; vol29+ slot ready.
+
+**Out-of-v1.5 scope (truly deferred — out of v1.x charter):**
+- Re-running vol25 recreation under v1.1+v1.2+v1.3 skills to close the 2 xfailed baselines (a dogfood task, not a tooling task).
+- Skill-body execution mocking + Claude Code SDK integration for true E2E (separate plan if it ever happens).
+- New skills (`/dossier-export`, `/dossier-merge`, `/dossier-diff`) — explicit "out of v1.x" per the roadmap.
+- Pydantic / config-framework / packaging changes — out of CLAUDE.md scope.
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")
