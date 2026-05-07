@@ -396,7 +396,93 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ## Phase 5c: vol28 calibration & uncertainty (post-v1.0)
 
-(populated during dogfood)
+**Date:** 2026-05-07
+**Output:** `~/interview_prep_series/docs/research/vol28_calibration/` (8 files, 88 entries)
+**Topic:** calibration methods, calibration metrics, conformal prediction, UQ, OOD detection, LLM-specific calibration
+
+### Stage 2: /research-gather
+
+**1. Stage 2 subagent skipped per-entry WebFetch verification (status: HIGH PRIORITY for v1.1)**
+- The subagent populated 88 entries but explicitly reported it did NOT WebFetch each one due to time-budget pressure (~45-60 min for 88 fetches at ~30s each = budget overrun). It marked all entries `verified` based on memory of the literature, then flagged the trade-off honestly in its final report.
+- **Why it matters:** "Verified" status is supposed to mean "WebFetch-confirmed first-author + year + title." When status drift to "high-confidence-from-memory" it loses its meaning. Stage 5 audit caught 1 substantive misattribution (Yin → Zhang at arXiv:2305.18153) that per-entry WebFetch would have caught earlier.
+- **Action for v1.1:** Either (a) loosen `/research-gather` skill to default to `unverified`, with `verified` only for entries that pass per-entry WebFetch; or (b) explicitly time-budget the gather skill ("expect ~30s per entry; if time-pressed, prefer fewer-but-verified to more-but-memory"); or (c) add a "fast verification" path (just check the arXiv ID resolves to non-404, even without title-matching). All three address the false-positive `verified` risk.
+
+**2. Subagent self-counting drift (73 vs 88) (status: surfaced — minor)**
+- Stage 2 subagent's top-line said "73 entries" but its own per-claim_family breakdown summed to 88. The actual file had 88. The Stage 3 subagent caught the discrepancy and rendered all 88.
+- **Why it matters:** Subagent self-reports can be inconsistent with their own work. For decisions that depend on total counts (BURN_IN reporting, downstream pipeline guards), prefer a programmatic count from the validator output rather than the subagent's narrative.
+- **Action:** In v1.1, add a count-check assertion to `/research-gather` skill: "your final report's total entry count must match the YAML file's actual count; mismatch → re-count before reporting."
+
+**3. Pre-2010 classical papers without arXiv (status: confirmed pattern, no action)**
+- 8 entries (Brier 1950, DeGroot 1983, Platt 1999, Zadrozny 2001/2002, Niculescu-Mizil 2005, Vovk 2005, Papadopoulos 2002) used non-arXiv URLs (DOI, JSTOR, AMS journal, Springer). The validator accepted these because the URL is intrinsically venue-stable.
+- **Why it matters:** Confirms the validator's URL-or-bibkey check is permissive enough for older work without arXiv preprints.
+
+### Stage 3: /dossier-build
+
+**1. Six-file layout exercises letter-prefix anchors A-F (status: clean)**
+- vol28's 6 dossier files use anchors A1-A4, B1-B3, C1-C4, D1-D4, E1-E3, F1. No collisions. Confirms the per-file letter-prefix convention scales beyond vol27's A-E.
+
+**2. dossier-build subagent held the GitHub-`—` line (status: applied — vol27 BURN_IN finding propagated)**
+- Stage 3 subagent explicitly refused to guess `<author>/<paper-slug>` GitHub patterns for repos it didn't directly know, marking `—` for ~28 entries instead. This is the v1.0/v1.1-tracked behavior change from vol27 Stage 6 finding (Phase 5b §1).
+- **Why it matters:** Confirms the BURN_IN finding from vol27 was actionable in-prompt — feeding the rule into the subagent's prompt was sufficient to change behavior. v1.1 PR can codify this in the skill body.
+
+### Stage 4: /agent-index
+
+**1. 88 entries scaled cleanly to dual-audience format (status: clean)**
+- README has 32 lookup recipes + 36 glossary terms — slightly larger than vol27's 32+30 because vol28 covers 6 sub-areas vs vol27's 5. No schema strain.
+
+### Stage 5: /dossier-audit (round 1)
+
+**1. arXiv-ID spot-check protocol added (status: applied)**
+- Audit subagent ran 10 random arXiv-ID checks (in addition to focus-area attribution checks). Result: 10/10 PASSED — no transposition errors slipped past Stage 2's memory-based "verified" marking. While the sample is small, it suggests memory-based arXiv-ID recall is reliable for foundational calibration / OOD literature (Guo, Lakshminarayanan, Hendrycks, Lee, Lin, Lei, Blundell, Kull, Angelopoulos, Ming).
+- **Why it matters:** Partly tempers the Stage 2 §1 concern. The remaining failure mode is on more obscure / newer LLM-era papers (where Stage 5 caught the Yin→Zhang error). Recommendation: in v1.1, the Stage 5 audit should default to a 10-entry random arXiv-ID spot-check whenever Stage 2 reports "memory-based verification."
+
+**2. Display-title drift (status: surfaced — minor)**
+- 2 of 3 corrections were practitioner-nickname display titles vs paper-actual titles ("Verbalized Confidence" vs "Teaching Models to Express Their Uncertainty in Words"; "LMs Mostly Know" vs "Language Models (Mostly) Know What They Know"). Stage 3+4 substituted memorable nicknames; audit flagged.
+- **Action for v1.1:** Add a synthesis-time rule to `/dossier-build` skill: "display title = arXiv title verbatim; do not abbreviate."
+
+### Stage 6: /url-freshness-check
+
+**1. vol27's GitHub-guess BURN_IN finding reproduced (status: confirmed — HIGH PRIORITY for v1.1)**
+- 3 hard-404 GitHub URLs guessed despite the v1.0 dossier-build subagent doing the right thing for ~28 cases. Two of three (Ashukha 2020 `bayesgroup/pytorch-ensembles`, Xiong 2024 `MiaoXiong2333/UQ-NLG`) are slug-guesses; one (Brier 1950 Source) was a DOI URL with `<>` characters that broke URL parsers.
+- **Why it matters:** Confirms vol27 finding for the second time across two domains. The dossier/agent-index pipeline produces ~3% hard-404 rate on guessed GitHub URLs (3/137 vol28; 7/117 vol27). v1.1 needs to codify "no `<author>/<paper-slug>` guesses, mark `—`."
+- **Action for v1.1**: Codify the dash-default rule in `/dossier-build` and `/agent-index` skill bodies as a hard rule, not a suggestion.
+
+**2. ResearchGate / ACM / JSTOR consistent bot-block (status: noted, no action)**
+- 3 of 137 URLs return 403 to curl-style requests but are valid in browsers (researchgate.net, doi.org/10.1145, doi.org/10.1198). For citation purposes these are stable; for click-through readers may need browser access. Existing allowlist already covers this pattern.
+
+**3. Old DOI URLs with `<` `>` characters break URL parsers (status: applied — minor BURN_IN)**
+- Brier 1950's full DOI form `10.1175/1520-0493(1950)078<0001:VOFEIT>2.0.CO;2` contains URL-unsafe characters. Replaced with the AMS / ADS abstract URL. Future runs should percent-encode such DOIs or use alternate stable URLs.
+
+### Phase 5c summary table
+
+| Metric | Value |
+|---|---|
+| Date | 2026-05-07 |
+| Stages run | 6 (research-plan inline + research-gather + dossier-build + agent-index + dossier-audit + url-freshness-check) |
+| Validators passing | 6 of 6 |
+| Total entries | 88 |
+| Total `**Source:**` lines in synthesis | 88 |
+| Lookup recipes in README | 32 |
+| Glossary terms | 36 |
+| Landmark-paper corrections caught | 0 of 17 (all 17 known landmarks resolved cleanly) |
+| Audit corrections | 3 (Yin→Zhang misattribution; Lin/Kadavath display-title fixes) + 0 FLAGS |
+| arXiv-ID spot-checks | 10/10 PASSED |
+| URL fixes | 3 hard-404s (Brier DOI URL-unsafe; 2 GitHub-slug guesses — same pattern as vol27) |
+| Friction items added to BURN_IN | 9 (Phase 5c §§ 1-9 across stages) |
+| `make test` regression | 18 pass + 2 fail (vol25 recreation_diff baseline unchanged; identical to v1.0 + vol27 baselines) |
+| New material tweaks applied to skills | 0 (highest-priority findings consolidated for v1.1 PR) |
+| **v1.2 tag bump** | **NO** — findings recorded; consolidated v1.1 PR (post-vol27+vol28) is the right next step. |
+
+### Cross-vol findings consolidated for v1.1
+
+The vol27 + vol28 dogfood runs surfaced four reproducible v1.1 design items:
+
+1. **GitHub-URL guessing** (vol27 §3.1, vol28 §6.1) — codify dash-default rule in `/dossier-build` + `/agent-index` skill bodies. **Highest priority.**
+2. **Stage 2 verification protocol** (vol28 §2.1) — either default-`unverified` or explicit time-budget guidance, to prevent memory-based "verified" inflation.
+3. **Stage 5 default audit protocol** (vol28 §5.1) — make 10-entry random arXiv-ID spot-check the default whenever Stage 2 reports memory-based work.
+4. **Display-title preservation** (vol28 §5.2) — synthesis-time rule: display title = arXiv title verbatim.
+
+These four items represent the post-v1.0 design backlog. A consolidated v1.1 PR addressing #1-#4 plus the existing v1.0 backlog (URL-extraction regex, bibkey-heuristic Authors gap, per-file letter-prefix in templates) is the right next-cycle artifact.
 
 ---
 
