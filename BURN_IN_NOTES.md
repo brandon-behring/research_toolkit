@@ -606,6 +606,33 @@ The medium fixture is a calibration subset that intentionally includes pre-2010 
 
 ---
 
+## v1.4 — applied 2026-05-07
+
+**Theme:** pipeline test surface — catch contract drift between stages without per-stage CI boilerplate.
+
+**Item shipped:**
+
+- **B5 end-to-end pipeline smoke test** — `tests/test_pipeline_e2e.py` (NEW, 9 cases). The 6 skills are markdown prompts run by Claude Code agents, not Python functions, so we can't mock-drive them. What this DOES test:
+  1. **Sequential validator chain** — every validator (research_plan + bib_ledger + dossier + agent_index + audit_trail + cross_stage) passes against the medium fixture, run in pipeline order. Catches contract drift if stage N's output schema changes in a way stage N+1's validator can't handle (1 case + 1 strict-mode case).
+  2. **Helper-script idempotency** — `scripts/backfill_ledger.py` re-running on an already-backfilled medium fixture produces zero diff (1 case). `scripts/build_medium_fixture.py` is at least syntactically valid + the fixture has the files the script promises (1 case).
+  3. **Deliberate-regression detection** — mutating the fixture in 3 specific ways (orphan arxiv ID in dossier, unknown claim_family in ledger, /pdf/ URL form) is caught loudly (3 cases).
+  4. **Cross-fixture sanity** — mini and medium have different entry counts; both validate cleanly. Catches "every fixture passes for the wrong reason" (1 case).
+  5. **URL-check report sanity** — well-formed report passes (1 case).
+
+**Verification:**
+- `make test`: **85 passed + 2 xfailed** (up from v1.3's 76 + 2)
+- E2E test runs in <1s (9 cases × <0.1s each); cheap enough to gate every PR.
+
+**Why this is "honest E2E" not "full pipeline":**
+A "real" E2E would mock WebSearch+WebFetch + drive Claude Code agents through the 6 stages, comparing outputs to baked expectations. That requires the Claude Code SDK + a deterministic LLM (or response cache) + a multi-process harness. None of those are appropriate for a v1.x toolkit hardening PR. The v1.4 scope is the part of E2E we can test honestly: validator-chain consistency + helper-script stability + regression detection. Documented as a deliberate scope choice in `tests/test_pipeline_e2e.py` docstring.
+
+**Out-of-v1.4 scope (deferred to v1.5+):**
+- Skill-body execution mocking (would require Claude Code SDK integration; large infrastructure investment).
+- Network-dependent tests (intentionally avoided; v1.4 is offline-only).
+- Documentation + structured BURN_IN + dogfood metrics CSV (v1.5 final scope).
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")
