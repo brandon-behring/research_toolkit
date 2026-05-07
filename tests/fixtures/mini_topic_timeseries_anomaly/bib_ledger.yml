@@ -1,0 +1,25 @@
+# Time-series anomaly detection benchmarks — bibliography ledger
+# Mini fixture for research_toolkit. Hand-curated to cover all 4 claim_family values
+# declared in research_plan.md.
+
+entries:
+- bibkey: ahmad2017nab
+  primary_url: https://arxiv.org/abs/1610.07677
+  title: 'Unsupervised real-time anomaly detection for streaming data'
+  status: verified
+  claim_family: benchmark
+- bibkey: hundman2018detecting
+  primary_url: https://arxiv.org/abs/1802.04431
+  title: 'Detecting Spacecraft Anomalies Using LSTMs and Nonparametric Dynamic Thresholding'
+  status: verified
+  claim_family: dataset
+- bibkey: lai2021tods
+  primary_url: https://arxiv.org/abs/2009.09822
+  title: 'TODS: An Automated Time Series Outlier Detection System'
+  status: verified
+  claim_family: toolkit
+- bibkey: schmidl2022anomaly
+  primary_url: https://arxiv.org/abs/2206.14948
+  title: 'Anomaly Detection in Time Series: A Comprehensive Evaluation'
+  status: verified
+  claim_family: survey

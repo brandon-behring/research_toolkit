@@ -1,0 +1,692 @@
+# Vol 25 Prompt Injection bibliography ledger
+# Generated 2026-05-05 from vol25_prompt_injection/references.bib
+# Maps every cited bibkey to its primary URL, claim family, and dossier crosswalk.
+# Status: unverified = bibkey resolves locally; verified = title/authors/year cross-checked
+# against primary source; mismatched = audit found a discrepancy.
+
+entries:
+- bibkey: perez2022ignore
+  primary_url: https://arxiv.org/abs/2211.09527
+  title: 'Ignore Previous Prompt: Attack Techniques For Language Models'
+  status: unverified
+  claim_family: other
+- bibkey: wei2023jailbroken
+  primary_url: https://arxiv.org/abs/2307.02483
+  title: 'Jailbroken: How Does LLM'
+  status: unverified
+  claim_family: other
+- bibkey: shen2023doanythingnow
+  primary_url: https://arxiv.org/abs/2308.03825
+  title: '``Do Anything Now'''': Characterizing and Evaluating In-The-Wild Jailbreak Prompts on Large Language Models'
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: schulhoff2023hackaprompt
+  primary_url: https://arxiv.org/abs/2311.16119
+  title: Ignore This Title and HackAPrompt
+  status: unverified
+  claim_family: evaluation
+- bibkey: zou2023universal
+  primary_url: https://arxiv.org/abs/2307.15043
+  title: Universal and Transferable Adversarial Attacks on Aligned Language Models
+  status: unverified
+  claim_family: other
+- bibkey: liu2024autodan
+  primary_url: https://arxiv.org/abs/2310.04451
+  title: AutoDAN
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: chao2023jailbreaking
+  primary_url: https://arxiv.org/abs/2310.08419
+  title: Jailbreaking Black Box Large Language Models in Twenty Queries
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: russinovich2024crescendo
+  primary_url: https://arxiv.org/abs/2404.01833
+  title: 'Great, Now Write an Article About That: The Crescendo'
+  status: unverified
+  claim_family: attack_black_box
+- bibkey: anil2024manyshot
+  primary_url: https://www.anthropic.com/research/many-shot-jailbreaking
+  title: Many-shot Jailbreaking
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: andriushchenko2024adaptive
+  primary_url: https://arxiv.org/abs/2404.02151
+  title: Jailbreaking Leading Safety-Aligned LLMs
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: yong2023lowresource
+  primary_url: https://arxiv.org/abs/2310.02446
+  title: Low-Resource Languages Jailbreak GPT-4
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: yuan2023cipherchat
+  primary_url: https://arxiv.org/abs/2308.06463
+  title: GPT-4
+  status: unverified
+  claim_family: other
+- bibkey: jiang2024artprompt
+  primary_url: https://arxiv.org/abs/2402.11753
+  title: ArtPrompt
+  status: unverified
+  claim_family: other
+- bibkey: liu2024flipattack
+  primary_url: https://arxiv.org/abs/2410.02832
+  title: FlipAttack
+  status: unverified
+  claim_family: other
+- bibkey: huang2024bijection
+  primary_url: https://arxiv.org/abs/2410.01294
+  title: Endless Jailbreaks with Bijection Learning
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: hughes2024bestofn
+  primary_url: https://arxiv.org/abs/2412.03556
+  title: Best-of-N
+  status: unverified
+  claim_family: other
+- bibkey: zeng2024persuasive
+  primary_url: https://arxiv.org/abs/2401.06373
+  title: How Johnny Can Persuade LLMs
+  status: unverified
+  claim_family: other
+- bibkey: li2023deepinception
+  primary_url: https://arxiv.org/abs/2311.03191
+  title: DeepInception
+  status: unverified
+  claim_family: other
+- bibkey: deng2023multilingual
+  primary_url: https://arxiv.org/abs/2310.06474
+  title: Multilingual Jailbreak Challenges in Large Language Models
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: bartolo2025poetry
+  primary_url: https://arxiv.org/abs/2511.15304
+  title: Adversarial Poetry as a Universal Single-Turn Jailbreak
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: ding2024renellm
+  primary_url: https://arxiv.org/abs/2311.08268
+  title: 'A Wolf in Sheep''s Clothing: Generalized Nested Jailbreak Prompts can Fool LLMs'
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: zeng2024shieldgemma
+  primary_url: https://arxiv.org/abs/2407.21772
+  title: ShieldGemma
+  status: unverified
+  claim_family: defense_detection
+- bibkey: jones2023arca
+  primary_url: https://arxiv.org/abs/2303.04381
+  title: Automatically Auditing Large Language Models via Discrete Optimization
+  status: unverified
+  claim_family: other
+- bibkey: yu2024cold
+  primary_url: https://arxiv.org/abs/2402.08679
+  title: COLD
+  status: unverified
+  claim_family: attack_white_box
+- bibkey: sadasivan2024beast
+  primary_url: https://arxiv.org/abs/2402.15570
+  title: Fast Adversarial Attacks on Language Models in One GPU
+  status: unverified
+  claim_family: attack_white_box
+- bibkey: liao2024amplegcg
+  primary_url: https://arxiv.org/abs/2404.07921
+  title: AmpleGCG
+  status: unverified
+  claim_family: attack_white_box
+- bibkey: jia2024igcg
+  primary_url: https://arxiv.org/abs/2405.21018
+  title: Improved Techniques for Optimization-Based Jailbreaking on Large Language Models
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: zhao2024probesampling
+  primary_url: https://arxiv.org/abs/2403.01251
+  title: Accelerating Greedy Coordinate Gradient and General Prompt Optimization via Probe Sampling
+  status: unverified
+  claim_family: attack_white_box
+- bibkey: liu2024autodanturbo
+  primary_url: https://arxiv.org/abs/2410.05295
+  title: AutoDAN
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: paulus2024advprompter
+  primary_url: https://arxiv.org/abs/2404.16873
+  title: AdvPrompter
+  status: unverified
+  claim_family: attack_white_box
+- bibkey: schwinn2024soft
+  primary_url: https://arxiv.org/abs/2402.09063
+  title: 'Soft Prompt Threats: Attacking Safety Alignment and Unlearning in Open-Source LLMs'
+  status: unverified
+  claim_family: defense_latent_space
+- bibkey: li2024drattack
+  primary_url: https://arxiv.org/abs/2402.16914
+  title: DrAttack
+  status: unverified
+  claim_family: other
+- bibkey: jain2023baseline
+  primary_url: https://arxiv.org/abs/2309.00614
+  title: Baseline Defenses for Adversarial Attacks Against Aligned Language Models
+  status: unverified
+  claim_family: other
+- bibkey: mehrotra2023tap
+  primary_url: https://arxiv.org/abs/2312.02119
+  title: 'Tree of Attacks: Jailbreaking Black-Box LLMs'
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: yu2023gptfuzz
+  primary_url: https://arxiv.org/abs/2309.10253
+  title: GPTFUZZER
+  status: unverified
+  claim_family: other
+- bibkey: deng2023masterkey
+  primary_url: https://arxiv.org/abs/2307.08715
+  title: MASTERKEY
+  status: unverified
+  claim_family: other
+- bibkey: samvelyan2024rainbow
+  primary_url: https://arxiv.org/abs/2402.16822
+  title: 'Rainbow Teaming: Open-Ended Generation of Diverse Adversarial Prompts'
+  status: unverified
+  claim_family: other
+- bibkey: kuo2025hcot
+  primary_url: https://arxiv.org/abs/2502.12893
+  title: H-CoT
+  status: unverified
+  claim_family: other
+- bibkey: scaleai2025j2
+  primary_url: https://arxiv.org/abs/2502.09638
+  title: J2
+  status: unverified
+  claim_family: other
+- bibkey: liu2023houyi
+  primary_url: https://arxiv.org/abs/2306.05499
+  title: Prompt Injection attack against LLM
+  status: unverified
+  claim_family: attack_indirect_pi
+- bibkey: toyer2023tensortrust
+  primary_url: https://arxiv.org/abs/2311.01011
+  title: 'Tensor Trust: Interpretable Prompt Injection Attacks from an Online Game'
+  status: unverified
+  claim_family: evaluation
+- bibkey: sabbaghi2025reasoning
+  primary_url: https://arxiv.org/abs/2502.01633
+  title: Adversarial Reasoning at Jailbreaking Time
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: pasquini2024neuralexec
+  primary_url: https://arxiv.org/abs/2403.03792
+  title: 'Neural Exec: Learning (and Learning from) Execution Triggers for Prompt Injection Attacks'
+  status: unverified
+  claim_family: other
+- bibkey: shi2024judgedeceiver
+  primary_url: https://arxiv.org/abs/2403.17710
+  title: Optimization-based Prompt Injection Attack to LLM
+  status: unverified
+  claim_family: evaluation
+- bibkey: zou2024poisonedrag
+  primary_url: https://arxiv.org/abs/2402.07867
+  title: PoisonedRAG
+  status: unverified
+  claim_family: attack_indirect_pi
+- bibkey: microsoft2025echoleak
+  primary_url: https://arxiv.org/abs/2509.10540
+  title: EchoLeak
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: chen2024agentpoison
+  primary_url: https://arxiv.org/abs/2407.12784
+  title: AgentPoison
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: wang2024toolhijacker
+  primary_url: https://arxiv.org/abs/2504.19793
+  title: ToolHijacker
+  status: unverified
+  claim_family: other
+- bibkey: xu2025mcptox
+  primary_url: https://arxiv.org/abs/2508.14925
+  title: MCPTox
+  status: unverified
+  claim_family: other
+- bibkey: willison2023duallm
+  primary_url: https://simonwillison.net/2023/Apr/25/dual-llm-pattern/
+  title: The Dual LLM
+  status: unverified
+  claim_family: other
+- bibkey: abdelnabi2024prompt
+  primary_url: https://arxiv.org/abs/2406.00799
+  title: Are you still on track!? Catching LLM
+  status: unverified
+  claim_family: other
+- bibkey: liu2024formalizing2
+  primary_url: https://arxiv.org/abs/2308.01990
+  title: Prompt Injection Attacks Against LLM
+  status: unverified
+  claim_family: other
+- bibkey: zhan2024injecagent
+  primary_url: https://arxiv.org/abs/2403.02691
+  title: InjecAgent
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: evtimov2025wasp
+  primary_url: https://arxiv.org/abs/2504.18575
+  title: WASP
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: gong2023figstep
+  primary_url: https://arxiv.org/abs/2311.05608
+  title: FigStep
+  status: unverified
+  claim_family: attack_multimodal
+- bibkey: wang2024ideator
+  primary_url: https://arxiv.org/abs/2411.00827
+  title: IDEATOR
+  status: unverified
+  claim_family: other
+- bibkey: bailey2024imagehijacks
+  primary_url: https://arxiv.org/abs/2309.00236
+  title: 'Image Hijacks: Adversarial Images can Control Generative Models at Runtime'
+  status: unverified
+  claim_family: attack_multimodal
+- bibkey: shayegani2023jailbreakinpieces
+  primary_url: https://arxiv.org/abs/2307.14539
+  title: 'Jailbreak in Pieces: Compositional Adversarial Attacks on Multi-Modal Language Models'
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: liu2024mmsafetybench
+  primary_url: https://arxiv.org/abs/2311.17600
+  title: MM-SafetyBench
+  status: unverified
+  claim_family: other
+- bibkey: ying2024audiojailbreak
+  primary_url: https://arxiv.org/abs/2505.14103
+  title: AudioJailbreak
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: cao2024rallm
+  primary_url: https://arxiv.org/abs/2309.14348
+  title: Defending Against Alignment-Breaking Attacks via Robustly Aligned LLM
+  status: unverified
+  claim_family: other
+- bibkey: kumar2024erasecheck
+  primary_url: https://arxiv.org/abs/2309.02705
+  title: Certifying LLM
+  status: unverified
+  claim_family: defense_smoothing
+- bibkey: cao2024defending
+  primary_url: https://arxiv.org/abs/2407.10739
+  title: Defending Against Indirect Prompt Injection Attacks via Knowledge-Augmented Language Models
+  status: unverified
+  claim_family: attack_indirect_pi
+- bibkey: kim2024selfreminder
+  primary_url: ''
+  title: Defending ChatGPT
+  status: unverified
+  claim_family: other
+- bibkey: greshake2023ipi
+  primary_url: https://arxiv.org/abs/2302.12173
+  title: 'Not what you''ve signed up for: Compromising Real-World LLM'
+  status: unverified
+  claim_family: attack_indirect_pi
+- bibkey: liu2024formalizing
+  primary_url: https://arxiv.org/abs/2310.12815
+  title: Formalizing and Benchmarking Prompt Injection Attacks and Defenses
+  status: unverified
+  claim_family: other
+- bibkey: yi2023bipia
+  primary_url: https://arxiv.org/abs/2312.14197
+  title: Benchmarking and Defending Against Indirect Prompt Injection Attacks on Large Language Models
+  status: unverified
+  claim_family: attack_indirect_pi
+- bibkey: debenedetti2024agentdojo
+  primary_url: https://arxiv.org/abs/2406.13352
+  title: AgentDojo
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: andriushchenko2024agentharm
+  primary_url: https://arxiv.org/abs/2410.09024
+  title: AgentHarm
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: qi2024visual
+  primary_url: https://arxiv.org/abs/2306.13213
+  title: Visual Adversarial Examples Jailbreak Aligned Large Language Models
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: robey2023smoothllm
+  primary_url: https://arxiv.org/abs/2310.03684
+  title: SmoothLLM
+  status: unverified
+  claim_family: defense_smoothing
+- bibkey: hines2024spotlighting
+  primary_url: https://arxiv.org/abs/2403.14720
+  title: Defending Against Indirect Prompt Injection Attacks With Spotlighting
+  status: unverified
+  claim_family: attack_indirect_pi
+- bibkey: wallace2024hierarchy
+  primary_url: https://arxiv.org/abs/2404.13208
+  title: 'The Instruction Hierarchy: Training LLMs'
+  status: unverified
+  claim_family: defense_architectural
+- bibkey: chen2025struq
+  primary_url: https://arxiv.org/abs/2402.06363
+  title: StruQ
+  status: unverified
+  claim_family: defense_architectural
+- bibkey: chen2024secalign
+  primary_url: https://arxiv.org/abs/2410.05451
+  title: SecAlign
+  status: unverified
+  claim_family: defense_architectural
+- bibkey: debenedetti2025camel
+  primary_url: https://arxiv.org/abs/2503.18813
+  title: Defeating Prompt Injections by Design
+  status: unverified
+  claim_family: defense_architectural
+- bibkey: zou2024circuit
+  primary_url: https://arxiv.org/abs/2406.04313
+  title: Improving Alignment and Robustness with Circuit Breakers
+  status: unverified
+  claim_family: defense_latent_space
+- bibkey: arditi2024refusal
+  primary_url: https://arxiv.org/abs/2406.11717
+  title: Refusal in Language Models Is Mediated by a Single Direction
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: bai2022constitutional
+  primary_url: https://arxiv.org/abs/2212.08073
+  title: Constitutional AI
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: sharma2025constitutional
+  primary_url: https://arxiv.org/abs/2501.18837
+  title: 'Constitutional Classifiers: Defending Against Universal Jailbreaks Across Thousands of Hours of Red Teaming'
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: inan2023llamaguard
+  primary_url: https://arxiv.org/abs/2312.06674
+  title: Llama Guard
+  status: unverified
+  claim_family: defense_detection
+- bibkey: han2024wildguard
+  primary_url: https://arxiv.org/abs/2406.18495
+  title: WildGuard
+  status: unverified
+  claim_family: defense_detection
+- bibkey: ouyang2022instructgpt
+  primary_url: https://arxiv.org/abs/2203.02155
+  title: Training Language Models to Follow Instructions with Human Feedback
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: rafailov2023dpo
+  primary_url: https://arxiv.org/abs/2305.18290
+  title: 'Direct Preference Optimization: Your Language Model is Secretly a Reward Model'
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: bai2022hh
+  primary_url: https://arxiv.org/abs/2204.05862
+  title: Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback
+  status: unverified
+  claim_family: other
+- bibkey: dai2023saferlhf
+  primary_url: https://arxiv.org/abs/2310.12773
+  title: Safe RLHF
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: ethayarajh2024kto
+  primary_url: https://arxiv.org/abs/2402.01306
+  title: KTO
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: meng2024simpo
+  primary_url: https://arxiv.org/abs/2405.14734
+  title: SimPO
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: azar2024ipo
+  primary_url: https://arxiv.org/abs/2310.12036
+  title: A General Theoretical Paradigm to Understand Learning from Human Preferences
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: hong2024orpo
+  primary_url: https://arxiv.org/abs/2403.07691
+  title: ORPO
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: rottger2024xstest
+  primary_url: https://arxiv.org/abs/2308.01263
+  title: XSTest
+  status: unverified
+  claim_family: other
+- bibkey: shaikh2023sycophancy
+  primary_url: https://arxiv.org/abs/2310.13548
+  title: Towards Understanding Sycophancy in Language Models
+  status: unverified
+  claim_family: other
+- bibkey: zou2023repe
+  primary_url: https://arxiv.org/abs/2310.01405
+  title: 'Representation Engineering: A Top-Down Approach to AI'
+  status: unverified
+  claim_family: defense_latent_space
+- bibkey: li2024wmdp
+  primary_url: https://arxiv.org/abs/2403.03218
+  title: The WMDP
+  status: unverified
+  claim_family: defense_latent_space
+- bibkey: templeton2024scaling
+  primary_url: https://transformer-circuits.pub/2024/scaling-monosemanticity/
+  title: 'Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet'
+  status: unverified
+  claim_family: defense_latent_space
+- bibkey: cunningham2023sae
+  primary_url: https://arxiv.org/abs/2309.08600
+  title: Sparse Autoencoders Find Highly Interpretable Features in Language Models
+  status: unverified
+  claim_family: defense_latent_space
+- bibkey: thompson2024robustness
+  primary_url: https://arxiv.org/abs/2407.15902
+  title: Revisiting the Robust Alignment of Circuit Breakers
+  status: unverified
+  claim_family: defense_latent_space
+- bibkey: hu2024remove
+  primary_url: https://arxiv.org/abs/2311.05553
+  title: Removing RLHF
+  status: unverified
+  claim_family: defense_alignment
+- bibkey: hubinger2024sleeper
+  primary_url: https://arxiv.org/abs/2401.05566
+  title: 'Sleeper Agents: Training Deceptive LLMs'
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: souly2025poisoning
+  primary_url: https://arxiv.org/abs/2510.07192
+  title: Poisoning Attacks on LLMs
+  status: unverified
+  claim_family: attack_training_time
+- bibkey: rando2024universal
+  primary_url: https://arxiv.org/abs/2311.14455
+  title: Universal Jailbreak Backdoors from Poisoned Human Feedback
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: carlini2021extracting
+  primary_url: https://arxiv.org/abs/2012.07805
+  title: Extracting Training Data from Large Language Models
+  status: unverified
+  claim_family: other
+- bibkey: nasr2023scalable
+  primary_url: https://arxiv.org/abs/2311.17035
+  title: Scalable Extraction of Training Data from (Production) Language Models
+  status: unverified
+  claim_family: attack_training_time
+- bibkey: wang2024badagent
+  primary_url: https://arxiv.org/abs/2406.03007
+  title: BadAgent
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: shu2023autopoison
+  primary_url: https://arxiv.org/abs/2306.17194
+  title: On the Exploitability of Instruction Tuning
+  status: unverified
+  claim_family: other
+- bibkey: li2024badedit
+  primary_url: https://arxiv.org/abs/2403.13355
+  title: BadEdit
+  status: unverified
+  claim_family: other
+- bibkey: nakka2024piiscope
+  primary_url: https://arxiv.org/abs/2410.06704
+  title: PII-Scope
+  status: unverified
+  claim_family: other
+- bibkey: carlini2022membership
+  primary_url: https://arxiv.org/abs/2112.03570
+  title: Membership Inference Attacks From First Principles
+  status: unverified
+  claim_family: attack_training_time
+- bibkey: xu2024instructions
+  primary_url: https://arxiv.org/abs/2305.14710
+  title: 'Instructions as Backdoors: Backdoor Vulnerabilities of Instruction Tuning for Large Language Models'
+  status: unverified
+  claim_family: attack_training_time
+- bibkey: kandpal2024backdoor
+  primary_url: https://arxiv.org/abs/2307.14692
+  title: Backdoor Attacks for In-Context Learning with Language Models
+  status: unverified
+  claim_family: attack_training_time
+- bibkey: anthropic2024responsible
+  primary_url: https://www.anthropic.com/news/responsible-scaling-policy
+  title: Responsible Scaling Policy
+  status: unverified
+  claim_family: other
+- bibkey: mazeika2024harmbench
+  primary_url: https://arxiv.org/abs/2402.04249
+  title: HarmBench
+  status: unverified
+  claim_family: evaluation
+- bibkey: chao2024jailbreakbench
+  primary_url: https://arxiv.org/abs/2404.01318
+  title: JailbreakBench
+  status: unverified
+  claim_family: attack_direct_jailbreak
+- bibkey: zheng2023llmjudge
+  primary_url: https://arxiv.org/abs/2306.05685
+  title: Judging LLM
+  status: unverified
+  claim_family: evaluation
+- bibkey: souly2024strongreject
+  primary_url: https://arxiv.org/abs/2402.10260
+  title: A StrongREJECT
+  status: unverified
+  claim_family: evaluation
+- bibkey: wang2023decodingtrust
+  primary_url: https://arxiv.org/abs/2306.11698
+  title: DecodingTrust
+  status: unverified
+  claim_family: other
+- bibkey: huang2024trustllm
+  primary_url: https://arxiv.org/abs/2401.05561
+  title: TrustLLM
+  status: unverified
+  claim_family: other
+- bibkey: wallace2025adaptiveeval
+  primary_url: https://arxiv.org/abs/2510.09023
+  title: 'Don''t Trust the Numbers: Adaptive Evaluation of LLM'
+  status: unverified
+  claim_family: evaluation
+- bibkey: lin2025metr
+  primary_url: https://metr.org/research/
+  title: Adaptive Evaluation Discipline for LLM
+  status: unverified
+  claim_family: evaluation
+- bibkey: ganguli2022redteam
+  primary_url: https://arxiv.org/abs/2209.07858
+  title: 'Red Teaming Language Models to Reduce Harms: Methods, Scaling Behaviors, and Lessons Learned'
+  status: unverified
+  claim_family: other
+- bibkey: perez2022red
+  primary_url: https://arxiv.org/abs/2202.03286
+  title: Red Teaming Language Models with Language Models
+  status: unverified
+  claim_family: other
+- bibkey: derczynski2024garak
+  primary_url: https://arxiv.org/abs/2406.11036
+  title: 'Garak: A Framework for Security Probing Large Language Models'
+  status: unverified
+  claim_family: red_teaming_tools
+- bibkey: microsoft2024pyrit
+  primary_url: https://github.com/Azure/PyRIT
+  title: PyRIT
+  status: unverified
+  claim_family: red_teaming_tools
+- bibkey: promptfoo2024
+  primary_url: https://github.com/promptfoo/promptfoo
+  title: 'promptfoo: Testing Framework for LLM'
+  status: unverified
+  claim_family: red_teaming_tools
+- bibkey: lakera2024guard
+  primary_url: https://www.lakera.ai/lakera-guard
+  title: 'Lakera Guard: Real-Time Prompt Injection Defense'
+  status: unverified
+  claim_family: defense_detection
+- bibkey: rebuff2023
+  primary_url: https://github.com/protectai/rebuff
+  title: 'Rebuff: Self-Hardening Prompt Injection Detector'
+  status: unverified
+  claim_family: defense_detection
+- bibkey: nemo2024
+  primary_url: https://github.com/NVIDIA/NeMo-Guardrails
+  title: NeMo Guardrails
+  status: unverified
+  claim_family: red_teaming_tools
+- bibkey: llmguard2024
+  primary_url: https://llm-guard.com/
+  title: LLM
+  status: unverified
+  claim_family: other
+- bibkey: llamafirewall2025
+  primary_url: https://github.com/meta-llama/PurpleLlama
+  title: LlamaFirewall
+  status: unverified
+  claim_family: red_teaming_tools
+- bibkey: guardrails2023
+  primary_url: https://www.guardrailsai.com/
+  title: Guardrails AI
+  status: unverified
+  claim_family: other
+- bibkey: anthropic2024bountyprogram
+  primary_url: https://hackerone.com/anthropic
+  title: Anthropic Model Safety Bug Bounty Program
+  status: unverified
+  claim_family: incidents_disclosure
+- bibkey: microsoft2024bounty
+  primary_url: https://www.microsoft.com/en-us/msrc/bounty-ai
+  title: Microsoft AI
+  status: unverified
+  claim_family: incidents_disclosure
+- bibkey: darpa2024aixcc
+  primary_url: https://aicyberchallenge.com/
+  title: AI
+  status: unverified
+  claim_family: other
+- bibkey: owasp2025llm
+  primary_url: https://genai.owasp.org/llm-top-10/
+  title: OWASP
+  status: unverified
+  claim_family: attack_agentic
+- bibkey: mitre2026atlas
+  primary_url: https://atlas.mitre.org/
+  title: MITRE ATLAS
+  status: unverified
+  claim_family: standards_governance
+- bibkey: nist2024genai
+  primary_url: https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf
+  title: 'Artificial Intelligence Risk Management Framework: Generative AI'
+  status: unverified
+  claim_family: standards_governance
+- bibkey: eu2024aiact
+  primary_url: https://eur-lex.europa.eu/eli/reg/2024/1689
+  title: Regulation (EU
+  status: unverified
+  claim_family: other
