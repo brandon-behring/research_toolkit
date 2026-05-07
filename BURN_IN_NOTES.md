@@ -316,7 +316,81 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ## Phase 5b: vol27 PEFT (post-v1.0)
 
-(populated during dogfood)
+**Date:** 2026-05-07
+**Output:** `~/interview_prep_series/docs/research/vol27_peft/` (7 files, 67 entries)
+**Topic:** parameter-efficient fine-tuning (LoRA family, adapters, prompt-based PEFT, IA³, surveys)
+
+### Stage 2: /research-gather
+
+**1. F2 LoRA-family density exceeded plan target (status: noted, no action)**
+- Plan target was 18-25 lora_variant entries; subagent found 31 verified entries. The LoRA-family literature has branched extensively (DyLoRA, AdaLoRA, QLoRA, DoRA, VeRA, LoRA+, LoRA-FA, LoftQ, ReLoRA, GaLore, PiSSA, X-LoRA, MoLE, LoRAMoE, MoSLoRA, LoraHub, MultiLoRA, Delta-LoRA, BitDelta, Spectral, OLoRA, Tied-LoRA, LongLoRA, FourierFT, Punica, S-LoRA, LoRA Land, LoRA Learns Less, Chain of LoRA + base LoRA + Aghajanyan intrinsic-dim).
+- **Action:** None. Plan ranges should be advisory, not strict. A skill-prompt note that the gather skill's targets are floors-not-ceilings would be a v1.1 micro-tweak.
+
+**2. Bibkey diacritics round-trip cleanly (status: confirmed, no action)**
+- `rucklé2021adapterdrop` (Andreas Rücklé) preserves the `é` through bib_ledger → dossier → agent_index → validator. UTF-8 path is fine end-to-end.
+
+**3. Year-of-record ambiguity for arXiv-vs-venue split (status: surfaced — minor)**
+- Several papers were on arXiv in year N and accepted at a conference in year N+1 (AdapterFusion: 2020 arXiv → EACL 2021; AdapterDrop: 2020 arXiv → EMNLP 2021; UniPELT: 2021 arXiv → ACL 2022; P-tuning v2: 2021 arXiv → ACL 2022). The subagent picked venue/publication year, matching vol26 precedent. One inconsistency: `aghajanyan2020intrinsic` kept 2020 (arXiv submission year, not ICLR 2021 publication year) because the literature consistently cites it as 2020.
+- **Why it matters:** The bibkey "year" is sometimes a citation choice, not a fact about the paper. Documenting the rule (default to venue/publication year unless community-standard citation says otherwise) would help future runs.
+- **Action:** Add a one-line guidance in `/research-gather` skill: "for bibkey year, prefer venue/publication year; fall back to arXiv-submission year only when literature consistently cites that year."
+
+### Stage 3: /dossier-build
+
+**1. dossier-build subagent guesses GitHub URLs that often 404 (status: HIGH PRIORITY for v1.1)**
+- 7 of 67 GitHub URLs guessed by the dossier-build subagent were hard 404s when checked at Stage 6. All 7 followed the pattern "use the firstauthor handle + repo-name-derived-from-paper-slug." Real authors don't always own a `<lastname>/<paper-slug>` repo:
+  - X-LoRA: guessed `EPFL-IMOS/X-LoRA`, real repo is `EricLBuehler/xlora`.
+  - Spectral Adapter: guessed `Forence/Spectral-Adapter`, real repo is `pilancilab/spectral_adapter` (lab repo, not first-author repo).
+  - LoRA Learns Less: guessed `tatsu-lab/lora_less`, real repo is `danbider/lora-tradeoffs`.
+  - OFT: guessed `Zeju-Qiu/oft` (first author handle), real available impl is community `tripplyons/oft`.
+  - OLoRA, MoLE, PEPP: no canonical author repo exists — heuristic should have produced `—`, not a guess.
+- **Why it matters:** Heuristic-guessed URLs that 404 are a worst-case failure mode (looks authoritative, isn't). Better to render `—` and let the audit/url-check stage discover and fill.
+- **Action for v1.1:** Add explicit guidance in `/dossier-build` skill body: "GitHub cell — write `—` unless you have direct knowledge of the repo path. Do NOT guess from `<author>/<paper-slug>` patterns; many papers have lab-repo paths (e.g., `pilancilab/spectral_adapter`), community-implementation paths (e.g., `tripplyons/oft`), or no repo at all."
+
+**2. dossier subsection density choice (status: noted, no action)**
+- The 31 lora_variant entries were split into 6 sub-sections (B1-B6). The validator only enforces table schema, not sub-section count. The subagent's 6-way split was reasonable; a 4-way split would also have validated. Editorial judgment, not skill-prompt issue.
+
+### Stage 4: /agent-index
+
+**1. Stage 3 propagation error caught at Stage 4 (status: positive, design working as intended)**
+- The Stage 3 dossier accidentally listed `rabeehk/compacter` (Compacter's repo) as the Code link for `aghajanyan2020intrinsic` (intrinsic-dimensionality paper). The Stage 4 subagent caught this during 5-bullet rendering and rewrote Code to `—` with status flag `(no widely-known repo)` rather than propagating the bad link.
+- **Why it matters:** Stage-4-as-second-eye on Stage-3 output is a useful default. Confirmed working.
+
+**2. Cross-vol linking convention worked (status: confirmed)**
+- Each entry has one primary location; cross-vol overlaps with vol25 (none in this run) and vol26 (e.g., calibration of PEFT'd models would touch both vol27 + vol28) are surfaced via the README scope-callout, not via inline duplication. Same pattern as vol26.
+
+### Stage 5: /dossier-audit (round 1)
+
+**1. Audit confirmed the Stage-3-flagged uncertainties were mostly accurate (status: confirmed)**
+- 16 spot-checks PASSED (DoRA ICML 2024 Oral, GaLore ICML 2024 Oral, QLoRA NeurIPS 2023 Oral, etc. all confirmed via OpenReview/conference websites). 3 CORRECTs (DyLoRA repo path, LongLoRA Spotlight status, LoRA Land tech-report flagging). 0 DROPs.
+- **Why it matters:** The Stage-3 `(uncertain venue)` flag is well-calibrated — uncertainties are flagged honestly, and verification mostly confirms. Audit time is low because honest flagging localizes the work.
+
+### Stage 6: /url-freshness-check
+
+**1. Subagent timeout with bash-tool sandboxing (status: surfaced — workflow)**
+- The url-freshness-check subagent timed out at the WebFetch verification step (over 120 URLs). Falling back to inline `curl -sS -L` bulk-check was much faster (60 seconds for all 117 URLs) and surfaced the same 7 hard-404s. Subagent path is more thorough (uses WebFetch which respects robots.txt-style allowlists) but slower.
+- **Action:** Document the inline-curl fallback as a recipe for large URL sets. v1.1 might add an explicit "if N>50 URLs, use inline curl" branch in the skill body.
+
+**2. URL-extraction regex BURN_IN finding from vol26 confirmed again (status: applied)**
+- The positive char-class form `[a-zA-Z0-9./?=&_~%#:+-]+` works correctly on macOS grep. The negative form `[^[:space:]\)\]"\<]+` silently returns 0 URLs (high-priority bug from Phase 5a #2). Confirming the v1.0 fix-recipe applies here.
+
+### Phase 5b summary table
+
+| Metric | Value |
+|---|---|
+| Date | 2026-05-07 |
+| Stages run | 6 (research-plan inline + research-gather + dossier-build + agent-index + dossier-audit + url-freshness-check) |
+| Validators passing | 6 of 6 |
+| Total entries | 67 |
+| Total `**Source:**` lines in synthesis | 67 |
+| Lookup recipes in README | 32 |
+| Glossary terms | 30 |
+| Landmark-paper corrections caught | 0 of 14 (all 14 known landmarks resolved cleanly via WebFetch) |
+| Audit corrections | 3 (DyLoRA repo, LongLoRA Spotlight flag, LoRA Land tech-report flag) + 1 FLAG |
+| URL fixes | 7 hard-404 GitHub repo fixes (HIGH PRIORITY v1.1 finding — see Stage 3 #1) |
+| Friction items added to BURN_IN | 8 (Phase 5b §§ 1-8 across stages) |
+| `make test` regression | 18 pass + 2 fail (vol25 recreation_diff baseline unchanged; identical to v1.0 baseline) |
+| New material tweaks applied to skills | 0 (highest-priority finding deferred to v1.1) |
+| **v1.1 tag bump** | **NO** — findings are recorded but no skill-body edits applied yet; defer to consolidated v1.1 PR after vol28. |
 
 ---
 
