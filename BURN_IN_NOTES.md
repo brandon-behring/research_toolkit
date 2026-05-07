@@ -571,6 +571,41 @@ All cross-vol findings above are now fixed in skill bodies, templates, validator
 
 ---
 
+## v1.3 — applied 2026-05-07
+
+**Theme:** data + fixture grounding — make the v1.1 schema extension *useful* by populating optional fields in real ledgers, and create a medium fixture for stress-testing.
+
+**Items shipped (both):**
+
+- **A1 backfilled vol26/27/28 ledgers** — new helper `scripts/backfill_ledger.py` extracts `authors`/`venue`/`code_url` from each vol's dossier paper-tables (which already had the human-curated metadata) and merges back into the ledger. Idempotent: skips fields that are already populated.
+  - vol26: 65/72 entries backfilled (90% authors+venue, 74% code_url)
+  - vol27: 65/67 entries backfilled (97% authors+venue, 84% code_url)
+  - vol28: 75/88 entries backfilled (85% authors+venue, 65% code_url)
+  - Skipped entries are non-arxiv classics (Platt 1999, Brier 1950, JSTOR/DOI/Springer URLs etc.) — backfill uses arxiv ID as the join key. Future v1.x could add title-fuzzy matching for these.
+
+- **C10 medium fixture** — `tests/fixtures/medium_topic_calibration_subset/` (22 entries, vol28 calibration_method + calibration_metric subset) with full v1.1+ schema coverage. Generator script `scripts/build_medium_fixture.py` regenerates from current vol28 state (re-run after future vol28 audits). Validates against all 5 v1.0/v1.1/v1.2 validators including cross_stage --strict.
+
+**Tests (NEW: tests/test_v1_3_fixtures.py, 17 cases):**
+- Medium fixture: passes 4 validators (research_plan, bib_ledger, dossier, agent_index) + cross_stage default + cross_stage --strict (6 cases)
+- Optional-field coverage on medium fixture: ≥55% authors, ≥55% venue, ≥40% code_url (3 cases)
+- Medium fixture size + below anti-cheat threshold (2 cases)
+- vol26/27/28 backfilled ledgers validate + ≥80% authors coverage (parametrized 6 cases — skipped if working copy absent)
+
+**Verification:**
+- `make test`: **76 passed + 2 xfailed** (up from v1.2's 59 + 2)
+- Medium fixture exercises dossier sub-section logic at the size where vol27 stressed (22 entries vs mini's 5)
+- Backfilled ledgers preserve all existing data — idempotent re-runs produce no diff
+
+**Why the medium fixture coverage threshold is 55% not 80%:**
+The medium fixture is a calibration subset that intentionally includes pre-2010 classical-stats papers (Brier 1950, Platt 1999, DeGroot 1983, Zadrozny 2001/2002, Niculescu-Mizil 2005, Gneiting 2007). These have venue + authors info in the dossier but no arXiv IDs in the ledger, so the arxiv-ID-based backfill skipped them. The vol26/27/28 LLM-era ledgers don't have this skew so they hit the ≥80% target. Documented in test docstrings.
+
+**Out-of-v1.3 scope (deferred to v1.4+):**
+- Re-running vol25 recreation under v1.1+v1.2 skills (would close xfail'd baselines but is its own dogfood run).
+- Title-fuzzy matching in backfill (would push medium fixture to ≥80%; currently a 55% floor is sufficient for the fixture's purpose).
+- E2E pipeline smoke test (v1.4 B5).
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")
