@@ -535,6 +535,8 @@ All cross-vol findings above are now fixed in skill bodies, templates, validator
 - v1.0 BURN_IN's two recreation_diff baseline fails (entry-counts within tolerance, section-anchors match) — these reflect the recreation's structural divergence from real, not a tooling defect. Resolving would require either re-running vol25 recreation with v1.1 skills or relaxing the tolerances; both are beyond v1.1's "fix the tooling" charter.
 - Pydantic / config-framework / packaging changes — out of scope per project instructions.
 
+**v1.2+ roadmap:** see `docs/roadmap_v1_2_through_v1_5.md` — sequenced post-v1.1 plan covering 10 audit items across 4 versions (v1.2 defensive hardening, v1.3 data + fixture grounding, v1.4 pipeline test surface, v1.5 ops + ergonomics). Roadmap is aspirational; each version is gated by its own user decision.
+
 ---
 
 ## Cross-cutting observations
