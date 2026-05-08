@@ -13,7 +13,7 @@
 
 <1–2 paragraphs explicitly stating what this folder is NOT — point readers to where the related material lives if they're in the wrong folder>
 
-**Cross-vol overlap convention:** when an entry is methodologically relevant to multiple research vols (e.g., calibration of PEFT'd models touches both vol27 PEFT and vol28 calibration), pick ONE primary location based on claim_family and reference adjacency in this scope-boundary callout. **Do NOT duplicate entries across vols** — the duplicate-detection rule lives here, not in the synthesis files.
+**Cross-vol overlap convention:** when an entry is methodologically relevant to multiple research vols (e.g., calibration of PEFT'd models touches both PEFT PEFT and calibration calibration), pick ONE primary location based on claim_family and reference adjacency in this scope-boundary callout. **Do NOT duplicate entries across vols** — the duplicate-detection rule lives here, not in the synthesis files.
 
 ## How this is organized
 

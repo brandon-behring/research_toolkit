@@ -1,4 +1,4 @@
-# Dossier — vol25 prompt injection (recreated) compiled stats
+# Dossier — prompt-injection prompt injection (recreated) compiled stats
 
 **Compiled:** 2026-05-07
 **Source ledger:** `../bib_ledger.yml`

@@ -30,7 +30,7 @@ When `/research-gather` reports memory-based or time-pressed verification (i.e.,
 2. For each, WebFetch `primary_url` and confirm: title matches, first author surname matches the bibkey's `{firstauthor}`, year matches the bibkey's `{year}`.
 3. Report results in a SPOT-CHECK PASSED table separate from focus-area findings.
 
-Rationale: vol28 dogfood produced 1 misattribution-out-of-88 (Yin → Zhang at arXiv:2305.18153) that only Stage 5 caught. The fixed-cost 10-entry sweep catches transposition errors and sloppy attribution at low marginal cost (~10 WebFetches ≈ 5 minutes).
+Rationale: calibration dogfood produced 1 misattribution-out-of-88 (Yin → Zhang at arXiv:2305.18153) that only Stage 5 caught. The fixed-cost 10-entry sweep catches transposition errors and sloppy attribution at low marginal cost (~10 WebFetches ≈ 5 minutes).
 
 Skip the spot-check only when Stage 2 explicitly reports per-entry WebFetch verification on every entry.
 

@@ -9,10 +9,10 @@ Reproduced bugs this catches:
 - claim_family drift: a bib_ledger entry uses claim_family `peft_serving` but
   research_plan.md's taxonomy only lists `lora_variant`. Pre-v1.2 the
   bib_ledger validator accepted this (string non-empty check only); the plan
-  was never cross-checked. (vol27 dogfood: subagent flagged this manually.)
+  was never cross-checked. (PEFT dogfood: subagent flagged this manually.)
 - Orphan arxiv IDs (soft warning by default, promotable to error with --strict):
   agent_index `**Source:**` URLs that don't have a matching bib_ledger entry.
-  In vol25/real this is intentional (cross-references to pre-LLM foundational
+  In prompt-injection/real this is intentional (cross-references to pre-LLM foundational
   papers) so it's a warning, not an error. With --strict it becomes hard.
 
 Hard requirements (validator FAILS):
@@ -23,7 +23,7 @@ Soft warnings (printed to stderr, don't fail by default; --strict promotes
 to errors):
 2. Orphan arxiv IDs in dossier paper-tables (referenced but not in ledger).
 3. Orphan arxiv IDs in agent_index `**Source:**` lines (referenced but not
-   in ledger; vol25/real legitimately has these as foundational
+   in ledger; prompt-injection/real legitimately has these as foundational
    cross-references).
 4. Stale ledger entries (in bib_ledger but no `**Source:**` line in any
    agent_index synthesis file references their arxiv ID; might be

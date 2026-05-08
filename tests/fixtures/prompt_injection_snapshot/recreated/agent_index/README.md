@@ -1,6 +1,6 @@
-# Prompt Injection & Adversarial Prompts — Research Synthesis (vol25 recreated)
+# Prompt Injection & Adversarial Prompts — Research Synthesis (prompt-injection recreated)
 
-<!-- AGENT-INDEX: vol25_recreated, 147 entries, 7 topic files, recreated 2026-05-07 -->
+<!-- AGENT-INDEX: prompt_injection_recreated, 147 entries, 7 topic files, recreated 2026-05-07 -->
 
 **Purpose:** comprehensive citation and synthesis foundation for prompt-injection and adversarial-prompt research, designed for dual consumption — humans (reading directly) and future LLM agents (grounding reasoning in this literature).
 **Primary intended consumer:** future Claude Code / LLM agents working in adjacent projects who need detailed context on prompt injection and LLM adversarial robustness. Secondary consumers: humans reading the material directly.

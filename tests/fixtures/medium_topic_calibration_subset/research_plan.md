@@ -1,6 +1,6 @@
 # Research Plan: Calibration Methods & Metrics (Medium Fixture)
 
-A scoped subset of vol28 covering classical calibration methods and calibration metrics. Used as a v1.1+ schema reference and test fixture (~22 entries). Full vol28 covers 6 sub-areas; this fixture covers 2.
+A scoped subset of calibration covering classical calibration methods and calibration metrics. Used as a v1.1+ schema reference and test fixture (~22 entries). Full calibration covers 6 sub-areas; this fixture covers 2.
 
 ## Sub-areas
 
@@ -19,7 +19,7 @@ A scoped subset of vol28 covering classical calibration methods and calibration 
 
 ## Out-of-scope
 
-- Conformal prediction (separate sub-area in full vol28)
+- Conformal prediction (separate sub-area in full calibration)
 - Uncertainty quantification (deep ensembles / MC dropout / Bayesian)
 - OOD detection
 - LLM-specific calibration

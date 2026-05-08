@@ -145,8 +145,8 @@ def test_audit_trail_existing_real_readmes_still_validate(tmp_path: Path) -> Non
     fixture_readmes = [
         REPO_ROOT / "tests/fixtures/mini_topic_timeseries_anomaly/agent_index/README.md",
         REPO_ROOT / "tests/fixtures/medium_topic_calibration_subset/agent_index/README.md",
-        REPO_ROOT / "tests/fixtures/vol25_snapshot/real/agent_index/README.md",
-        REPO_ROOT / "tests/fixtures/vol25_snapshot/recreated/agent_index/README.md",
+        REPO_ROOT / "tests/fixtures/prompt_injection_snapshot/real/agent_index/README.md",
+        REPO_ROOT / "tests/fixtures/prompt_injection_snapshot/recreated/agent_index/README.md",
     ]
     for readme in fixture_readmes:
         if not readme.exists():

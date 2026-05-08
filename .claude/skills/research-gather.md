@@ -69,7 +69,7 @@ For each accepted source:
 When you have already WebFetched the source page during this phase, populate the bib_ledger's optional fields too:
 - `authors`: e.g., "Hu et al. (2021)" / "Brier (1950)" — directly from the abstract page's author list
 - `venue`: e.g., "ICLR 2022", "NeurIPS 2024 Spotlight", or "arXiv preprint" — based on the abstract page's published-in field. **If you do not know the venue, write "arXiv preprint" — do not guess from memory.**
-- `code_url`: ONLY if the abstract page or the project page links to a code repository. Common locations: arXiv "Code" tab, abstract page footer, paper PDF first-page footnote. **Do NOT guess `<firstauthor>/<paper-slug>` GitHub patterns** — vol27/vol28 dogfood produced ~3% hard-404 rate from this pattern. Omit the field entirely when uncertain; downstream stages render `—`.
+- `code_url`: ONLY if the abstract page or the project page links to a code repository. Common locations: arXiv "Code" tab, abstract page footer, paper PDF first-page footnote. **Do NOT guess `<firstauthor>/<paper-slug>` GitHub patterns** — PEFT/calibration dogfood produced ~3% hard-404 rate from this pattern. Omit the field entirely when uncertain; downstream stages render `—`.
 
 Populating these three optional fields here means `/dossier-build` and `/agent-index` render from data instead of guessing — the highest-leverage v1.1 improvement.
 
@@ -110,7 +110,7 @@ Before exit:
 - `verified`: WebFetch on `primary_url` returned a page whose title matches `title` AND first author surname matches the bibkey's `{firstauthor}` AND year matches the bibkey's `{year}`. Promote to `verified` only with this evidence.
 - `mismatched`: WebFetch returned different attribution than the entry claims. Surface as a CORRECT candidate; do not silently fix.
 
-When time-pressed, default ALL entries to `unverified`. The downstream `/dossier-audit` stage runs the WebFetch confirmation and promotes entries based on evidence. **Avoid the v1.0 anti-pattern of marking all entries `verified` from memory** — vol28 produced 1 misattribution-out-of-88 this way that only Stage 5 caught.
+When time-pressed, default ALL entries to `unverified`. The downstream `/dossier-audit` stage runs the WebFetch confirmation and promotes entries based on evidence. **Avoid the v1.0 anti-pattern of marking all entries `verified` from memory** — calibration produced 1 misattribution-out-of-88 this way that only Stage 5 caught.
 
 **Count-assertion (HARD REQUIREMENT for the final report):**
 
@@ -120,7 +120,7 @@ Your final report's "total entries" count MUST match the actual file count. Comp
 grep -c "^- bibkey:" <output_dir>/bib_ledger.yml
 ```
 
-The narrative count in your final report must equal that number. vol28 Stage 2 reported "73 entries" but the file had 88 — silently inconsistent self-reporting. If your count and the file's grep-count differ, recount before reporting.
+The narrative count in your final report must equal that number. calibration Stage 2 reported "73 entries" but the file had 88 — silently inconsistent self-reporting. If your count and the file's grep-count differ, recount before reporting.
 
 If any check fails, do NOT report success — fix the issue or surface it for user resolution.
 

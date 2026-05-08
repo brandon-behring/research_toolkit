@@ -92,7 +92,7 @@ Three guardrails the toolkit added after dogfood runs surfaced failure modes:
 - **arXiv canonical-form check** on `primary_url` — rejects `/pdf/` URLs and malformed IDs at validation time.
 - **Memory-verification anti-cheat heuristic** in the bib_ledger validator — warns when ≥50 entries are all `verified` (the signature of a subagent that bulk-marked entries from memory rather than per-entry WebFetch).
 
-Empirical effect: vol29 (the first dogfood run with all v1.2+ guardrails active) shipped with 0 hard 404s and 0 audit corrections, vs vol26-28 averaging 4 / 3 respectively. See [`evals/dogfood_metrics.csv`](evals/dogfood_metrics.csv) for the trend.
+Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shipped with 0 hard 404s and 0 audit corrections; the three earlier runs (eval-methodology / PEFT / calibration) averaged ~4 / 3 respectively. See [`evals/dogfood_metrics.csv`](evals/dogfood_metrics.csv) for the trend.
 
 ## What to read
 
@@ -129,7 +129,7 @@ Empirical effect: vol29 (the first dogfood run with all v1.2+ guardrails active)
 └── tests/
     ├── conftest.py
     ├── test_validators.py           # positive + negative per validator
-    ├── test_skill_outputs.py        # vol25 fixture sanity
+    ├── test_skill_outputs.py        # prompt-injection fixture sanity
     ├── test_recreation_diff.py      # real/ vs recreated/ (2 xfailed baselines)
     ├── test_v1_1_fixes.py           # 27 cases: schema extension + arXiv canonical-form
     ├── test_v1_2_fixes.py           # 14 cases: cross_stage + anti-cheat
@@ -140,7 +140,7 @@ Empirical effect: vol29 (the first dogfood run with all v1.2+ guardrails active)
     └── fixtures/
         ├── mini_topic_timeseries_anomaly/        # 5 entries (smoke)
         ├── medium_topic_calibration_subset/      # 22 entries (v1.3, schema reference)
-        └── vol25_snapshot/{real,recreated}/      # 137 entries (real-world reference)
+        └── prompt_injection_snapshot/{real,recreated}/      # 137 entries (real-world reference)
 ```
 
 ## Make targets

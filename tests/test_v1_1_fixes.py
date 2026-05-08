@@ -1,4 +1,4 @@
-"""Regression tests for v1.1 fixes addressing vol25/26/27/28 BURN_IN findings.
+"""Regression tests for v1.1 fixes addressing prompt-injection/26/27/28 BURN_IN findings.
 
 Each fix has a positive test (works as designed on a known-good input) and a
 negative test (rejects a known-bad input that the v1.0 validator would have
@@ -260,16 +260,16 @@ def test_url_check_report_validator_runs_standalone(tmp_path: Path) -> None:
 
 REAL_LEDGERS = [
     "tests/fixtures/mini_topic_timeseries_anomaly/bib_ledger.yml",
-    "tests/fixtures/vol25_snapshot/real/bib_ledger.yml",
-    "tests/fixtures/vol25_snapshot/recreated/bib_ledger.yml",
+    "tests/fixtures/prompt_injection_snapshot/real/bib_ledger.yml",
+    "tests/fixtures/prompt_injection_snapshot/recreated/bib_ledger.yml",
 ]
 
 
 @pytest.mark.parametrize("ledger_path", REAL_LEDGERS)
 def test_existing_ledgers_still_validate_under_v1_1_schema(ledger_path: str) -> None:
-    """Backward compat: vol25 + mini fixtures still pass under the v1.1 validator.
+    """Backward compat: prompt-injection + mini fixtures still pass under the v1.1 validator.
 
-    vol26/27/28 ledgers live outside the toolkit repo and are spot-checked
+    eval-methodology/27/28 ledgers live outside the toolkit repo and are spot-checked
     manually but not asserted here (they may be deleted or moved).
     """
     p = REPO_ROOT / ledger_path

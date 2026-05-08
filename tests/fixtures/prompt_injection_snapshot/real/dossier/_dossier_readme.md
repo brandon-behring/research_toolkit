@@ -1,7 +1,7 @@
 # Vol 25 — Prompt Injection & Adversarial Prompts: Research Dossier
 
 **Compiled:** 2026-05-05 | **Coverage cutoff:** May 2026
-**Purpose:** Comprehensive citation foundation for `vol25_prompt_injection/` (Vol 25 of the interview prep series). Every claim in the volume should anchor here; every citation should be one of the entries in `01_attacks_direct.md` … `07_standards_industry.md`.
+**Purpose:** Comprehensive citation foundation for `prompt_injection_research/` (Vol 25 of the interview prep series). Every claim in the volume should anchor here; every citation should be one of the entries in `01_attacks_direct.md` … `07_standards_industry.md`.
 
 ---
 
@@ -28,7 +28,7 @@
 ## Directory layout
 
 ```
-docs/research/vol25_prompt_injection/
+docs/research/prompt_injection_research/
 ├── README.md                                       (this file)
 ├── papers/                                         35 cached PDFs of canonical anchor papers
 ├── 01_attacks_direct.md                            72 entries: hand-crafted, encoding, white-box, black-box

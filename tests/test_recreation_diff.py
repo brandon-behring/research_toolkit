@@ -1,4 +1,4 @@
-"""Compare vol25_snapshot/real/ to vol25_snapshot/recreated/ after Phase 3.5.
+"""Compare prompt_injection_snapshot/real/ to prompt_injection_snapshot/recreated/ after Phase 3.5.
 
 The recreated/ directory is empty until /research-plan, /research-gather (or copy
 real/bib_ledger.yml), /dossier-build, and /agent-index have been run on the
@@ -20,8 +20,8 @@ from pathlib import Path
 
 import pytest
 
-REAL = Path(__file__).resolve().parent / "fixtures" / "vol25_snapshot" / "real"
-RECREATED = Path(__file__).resolve().parent / "fixtures" / "vol25_snapshot" / "recreated"
+REAL = Path(__file__).resolve().parent / "fixtures" / "prompt_injection_snapshot" / "real"
+RECREATED = Path(__file__).resolve().parent / "fixtures" / "prompt_injection_snapshot" / "recreated"
 
 SOURCE_LINE_RE = re.compile(r"^\s*-\s*\*\*Source:\*\*", re.MULTILINE)
 SECTION_ANCHOR_RE = re.compile(r"^## [A-Z]\d+\.", re.MULTILINE)
@@ -54,12 +54,12 @@ def test_recreated_agent_index_file_count_matches(recreated_present: bool) -> No
     reason=(
         "Refined diagnosis after v1.5 partial close (2026-05-07): the recreation "
         "has ~70% fewer agent_index `**Source:**` lines per topic file than the "
-        "real synthesis. The honest cause: vol25/real includes ~202 cross-reference "
+        "real synthesis. The honest cause: prompt-injection/real includes ~202 cross-reference "
         "arxiv IDs (foundational pre-LLM papers cited in synthesis without ledger "
-        "entries — see cross_stage warnings on vol25/real). The recreation "
+        "entries — see cross_stage warnings on prompt-injection/real). The recreation "
         "synthesizes ONLY what's in its own ledger (137 entries), so its Source "
         "counts per file are ~25-30 vs real's ~70-100. This is a deliberate "
-        "design difference — vol25/real's cross-reference pattern is editorial. "
+        "design difference — prompt-injection/real's cross-reference pattern is editorial. "
         "v1.x tooling can't close this without changing the recreation's design "
         "(adding a cross-reference rendering step, which is out of v1.x charter). "
         "xfail strict=True will catch if a future change accidentally inflates "
@@ -125,7 +125,7 @@ def test_recreated_readme_has_required_sections(recreated_present: bool) -> None
         "produce more sub-sections than the recreation's editorial choice. "
         "This xfail will likely be permanent; resolving requires either "
         "re-running /research-gather + /dossier-build under v1.5 to redo the "
-        "editorial split (a fresh vol25 dogfood), or hand-splitting existing "
+        "editorial split (a fresh prompt-injection dogfood), or hand-splitting existing "
         "sub-sections (defeats the 'recreation' purpose)."
     ),
 )
