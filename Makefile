@@ -1,23 +1,24 @@
-.PHONY: install test smoke audit burn-in metrics lint clean help
+.PHONY: install test smoke dataset-smoke audit burn-in metrics lint clean help
 
 PYTHON ?= python3
 VENV   ?= .venv
 PY     := $(VENV)/bin/python
 
-# Real-world projects under ~/Claude/research_<vol>/ that exist on this machine.
+# Real-world projects under ~/Claude/research_<topic>/ that exist on this machine.
 # `make audit` runs cross_stage --strict against any that exist.
-REAL_VOLS := vol26 vol27 vol28
+REAL_TOPICS := eval_methodology peft calibration rlhf
 
 help:
 	@echo "Targets:"
-	@echo "  install   create .venv and install package + dev deps"
-	@echo "  test      run pytest against tests/"
-	@echo "  smoke     run a single validator against the mini fixture"
-	@echo "  audit     run cross_stage --strict against all real-world projects"
-	@echo "            (mini fixture, medium fixture, vol25/real, vol25/recreated, $(REAL_VOLS))"
-	@echo "  burn-in   show unresolved high-severity BURN_IN items"
-	@echo "  metrics   show dogfood_metrics.csv contents"
-	@echo "  clean     remove caches and .venv"
+	@echo "  install         create .venv and install package + dev deps"
+	@echo "  test            run pytest against tests/"
+	@echo "  smoke           run a single validator against the mini fixture"
+	@echo "  dataset-smoke   run dataset_ledger validator against the dataset smoke fixture (v1.6)"
+	@echo "  audit           run cross_stage --strict against all real-world projects"
+	@echo "                  (mini, medium, prompt-injection real/recreated, $(REAL_TOPICS))"
+	@echo "  burn-in         show unresolved high-severity BURN_IN items"
+	@echo "  metrics         show dogfood_metrics.csv contents"
+	@echo "  clean           remove caches and .venv"
 
 install:
 	$(PYTHON) -m venv $(VENV)
@@ -30,23 +31,32 @@ test:
 smoke:
 	$(PY) validators/bib_ledger.py tests/fixtures/mini_topic_timeseries_anomaly/bib_ledger.yml
 
+dataset-smoke:
+	@if [ -d tests/fixtures/medium_dataset_subset ]; then \
+		echo "=== medium_dataset_subset (post-Phase D) ==="; \
+		$(PY) validators/dataset_ledger.py tests/fixtures/medium_dataset_subset/dataset_ledger.yml; \
+	else \
+		echo "=== _handcrafted_dataset_smoke (Phase A handcrafted) ==="; \
+		$(PY) validators/dataset_ledger.py tests/fixtures/_handcrafted_dataset_smoke/dataset_ledger.yml; \
+	fi
+
 audit:
 	@echo "=== mini fixture ==="
 	@$(PY) -m validators.cross_stage --strict tests/fixtures/mini_topic_timeseries_anomaly || true
 	@echo "=== medium fixture ==="
 	@$(PY) -m validators.cross_stage --strict tests/fixtures/medium_topic_calibration_subset || true
-	@echo "=== vol25 real ==="
-	@$(PY) -m validators.cross_stage tests/fixtures/vol25_snapshot/real || true
-	@echo "    (vol25/real is run in default mode — has 202 intentional cross-references)"
-	@echo "=== vol25 recreated ==="
-	@$(PY) -m validators.cross_stage --strict tests/fixtures/vol25_snapshot/recreated || true
-	@for vol in $(REAL_VOLS); do \
-		dir=$$HOME/Claude/research_$$vol; \
+	@echo "=== prompt-injection real ==="
+	@$(PY) -m validators.cross_stage tests/fixtures/prompt_injection_snapshot/real || true
+	@echo "    (prompt-injection/real is run in default mode — has 202 intentional cross-references)"
+	@echo "=== prompt-injection recreated ==="
+	@$(PY) -m validators.cross_stage --strict tests/fixtures/prompt_injection_snapshot/recreated || true
+	@for topic in $(REAL_TOPICS); do \
+		dir=$$HOME/Claude/research_$$topic; \
 		if [ -d "$$dir" ]; then \
-			echo "=== $$vol ==="; \
+			echo "=== $$topic ==="; \
 			$(PY) -m validators.cross_stage --strict $$dir || true; \
 		else \
-			echo "=== $$vol === (not present locally; skipped)"; \
+			echo "=== $$topic === (not present locally; skipped)"; \
 		fi; \
 	done
 

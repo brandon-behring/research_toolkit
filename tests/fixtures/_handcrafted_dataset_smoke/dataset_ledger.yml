@@ -1,0 +1,36 @@
+# Handcrafted smoke fixture for dataset_ledger validator.
+# Will be replaced by medium_dataset_subset/ extracted from the v1.6 dogfood.
+
+entries:
+- bibkey: nab2017kpi
+  primary_url: https://github.com/numenta/NAB
+  name: 'Numenta Anomaly Benchmark (NAB)'
+  source: github
+  status: verified
+  task_family: time_series
+  license: AGPL-3.0
+  rows: 365551
+  size: '~50MB'
+  access_method: direct
+  auth_required: false
+  citation: 'Lavin & Ahmad (2015), IEEE ICMLA'
+- bibkey: msl2018smap
+  primary_url: https://github.com/khundman/telemanom
+  name: 'NASA MSL/SMAP spacecraft telemetry anomalies'
+  source: github
+  status: verified
+  task_family: time_series
+  license: Apache-2.0
+  size: '~70MB'
+  access_method: direct
+  auth_required: false
+- bibkey: ucr2018archive
+  primary_url: https://www.cs.ucr.edu/~eamonn/time_series_data_2018/
+  name: 'UCR Time Series Classification Archive'
+  source: uci
+  status: verified
+  task_family: time_series
+  license: custom
+  size: '~1.2GB'
+  access_method: direct
+  auth_required: false

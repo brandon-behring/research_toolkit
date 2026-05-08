@@ -693,6 +693,46 @@ No breaking changes to ledger schema or skill workflows; just three small alignm
 
 ---
 
+## v1.6 — applied 2026-05-08
+
+**Theme:** new dataset-research pipeline (parallel to paper pipeline). Three new skills (`/dataset-gather`, `/dataset-index`, `/dataset-research`) + dataset_ledger validator + 2 templates + dataset_sources reference doc. Full v1.0-style release gate: ship + dogfood + audit round.
+
+**Dogfood topic**: time-series anomaly detection. **Output**: `~/interview_prep_series/docs/research/time_series_anomaly_datasets/` (45 entries, 7 files). **Medium fixture**: `tests/fixtures/medium_dataset_subset/` (12 curated entries; v1.6 schema reference).
+
+**Items shipped:**
+
+- **Validator**: `validators/dataset_ledger.py` — required fields (bibkey/primary_url/name/source/status/task_family); `task_family` fixed enum (13 values); optional license/size/rows/columns/schema_url/access_method/auth_required/citation; anti-cheat heuristic at ≥30 entries; standalone CLI with `--strict`.
+- **Templates**: `dataset_ledger.template.yml` + `dataset_5_bullet_entry.template.md`.
+- **Reference**: `references/dataset_sources.md` — 8 source categories with per-source gotchas.
+- **Skills**: `/dataset-gather` (~150 lines), `/dataset-index` (~120 lines), `/dataset-research` (~30 lines wrapper).
+- **Tests**: `test_v1_6_dataset_skills.py` (31 cases — 13 enum-coverage + validator pos/neg + lint + integration). All pass.
+- **Makefile**: `make dataset-smoke` target.
+
+**Dogfood findings:**
+
+1. **Source category `other` was 29% of entries**, materially understated by the canonical 8-category list. PhysioNet, UNB-CIC, SUTD iTrust, Yahoo Webscope, Backblaze, Morris-UAH, ELKI did not fit cleanly. **Action for v1.7**: expand `dataset_sources.md` source-category list OR document that `other` is expected-heavy for security/biomedical/critical-infrastructure topics.
+
+2. **Cornell → UCR domain typo in Stage 4 rendering**. The dataset-index subagent rendered `https://www.cs.cornell.edu/...` for the UCR Time Series Archive (Eamonn Keogh is at UC Riverside, not Cornell). Ledger had the correct URL; rendering substituted the wrong domain. **Action for v1.7**: codify in `/dataset-index` skill body — the ledger is the source of truth; rendering MUST NOT substitute domain/host names.
+
+3. **`source: other` overloading and Kaggle paywall blocking** — both already documented in vol-29-style detail in `dataset_sources.md` Phase A but reproduced here as v1.6 dogfood findings.
+
+4. **paperswithcode.com/datasets is dead in 2026** — redirects to HF papers/trending. v1.7 should remove it from the canonical aggregator list.
+
+5. **The `(uncertain license) Verified.` flag is the right intermediate state** for HF community uploads with empty dataset cards. Audit kept these in but tightened the marker — confirms v1.5.1 status-flag conventions transfer cleanly to the dataset pipeline.
+
+6. **License coverage 95.6%** — the v1.5.1 strict-verification protocol carried over without modification. Most license uncertainty is genuine source-page emptiness, not skill-body laziness.
+
+7. **First-run audit corrections: 1 (ASD license)** — vs vol29 RLHF first-run 0 corrections. v1.6 dataset pipeline has a slightly higher correction rate than mature paper-pipeline; expected for a brand-new pipeline.
+
+**Verification:**
+
+- `make test`: 140 → 171 passed + 2 xfailed (31 new v1.6 tests pass).
+- `make dataset-smoke`: passes against medium_dataset_subset fixture.
+- `make audit`: existing audit targets unchanged; cross_stage doesn't yet check dataset_ledger (v1.7 stretch).
+- All 3 dogfood validators (dataset_ledger, agent_index, audit_trail, url_check_report) pass on the time-series anomaly artifact.
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")

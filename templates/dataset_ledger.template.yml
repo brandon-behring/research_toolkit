@@ -1,0 +1,69 @@
+# Dataset ledger template (v1.6)
+# Maintained by /dataset-gather. Validated by validators/dataset_ledger.py.
+#
+# Required fields per entry:
+#   bibkey         (str, unique) — convention: {dataset_slug}{year}{source_short}
+#                                  e.g., nab2017kpi (NAB benchmark, 2017, KPI flavor)
+#                                        ucr2018archive (UCR archive, 2018)
+#                                        librispeech2015openslr (LibriSpeech, 2015, OpenSLR)
+#   primary_url    (str, valid http(s) URL) — canonical landing page for the dataset
+#   name           (str, non-empty) — human-readable dataset name
+#   source         (str, non-empty) — source category, conventionally one of:
+#                                     huggingface | kaggle | zenodo | osf | figshare |
+#                                     icpsr | aws_open_data | gcp_public | azure_open |
+#                                     nih | ncbi | fred | nasa | common_crawl |
+#                                     data_gov | uci | openml | paperswithcode |
+#                                     github | other
+#   status         (str, enum) — unverified | verified | mismatched
+#                                `verified` requires WebFetch confirmation of name +
+#                                primary_url + license against the source page.
+#   task_family    (str, FIXED ENUM) — one of:
+#                                     classification | regression | sequence_labeling |
+#                                     generation | retrieval | ranking | multimodal |
+#                                     graph | time_series | tabular | recommendation |
+#                                     structured_prediction | other
+#
+# Optional fields (populate when /dataset-gather WebFetched the source page;
+# omit when uncertain — do NOT fabricate values):
+#   license        (str) — e.g., "CC-BY-4.0", "MIT", "Apache-2.0", "custom",
+#                          "non-commercial", "unknown". Use "unknown" honestly
+#                          when the source page doesn't disclose.
+#   size           (str) — human-readable, e.g., "1.2GB", "5M tokens", "365K rows".
+#   rows           (int|str) — when known. String form OK if approximate ("~10K").
+#   columns        (int|str) — when known. For tabular datasets; "tabular: <N>"
+#                              when N is exact, free-form when describing structure.
+#   schema_url     (str, valid URL) — link to the schema page / dataset card.
+#   access_method  (str) — "hf datasets" | "direct" | "API" | "signup wall" |
+#                          "credentialed" | "other".
+#   auth_required  (bool) — true if downloading requires login / API key /
+#                           registration / signed agreement.
+#   citation       (str) — recommended citation form (e.g., "Smith et al. (2020), NeurIPS").
+
+entries:
+- bibkey: example2024foodataset
+  primary_url: https://huggingface.co/datasets/example-org/foo
+  name: 'Foo Dataset: A Worked Example'
+  source: huggingface
+  status: unverified
+  task_family: classification
+  # Optional fields below — populate as known:
+  license: CC-BY-4.0
+  size: '12GB'
+  rows: 5000000
+  columns: 3
+  schema_url: https://huggingface.co/datasets/example-org/foo
+  access_method: hf datasets
+  auth_required: false
+  citation: 'Smith et al. (2024), arXiv:2401.12345'
+
+- bibkey: anothere2025bardataset
+  primary_url: https://zenodo.org/records/1234567
+  name: 'Bar Benchmark for Sequence Labeling'
+  source: zenodo
+  status: verified
+  task_family: sequence_labeling
+  license: CC-BY-4.0
+  size: '500MB'
+  access_method: direct
+  auth_required: false
+  citation: 'Bar et al. (2025), Zenodo DOI 10.5281/zenodo.1234567'

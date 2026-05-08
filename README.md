@@ -1,8 +1,13 @@
 # research_toolkit
 
-**Six Claude Code skills + validators that turn a research topic into an audited research dossier.**
+**Claude Code skills + validators that turn a research topic into an audited dossier.**
 
-You give it a topic. It produces a structured bibliography, a topic-organized dossier, a 5-bullet-per-entry agent-readable synthesis, and an audit trail — all gated by schema validators that fail loudly when a stage produces malformed output. Designed for cases where ad-hoc "summarize the LLM literature on X" prompts would produce plausible-but-unverified prose; this gives you a verifiable artifact instead.
+The toolkit covers two parallel pipelines:
+
+- **Paper synthesis** (6 skills, v1.0+): given a topic, produces a structured bibliography of primary sources + a topic-organized dossier + a 5-bullet-per-entry agent-readable synthesis + an audit trail.
+- **Dataset discovery** (3 skills, v1.6+): given a topic, produces a structured ledger of public datasets + a 5-bullet-per-entry dataset dossier (Source / Access / Schema / Size+License / Tasks) — useful when you need "what data exists for this topic" with metadata, not paper bibliography.
+
+Both pipelines are gated by schema validators that fail loudly when a stage produces malformed output. Designed for cases where ad-hoc "summarize the LLM literature on X" or "find datasets for X" prompts would produce plausible-but-unverified prose; this gives you a verifiable artifact instead.
 
 Audience: anyone using Claude Code who wants research output with a paper trail. Output reads cleanly for humans and grounds reasoning for future Claude Code agents working in adjacent projects.
 
@@ -73,7 +78,9 @@ Then in any Claude Code session:
 
 For a 5-minute walkthrough: [`docs/getting_started.md`](docs/getting_started.md). For common failures: [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
-## The 6 skills
+## The skills
+
+### Paper-synthesis pipeline (v1.0+)
 
 | Skill | Stage | Input | Output | Validator |
 |---|---|---|---|---|
@@ -83,6 +90,16 @@ For a 5-minute walkthrough: [`docs/getting_started.md`](docs/getting_started.md)
 | `/agent-index` | 3 | Dossier files | Indexed folder + AGENT-INDEX README | `validators/agent_index.py` |
 | `/dossier-audit` | 4 | Indexed folder + scope focus | One round of DROP/CORRECT/FLAG fixes + audit-trail note | `validators/audit_trail.py` |
 | `/url-freshness-check` | utility | Any markdown folder | URL HEAD-check report | `validators/url_check_report.py` |
+
+### Dataset-discovery pipeline (v1.6+)
+
+| Skill | Stage | Input | Output | Validator |
+|---|---|---|---|---|
+| `/dataset-gather` | 1 | Topic free-text | `dataset_ledger.yml` | `validators/dataset_ledger.py` |
+| `/dataset-index` | 2 | `dataset_ledger.yml` | Indexed folder with 5-bullet dataset entries (Source/Access/Schema/Size+License/Tasks) | `validators/agent_index.py` |
+| `/dataset-research` | wrapper | Topic free-text | Both above in sequence | both validators |
+
+Reuses paper-pipeline's `/dossier-audit` (focus area: "license risks + access stability") and `/url-freshness-check`. Searches 8 source categories — see `references/dataset_sources.md` for the per-source discovery strategy + gotchas.
 
 ## Defensive layer (v1.2+)
 

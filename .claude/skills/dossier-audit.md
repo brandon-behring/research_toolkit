@@ -1,6 +1,6 @@
 ---
 name: dossier-audit
-description: Run one round of complementary-scope independent audit on an indexed folder. Spawns a fresh general-purpose sub-agent with WebSearch + WebFetch to verify entries against primary sources; receives a DROP/CORRECT/FLAG/SPOT-CHECK report; applies fixes inline; appends round-N audit-trail note. Single-round — user re-invokes per round.
+description: Run one round of complementary-scope independent audit on an indexed folder. Spawns a fresh general-purpose sub-agent with WebSearch + WebFetch to verify entries against primary sources; receives a DROP/CORRECT/FLAG/SPOT-CHECK report; applies fixes inline; appends round-N audit-trail note. Single-round — user re-invokes per round. v1.6: also runs against /dataset-index outputs — use focus areas like "license risks + access stability" for dataset dossiers.
 allowed-tools: Read, Edit, Bash
 ---
 
