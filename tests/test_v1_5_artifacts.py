@@ -40,7 +40,7 @@ def test_troubleshooting_exists_and_reasonable_size() -> None:
     p = DOCS / "troubleshooting.md"
     assert p.exists(), f"missing {p}"
     lines = p.read_text(encoding="utf-8").splitlines()
-    assert 60 <= len(lines) <= 250, f"troubleshooting.md has {len(lines)} lines; target ~60-150"
+    assert 60 <= len(lines) <= 400, f"troubleshooting.md has {len(lines)} lines; target ~60-400 (v1.9.1: ~330 covering paper + dataset pipelines)"
 
 
 def test_getting_started_mentions_all_6_skills() -> None:

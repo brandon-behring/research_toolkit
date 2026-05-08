@@ -50,6 +50,36 @@ topic
 
 Every stage's output is the next stage's input. Every stage has a schema validator that fails loudly on drift. v1.2 added `cross_stage` — a cross-artifact validator that checks the bib_ledger / dossier / agent_index agree on what they're describing.
 
+## Dataset pipeline
+
+Same shape, different artifacts: a ledger of public datasets instead of papers, with the same audit + url-check stages reused.
+
+```
+topic
+  │
+  ▼
+┌──────────────────────┐
+│ /dataset-research    │ — one-shot wrapper for the two stages below
+└──────────────────────┘
+  │
+  ▼
+┌──────────────────────┐
+│ /dataset-gather      │ ─→ dataset_ledger.yml      (8 source categories: HF /
+└──────────────────────┘                             Kaggle / academic / aggregators /
+                                                     cloud / domain / gov / classical ML)
+  │
+  ▼
+┌──────────────────────┐
+│ /dataset-index       │ ─→ <consumer>/docs/<topic>_datasets/
+└──────────────────────┘    (5-bullet entries: Source / Access / Schema /
+                             Size+License / Tasks)
+  │
+  └─→ /dossier-audit (focus="license risks")  +  /url-freshness-check
+       (reused; cross_stage --strict catches ledger ↔ synthesis drift)
+```
+
+v1.9 extended `cross_stage` so the same orphan / stale-entry detection applies to dataset_ledger ↔ agent_index pairs. v1.9 also codified the compound-license rule (YAML + prose check) after the v1.8 Nectar dogfood surfaced an apache-2.0 declaration with non-commercial restrictions in the prose.
+
 ## Quickstart
 
 ```bash
@@ -117,9 +147,8 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 |---|---|
 | Use the toolkit for the first time | [`docs/getting_started.md`](docs/getting_started.md) — 5-min walkthrough |
 | Understand a failure / error message | [`docs/troubleshooting.md`](docs/troubleshooting.md) — 7 common failures with symptom→cause→fix |
-| See what's been improved version-by-version | [`BURN_IN_NOTES.md`](BURN_IN_NOTES.md) — narrative friction log v1.0 → v1.5.1 |
+| See what's been improved version-by-version | [`BURN_IN_NOTES.md`](BURN_IN_NOTES.md) — narrative friction log v1.0 → v1.9 |
 | Query unresolved issues | `python scripts/burn_in_query.py --status surfaced` |
-| See planned future work | [`docs/roadmap_v1_2_through_v1_5.md`](docs/roadmap_v1_2_through_v1_5.md) — sequenced post-v1.1 plan (mostly applied) |
 | See reliability across runs | [`evals/dogfood_metrics.csv`](evals/dogfood_metrics.csv) — per-run hard-404 + audit-correction counts |
 
 ## Repository layout
@@ -138,9 +167,8 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 ├── validators/                      # 7 schema validators (cross_stage added v1.2)
 ├── scripts/                         # backfill_ledger, build_medium_fixture, burn_in_query
 ├── docs/
-│   ├── getting_started.md           # v1.5 onboarding
-│   ├── troubleshooting.md           # v1.5 common failures
-│   └── roadmap_v1_2_through_v1_5.md # forward plan (mostly applied)
+│   ├── getting_started.md           # onboarding (paper + dataset pipelines)
+│   └── troubleshooting.md           # common failures v1.0 → v1.9
 ├── evals/
 │   └── dogfood_metrics.csv          # reliability metrics across runs
 └── tests/

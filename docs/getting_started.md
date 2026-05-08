@@ -3,6 +3,16 @@
 A 5-minute walkthrough. Audience: future-you or future Claude Code agents
 reading the repo cold. Not external collaborators.
 
+## Which pipeline?
+
+| You want…                                       | Use                                    |
+|---|---|
+| "what literature exists for X?"                 | paper pipeline (`/research-plan`)      |
+| "what public datasets exist for X?"             | dataset pipeline (`/dataset-research`) |
+| Both (paired research)                          | run both; cross-link the agent-indexes |
+
+The paper pipeline (v1.0+) is described first; the dataset pipeline (v1.6+) is below at "## Dataset pipeline".
+
 ## What this toolkit does
 
 Six Claude Code skills that build a structured research dossier from a topic
@@ -63,6 +73,47 @@ Then in sequence:
 /url-freshness-check ~/your_project/docs/<topic>/
 ```
 
+## Dataset pipeline (v1.6+)
+
+Use this when you need "what public datasets exist for this topic" instead of "what literature exists for this topic." Same shape as the paper pipeline; reuses `/dossier-audit` and `/url-freshness-check`.
+
+Three skills:
+
+1. `/dataset-gather <topic>` → searches 8 source categories (HF / Kaggle / academic / aggregators / cloud / domain / gov / classical ML); writes `dataset_ledger.yml`
+2. `/dataset-index <ledger>` → renders 5-bullet entries (Source / Access / Schema / Size+License / Tasks) into `<consumer>/docs/<topic>_datasets/`
+3. `/dataset-research <topic>` → one-shot wrapper for the two stages above
+
+Trigger:
+
+```
+/dataset-research "your topic here"
+```
+
+Output:
+
+```
+~/Claude/research_<topic>_datasets/dataset_ledger.yml
+~/your_project/docs/<topic>_datasets/
+```
+
+Reuse the same audit + URL-check stages with a license-focused audit:
+
+```
+/dossier-audit ~/your_project/docs/<topic>_datasets/ --focus "license risks + access stability"
+/url-freshness-check ~/your_project/docs/<topic>_datasets/
+```
+
+### Worked example: "time-series anomaly detection datasets"
+
+The v1.6 dogfood — real numbers from `~/Claude/research_time_series_anomaly/`.
+
+- Trigger: `/dataset-research "time-series anomaly detection datasets"`
+- Output: `dataset_ledger.yml` with 45 entries.
+- Source distribution: HF / academic / classical-ML archives (UCR, NAB) account for ~70%; the remaining ~29% is `source: other` (PhysioNet, iTrust, Yahoo Webscope, Backblaze, ELKI). The high `source: other` ratio was expected — this is a security/IoT/biomedical-heavy domain where the canonical aggregators don't dominate. See `references/dataset_sources.md` § "When `source: other` is the right answer" for why that's normal here.
+- Stage 2 output: `<consumer>/docs/time_series_anomaly_datasets/` with one 5-bullet entry per dataset.
+- Validation: `cross_stage --strict` catches ledger ↔ synthesis drift after Stage 2 (v1.9 extended this check to dataset projects).
+- Cross-link convention: if the consumer project also has a paper-pipeline dossier, bidirectional cross-link in both READMEs (see `templates/agent_index_README.template.md` § "Paired-pipeline cross-link convention" — the v1.8 RLHF dogfood is the worked example).
+
 ## Validating an in-progress run
 
 Each stage has its own validator; run any of them at any time:
@@ -71,13 +122,15 @@ Each stage has its own validator; run any of them at any time:
 cd ~/Claude/research_toolkit
 python validators/research_plan.py ~/Claude/research_<slug>/research_plan.md
 python validators/bib_ledger.py ~/Claude/research_<slug>/bib_ledger.yml
+python validators/dataset_ledger.py ~/Claude/research_<slug>_datasets/dataset_ledger.yml   # dataset pipeline
 python validators/dossier.py ~/Claude/research_<slug>/dossier
 python validators/agent_index.py ~/your_project/docs/<topic>/
 python validators/cross_stage.py ~/Claude/research_<slug>      # cross-artifact consistency
 ```
 
 Cross-stage `--strict` promotes warnings (orphan IDs, stale ledger entries) to
-errors. Useful pre-publish.
+errors. Useful pre-publish. v1.9 extended `cross_stage` to handle dataset_ledger
+↔ agent_index pairs as well.
 
 ## How the toolkit catches subagent misbehavior
 
@@ -103,7 +156,6 @@ If any of these fire on your run, see `docs/troubleshooting.md`.
 - `tests/fixtures/` — `mini` (5 entries, smoke), `medium_topic_calibration_subset` (22 entries, v1.1+ schema reference), `prompt_injection_snapshot/{real,recreated}` (137 entries, real-world reference)
 - `BURN_IN_NOTES.md` + `burn_in.yml` — friction tracking (narrative + queryable)
 - `evals/dogfood_metrics.csv` — reliability metrics across runs
-- `docs/roadmap_v1_2_through_v1_5.md` — version plan
 
 ## What to read next
 

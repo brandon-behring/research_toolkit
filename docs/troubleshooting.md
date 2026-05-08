@@ -146,6 +146,156 @@ For a structured query of all known friction:
 python scripts/burn_in_query.py --status surfaced --severity high
 ```
 
+## Kaggle WebFetch returns 403 / empty metadata (dataset pipeline)
+
+**Symptom:** During `/dataset-gather`, WebFetch on `kaggle.com/datasets/<owner>/<slug>`
+returns a 403, an empty page, or metadata fields that all come back blank.
+
+**Cause:** Kaggle's dataset metadata is gated behind a logged-in session. The
+public dataset URL renders a login wall to anonymous fetchers; the underlying
+JSON metadata is only served to authenticated browsers / the Kaggle CLI.
+
+**Fix:** Don't fight the paywall. In the ledger entry:
+
+- Set `auth_required: true`.
+- Leave fields you can't extract (`size_rows`, `columns`, `schema_url`) as `unknown`.
+- Document the limitation in the audit pass — Kaggle entries are honest-incomplete
+  rather than confidently-wrong.
+
+If the topic is Kaggle-heavy, consider noting in the dataset-pipeline README that
+many entries will require Kaggle login for access — set reader expectations.
+
+## `source: other` is 20-40% of dataset_ledger entries
+
+**Symptom:** After `/dataset-gather`, a noticeable fraction of entries have
+`source: other` rather than mapping to one of the 8 canonical categories
+(HF / Kaggle / academic / aggregators / cloud / domain / gov / classical_ml).
+
+**Cause:** The topic is in a domain where canonical aggregators don't dominate.
+The v1.6 dogfood on time-series anomaly detection found 29% `source: other` —
+PhysioNet (biomedical), iTrust (critical-infrastructure security),
+Yahoo Webscope (the legacy Yahoo data archive), Backblaze (drive-failure logs),
+ELKI (academic clustering toolkit), etc.
+
+**Fix:** This is **expected** for security / biomedical / IoT / critical-infrastructure
+topics. Do not force these entries into a closer-but-wrong category. See
+`references/dataset_sources.md` § "When `source: other` is the right answer"
+for the canonical list of legitimate `other` repositories and the rule
+(v1.7 codified) that `source: other` is the correct call when the dataset is
+primarily distributed by its host institution rather than a generic aggregator.
+
+If `source: other` exceeds ~40%, the search may be missing canonical-aggregator
+hits — re-run with explicit HF / Kaggle queries to verify nothing was overlooked.
+
+## "memory-verification suspected" warning on `dataset_ledger.yml`
+
+**Symptom:** `python -m validators.dataset_ledger ledger.yml` emits:
+
+```
+WARN memory-verification suspected: <N> entries, all marked 'verified'
+```
+
+at ≥30 entries. The bib_ledger version of this warning fires at ≥50; the
+dataset_ledger threshold is lower (30) because dataset metadata is harder to
+recall from memory than paper bibliography.
+
+**Cause:** `/dataset-gather` Stage 2 bulk-marked entries as `verified` from
+memory rather than per-entry WebFetch confirmation. Same anti-pattern as the
+calibration §2.1 finding (v1.5c) but for datasets.
+
+**Fix:** Re-run with strict per-entry WebFetch verification. Aim for 85-95%
+verified plus a few honest `unverified` entries (e.g., gated Kaggle datasets,
+dead-link recovery cases). 100% verified at scale is the signature of memory
+inflation, not real verification.
+
+To gate CI on this warning:
+
+```bash
+python -m validators.dataset_ledger ledger.yml --strict
+```
+
+## agent_index has the wrong domain in a Source URL (Cornell vs UCR pattern)
+
+**Symptom:** A 5-bullet dataset entry's `**Source:**` URL points to the wrong
+domain — e.g., `cs.cornell.edu/...` for the UCR Time Series Archive (which is
+hosted at `cs.ucr.edu`; Eamonn Keogh, the maintainer, is at UCR).
+
+**Cause:** The rendering subagent substituted a domain from prior knowledge of
+the maintainer's affiliation rather than reading it off the dataset_ledger entry.
+This is the v1.6 dogfood failure: the agent "knew" Keogh works on time-series
+and remembered Cornell from elsewhere, then conflated the two. Surfaced under
+audit, not validation.
+
+**Fix:** v1.7 codified the rule in `/dataset-index` skill body:
+
+> NO domain substitution from memory. The `**Source:**` URL must come from the
+> dataset_ledger entry's `primary_url` field — unchanged, character-for-character.
+
+If you see this pattern, re-run `/dataset-index` (the skill body now has the
+rule baked in). Fix the immediate occurrence by reading the ledger entry's
+`primary_url` and copying it verbatim.
+
+## License says one thing in YAML, another in prose (compound-license)
+
+**Symptom:** A dataset_ledger entry declares e.g. `license: apache-2.0`, but
+the `Size+License` bullet's prose paragraph says "non-commercial use only" or
+adds restrictions not in the SPDX identifier.
+
+**Cause:** Stage 2 (`/dataset-gather`) read the source page's structured `license:`
+field but didn't read the prose section that adds restrictions on top. The v1.8
+Nectar dogfood surfaced this — Nectar declared `apache-2.0` in YAML but added
+non-commercial use restrictions in the prose. Phase A audit missed it; Phase C
+license-focused audit caught it.
+
+**Fix:** v1.9 codified the compound-license rule in `/dataset-gather` Phase 3
+and in `references/audit_protocol.md`:
+
+> If the source page's license declaration AND prose disagree, render the
+> license field as `<base> + custom restrictions: <one-line summary>`. Don't
+> drop either side.
+
+To catch existing compound-license cases in already-rendered ledgers, run:
+
+```
+/dossier-audit <ledger_dir> --focus "license risks"
+```
+
+The audit pass cross-checks YAML license fields against the prose bullets and
+flags disagreements.
+
+## cross_stage warns about orphan ledger entries / orphan synthesis refs
+
+**Symptom:** `python -m validators.cross_stage <project>` emits warnings like:
+
+```
+WARN: 3 dataset_ledger entries not found in agent_index synthesis
+WARN: 2 Source URLs in agent_index not found in dataset_ledger
+```
+
+(v1.9 extended `cross_stage` to handle dataset_ledger ↔ agent_index pairs the
+same way it handles bib_ledger ↔ agent_index.)
+
+**Cause:** Ledger and synthesis are out of sync. Either the ledger has entries
+not yet rendered into the agent_index (Stage 2 didn't run on the latest ledger),
+or the agent_index has Source URLs from outside the ledger (manual edit, or a
+prior ledger version that's since been pruned).
+
+**Fix:** First diagnose which direction the drift goes:
+
+- **Orphan ledger entries** (ledger has more than agent_index): re-run
+  `/dataset-index` to render the missing entries.
+- **Orphan synthesis refs** (agent_index has more than ledger): either add the
+  missing entries to the ledger (preferred — ledger is canonical) or remove
+  the unknowable bullets from the agent_index.
+
+`--strict` promotes both warnings to errors:
+
+```bash
+python -m validators.cross_stage <project> --strict
+```
+
+Use `--strict` pre-publish; default warnings during in-progress runs.
+
 ## Test suite has 2 xfailed cases — is that normal?
 
 **Symptom:** `make test` reports `2 xfailed`.
