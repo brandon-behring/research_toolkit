@@ -18,10 +18,12 @@ from pathlib import Path
 
 import pytest
 
-from validators import dataset_ledger
+from validators import cross_stage, dataset_ledger
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS = REPO_ROOT / ".claude" / "skills"
+TEMPLATES = REPO_ROOT / "templates"
+REFERENCES = REPO_ROOT / "references"
 VALIDATORS_DIR = REPO_ROOT / "validators"
 SMOKE_FIXTURE = (
     REPO_ROOT / "tests" / "fixtures" / "_handcrafted_dataset_smoke" / "dataset_ledger.yml"
@@ -313,3 +315,263 @@ def test_dataset_index_skill_has_anti_domain_substitution_rule() -> None:
         "Skill body should reference the Cornell→UCR example so a cold-reading "
         "subagent understands the failure mode concretely."
     )
+
+
+# ---------- v1.9 Item 1: compound-license rule ----------
+
+
+def test_dataset_gather_skill_has_compound_license_rule() -> None:
+    """v1.9: /dataset-gather must codify the compound-license check (read prose
+    for restrictive caveats beyond YAML license field). Codified after the
+    Nectar v1.8 audit finding (apache-2.0 in YAML + non-commercial in prose).
+    """
+    text = (SKILLS / "dataset-gather.md").read_text(encoding="utf-8")
+    assert "compound-license" in text.lower(), (
+        "/dataset-gather must reference 'compound-license' rule"
+    )
+    assert "prose" in text.lower(), (
+        "/dataset-gather rule must mention checking prose, not just YAML"
+    )
+    # Worked example must be preserved
+    assert "nectar" in text.lower(), (
+        "Skill body should reference the Nectar v1.8 worked failure example"
+    )
+
+
+def test_audit_protocol_has_compound_license_check() -> None:
+    """v1.9: audit_protocol.md codifies the compound-license check as audit-stage
+    hygiene when --focus is 'license risks'."""
+    text = (REFERENCES / "audit_protocol.md").read_text(encoding="utf-8")
+    assert "Compound-license check" in text or "compound-license" in text.lower(), (
+        "audit_protocol.md must have a compound-license sub-section (v1.9)"
+    )
+
+
+# ---------- v1.9 Item 2: paired-pipeline cross-link convention ----------
+
+
+def test_agent_index_template_has_paired_cross_link_convention() -> None:
+    """v1.9: agent_index_README.template.md codifies the bidirectional cross-link
+    pattern between paper synthesis ↔ dataset dossier on the same topic.
+    """
+    text = (TEMPLATES / "agent_index_README.template.md").read_text(encoding="utf-8")
+    assert "Paired-pipeline cross-link convention" in text, (
+        "agent_index_README.template.md must codify the paired-pipeline cross-link convention (v1.9)"
+    )
+    # Worked example must be preserved
+    assert "vol29_rlhf" in text and "rlhf_datasets" in text, (
+        "Template should reference vol29_rlhf ↔ rlhf_datasets as the v1.8 worked example"
+    )
+
+
+# ---------- v1.9 Item 3: cross_stage extension for dataset_ledger ----------
+
+
+def _project_with_dataset_ledger(
+    tmp_path: Path,
+    *,
+    ledger_entries: list[dict],
+    synthesis_files: dict[str, str] | None = None,
+) -> Path:
+    """Build a tmp project dir with a dataset_ledger.yml and optional agent_index/."""
+    project = tmp_path / "project"
+    project.mkdir()
+    parts = ["entries:"]
+    for e in ledger_entries:
+        parts.append(f"- bibkey: {e['bibkey']}")
+        for k, v in e.items():
+            if k == "bibkey":
+                continue
+            if isinstance(v, bool):
+                parts.append(f"  {k}: {str(v).lower()}")
+            else:
+                parts.append(f"  {k}: {v}")
+        parts.append("")
+    (project / "dataset_ledger.yml").write_text("\n".join(parts), encoding="utf-8")
+    if synthesis_files:
+        ai = project / "agent_index"
+        ai.mkdir()
+        for name, content in synthesis_files.items():
+            (ai / name).write_text(content, encoding="utf-8")
+    return project
+
+
+_BASE_ENTRY = {
+    "primary_url": "https://huggingface.co/datasets/example/foo",
+    "name": "Foo Dataset",
+    "source": "huggingface",
+    "status": "verified",
+    "task_family": "classification",
+}
+
+
+def test_cross_stage_passes_clean_dataset_project(tmp_path: Path) -> None:
+    """Dataset project with ledger entry that's also referenced in agent_index passes."""
+    entry = {"bibkey": "foo2025example", **_BASE_ENTRY}
+    synthesis = (
+        "# Foo synthesis\n\n"
+        "## A1. Datasets\n\n"
+        "- **Foo Dataset** — example.\n"
+        "  - **Source:** https://huggingface.co/datasets/example/foo\n"
+        "  - **Access:** hf datasets; auth_required: N\n"
+        "  - **Schema:** see card\n"
+        "  - **Size+License:** 1MB; MIT\n"
+        "  - **Tasks:** classification\n"
+        "  - **Status:** Verified.\n"
+    )
+    project = _project_with_dataset_ledger(
+        tmp_path, ledger_entries=[entry], synthesis_files={"01_subset.md": synthesis}
+    )
+    assert cross_stage.validate(project) == []
+
+
+def test_cross_stage_warns_on_orphan_dataset_ledger_entry(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    """Ledger has an entry that doesn't appear in any agent_index Source line → warning."""
+    entries = [
+        {"bibkey": "foo2025example", **_BASE_ENTRY},
+        {  # orphan — not in synthesis below
+            "bibkey": "bar2025orphan",
+            **{**_BASE_ENTRY, "primary_url": "https://huggingface.co/datasets/example/bar"},
+        },
+    ]
+    synthesis = (
+        "# Synthesis\n\n## A1.\n\n"
+        "- **Foo** — example.\n"
+        "  - **Source:** https://huggingface.co/datasets/example/foo\n"
+        "  - **Access:** hf datasets; N\n"
+        "  - **Schema:** —\n"
+        "  - **Size+License:** small; MIT\n"
+        "  - **Tasks:** —\n"
+        "  - **Status:** Verified.\n"
+    )
+    project = _project_with_dataset_ledger(
+        tmp_path, ledger_entries=entries, synthesis_files={"01_subset.md": synthesis}
+    )
+    errors = cross_stage.validate(project, strict=False)
+    assert errors == []  # default mode: warning only
+    err = capsys.readouterr().err
+    assert "stale ledger" in err.lower() or "no matching agent_index" in err.lower()
+
+
+def test_cross_stage_warns_on_orphan_dataset_synthesis_reference(
+    tmp_path: Path, capsys: pytest.CaptureFixture
+) -> None:
+    """Synthesis Source URL that's not in dataset_ledger → warning."""
+    entry = {"bibkey": "foo2025example", **_BASE_ENTRY}
+    synthesis = (
+        "# Synthesis\n\n## A1.\n\n"
+        "- **Foo** — example.\n"
+        "  - **Source:** https://huggingface.co/datasets/example/foo\n"
+        "  - **Access:** —\n"
+        "  - **Schema:** —\n"
+        "  - **Size+License:** —\n"
+        "  - **Tasks:** —\n"
+        "  - **Status:** Verified.\n\n"
+        "- **Bar (orphan)** — example.\n"
+        "  - **Source:** https://huggingface.co/datasets/example/bar-orphan\n"
+        "  - **Access:** —\n"
+        "  - **Schema:** —\n"
+        "  - **Size+License:** —\n"
+        "  - **Tasks:** —\n"
+        "  - **Status:** Verified.\n"
+    )
+    project = _project_with_dataset_ledger(
+        tmp_path, ledger_entries=[entry], synthesis_files={"01_subset.md": synthesis}
+    )
+    errors = cross_stage.validate(project, strict=False)
+    assert errors == []
+    err = capsys.readouterr().err
+    assert "not in dataset_ledger" in err.lower() or "unattributed" in err.lower()
+
+
+def test_cross_stage_strict_promotes_dataset_orphans(tmp_path: Path) -> None:
+    """--strict promotes both orphan-direction warnings to errors."""
+    entries = [
+        {"bibkey": "foo2025example", **_BASE_ENTRY},
+        {  # orphan in ledger
+            "bibkey": "bar2025orphan",
+            **{**_BASE_ENTRY, "primary_url": "https://huggingface.co/datasets/example/bar"},
+        },
+    ]
+    synthesis = (
+        "# Synthesis\n\n## A1.\n\n"
+        "- **Foo** — example.\n"
+        "  - **Source:** https://huggingface.co/datasets/example/foo\n"
+        "  - **Access:** —\n"
+        "  - **Schema:** —\n"
+        "  - **Size+License:** —\n"
+        "  - **Tasks:** —\n"
+        "  - **Status:** Verified.\n"
+    )
+    project = _project_with_dataset_ledger(
+        tmp_path, ledger_entries=entries, synthesis_files={"01_subset.md": synthesis}
+    )
+    errors = cross_stage.validate(project, strict=True)
+    # Should have at least one error (stale ledger entry)
+    assert errors, "--strict should promote orphan warnings to errors"
+    assert any("stale" in e.lower() or "no matching" in e.lower() for e in errors), errors
+
+
+def test_cross_stage_handles_both_bib_and_dataset_ledger_independently(
+    tmp_path: Path,
+) -> None:
+    """When both bib_ledger.yml and dataset_ledger.yml exist, both flows run."""
+    project = tmp_path / "project"
+    project.mkdir()
+    # Minimal valid bib_ledger
+    (project / "bib_ledger.yml").write_text(
+        (
+            "entries:\n"
+            "- bibkey: smoke2025paper\n"
+            "  primary_url: https://arxiv.org/abs/2501.00001\n"
+            "  title: 'A paper'\n"
+            "  status: unverified\n"
+            "  claim_family: example\n"
+        ),
+        encoding="utf-8",
+    )
+    # Minimal valid dataset_ledger
+    (project / "dataset_ledger.yml").write_text(
+        (
+            "entries:\n"
+            "- bibkey: smoke2025data\n"
+            "  primary_url: https://huggingface.co/datasets/example/foo\n"
+            "  name: 'A dataset'\n"
+            "  source: huggingface\n"
+            "  status: unverified\n"
+            "  task_family: classification\n"
+        ),
+        encoding="utf-8",
+    )
+    # No agent_index/ → both flows run their schema checks but no orphan
+    # detection (which requires agent_index/).
+    errors = cross_stage.validate(project)
+    assert errors == [], (
+        f"clean both-ledgers project should pass; got {errors}"
+    )
+
+
+def test_cross_stage_passes_on_v1_6_medium_dataset_subset_fixture() -> None:
+    """Backward compat: the v1.6 medium_dataset_subset fixture validates under
+    the v1.9 cross_stage with dataset_ledger flow active. Catches schema-shape
+    regressions in either the fixture or the validator."""
+    fixture = REPO_ROOT / "tests" / "fixtures" / "medium_dataset_subset"
+    if not fixture.exists():
+        pytest.skip(f"{fixture} not present")
+    assert cross_stage.validate(fixture) == []
+    # Strict mode also passes (the fixture is intentionally curated to be clean).
+    assert cross_stage.validate(fixture, strict=True) == []
+
+
+def test_cross_stage_passes_on_real_rlhf_datasets_dir() -> None:
+    """v1.8 dogfood project validates under v1.9 cross_stage. Skipped if the
+    working copy isn't on this machine."""
+    real = Path.home() / "Claude" / "research_rlhf_datasets"
+    if not real.exists():
+        pytest.skip(f"{real} not present")
+    # Default mode should pass (agent_index lives in interview_prep_series, not
+    # co-located, so the orphan checks gracefully no-op when agent_index is
+    # absent under the project_dir).
+    assert cross_stage.validate(real) == []

@@ -22,6 +22,18 @@ Two postures, parameterized by the round's risk tolerance:
 
 Pass `aggressiveness=aggressive` to escalate. Document the choice in the round's audit-trail note.
 
+## Compound-license check (v1.9)
+
+When the audit `--focus` is "license risks" (the recommended dataset-pipeline audit focus), spot-check 3-5 entries by re-reading the **prose** of the source page (not just the structured `license:` field). If the prose adds restrictions beyond the YAML license, mark as CORRECT and apply inline:
+
+```
+license: '<base license> + custom restrictions: <one-line summary>'
+```
+
+The Nectar v1.8 audit caught one such case (`apache-2.0` declared in YAML, but prose restricted to non-commercial research preview). v1.9 codifies the check as standard audit-stage hygiene rather than ad-hoc spot-checking.
+
+**When this check is most valuable**: HuggingFace community uploads, Stanford / academic releases (where ToU may add restrictions), Reddit-derived datasets (where redistribution restrictions are subtle), and any dataset whose YAML license is "permissive" (Apache-2.0, MIT) — those are the highest-risk for prose-overriding-YAML.
+
 ## Default arXiv-ID spot-check (v1.1)
 
 When `/research-gather` reports memory-based or time-pressed verification (i.e., entries marked `verified` without per-entry WebFetch confirmation), Stage 5 must include a default 10-entry random arXiv-ID spot-check ALONGSIDE the focus-area work:

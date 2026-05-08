@@ -56,7 +56,7 @@ Every stage's output is the next stage's input. Every stage has a schema validat
 git clone https://github.com/brandon-behring/research_toolkit ~/Claude/research_toolkit
 cd ~/Claude/research_toolkit
 make install              # .venv + pip install -e ".[dev]"
-make test                 # 109 pass + 2 xfailed on a clean checkout
+make test                 # 151 pass + 2 xfailed on a clean checkout
 
 # Make skills discoverable from any project:
 mkdir -p ~/.claude/skills

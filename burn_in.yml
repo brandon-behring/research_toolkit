@@ -195,3 +195,34 @@ entries:
   fix_version: v1.4
   fix_commit: '2325684'
   notes: 'v1.4 added tests/test_pipeline_e2e.py with 9 cases covering chain + idempotency + regression detection'
+
+# ---------------------------------------------------------------------------
+# v1.9 — three v1.8 BURN_IN items consolidated (2026-05-08)
+# ---------------------------------------------------------------------------
+
+- id: 5c-comp-license
+  phase: phase-5c
+  stage: dataset-gather
+  finding: 'compound-license pattern: source page YAML license + prose restrictions silently dropped (Nectar v1.8 dogfood)'
+  severity: high
+  status: applied
+  fix_version: v1.9
+  notes: '/dataset-gather skill body + audit_protocol.md both updated; render as `<base> + custom restrictions: <summary>` when prose contradicts YAML'
+
+- id: 5c-cross-link
+  phase: phase-5c
+  stage: agent-index
+  finding: 'paired-pipeline cross-link convention was ad-hoc in v1.8 (vol29_rlhf ↔ rlhf_datasets); not codified in template'
+  severity: medium
+  status: applied
+  fix_version: v1.9
+  notes: 'agent_index_README.template.md adds the bidirectional cross-link pattern + worked example'
+
+- id: cross-4
+  phase: cross-cutting
+  stage: N/A
+  finding: 'cross_stage validator only handled bib_ledger; dataset_ledger orphan-detection deferred since v1.6'
+  severity: medium
+  status: applied
+  fix_version: v1.9
+  notes: 'v1.9 extended validators/cross_stage.py with parallel dataset_ledger flow (orphan ledger ↔ orphan synthesis, --strict promotion); 7 new unit tests'

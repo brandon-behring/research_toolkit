@@ -775,6 +775,35 @@ No breaking changes to ledger schema or skill workflows; just three small alignm
 
 ---
 
+## v1.9 — applied 2026-05-08
+
+**Theme:** consolidate the 3 BURN_IN backlog items from v1.8 paired-dogfood. Tooling-only release; no new dogfood.
+
+**Items shipped (all 3):**
+
+1. **Compound-license rendering rule** (`/dataset-gather` skill body + `references/audit_protocol.md`). v1.8 surfaced Nectar's `apache-2.0` YAML declaration that prose contradicted with non-commercial restrictions. v1.9 codified: when source page has BOTH structured `license:` field AND prose section discussing terms, render as `<base license> + custom restrictions: <one-line summary>`. The audit-protocol's "license risks" focus area gets a parallel sub-section so the audit stage spot-checks for the same anti-pattern. Belt-and-suspenders: rule applied at both gather time and audit time.
+
+2. **Paired-pipeline cross-link template convention** (`templates/agent_index_README.template.md`). v1.8 produced the bidirectional cross-link pattern (vol29_rlhf ↔ rlhf_datasets) ad-hoc; v1.9 codifies it in the template so future paired-pipeline runs follow the convention consistently. Worked example preserved for cold readers.
+
+3. **`cross_stage` validator extension for `dataset_ledger`** (`validators/cross_stage.py`). Stretch goal deferred from v1.6 + v1.7 + v1.8. v1.9 ships it: the validator now handles paper projects (bib_ledger), dataset projects (dataset_ledger), and projects with both. Dataset flow checks orphan ledger entries (in ledger but not in agent_index Source line) and orphan synthesis refs (in agent_index Source line but not in ledger). `--strict` promotes warnings to errors, parallel to bib_ledger flow.
+
+**Tests (NEW: 10 cases added to `tests/test_v1_6_dataset_skills.py`):**
+- 3 lint tests: `/dataset-gather` has compound-license rule; `audit_protocol.md` has compound-license check; template has paired-pipeline cross-link convention.
+- 7 cross_stage unit tests: clean dataset project; orphan ledger warning; orphan synthesis warning; --strict promotion; both ledgers handled independently; medium_dataset_subset backward compat; real rlhf_datasets validates.
+
+**Verification:**
+- `make test`: 141 → 151 passed + 2 xfailed (10 new v1.9 tests; no regressions).
+- All 10 existing real-world projects/fixtures pass under the new validator in default + strict modes.
+- Backward compat: medium_dataset_subset, prompt_injection_snapshot/recreated, all 4 paper-pipeline projects (research_eval_methodology / research_peft / research_calibration / research_rlhf), 2 dataset-pipeline projects (research_time_series_anomaly, research_rlhf_datasets) all pass.
+
+**Out-of-v1.9 scope (truly deferred):**
+- Compound-license auto-detection (parsing HF dataset cards programmatically). The v1.9 rule is "skill body says check prose; subagent does it manually." Auto-detection is its own design.
+- HF datasets API integration vs WebSearch+WebFetch (still marginal value).
+- `docs/getting_started.md` / `docs/troubleshooting.md` v1.6+ updates.
+- A v1.10 / v2.0 design discussion. v1.9 closes out the v1.8 dogfood backlog; further work is BURN_IN-driven from future dogfoods.
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")

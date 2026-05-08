@@ -97,6 +97,35 @@ regression, sequence_labeling, generation, retrieval, ranking, multimodal,
 graph, time_series, tabular, recommendation, structured_prediction, other).
 Use `other` honestly when the dataset doesn't fit; do NOT force-fit.
 
+#### License capture — compound-license HARD RULE (v1.9)
+
+**License capture must check both YAML AND prose.** When a source page
+(HF dataset card, GitHub README, Zenodo metadata) declares a `license:`
+field in its YAML/structured frontmatter, ALSO read the prose section
+for restrictive caveats that contradict or restrict the declared license.
+
+If the prose adds restrictions beyond the YAML license, render the
+`license` field as `<base license> + custom restrictions: <one-line
+summary>` and document the restrictions verbatim in the entry's
+`citation` field or as a free-form note.
+
+**Worked failure example (v1.8 dogfood)**: `berkeley-nest/Nectar`
+declares `license: apache-2.0` in YAML but the prose says "non-commercial
+research preview, not for use competing with OpenAI, subject to LLaMA +
+OpenAI ToU + ShareGPT terms." A naive YAML-only read produces
+"Apache-2.0" — materially wrong for downstream users who would treat
+that as commercially-redistributable. The compound-license rendering is:
+
+```yaml
+license: 'apache-2.0 + custom restrictions: non-commercial research preview;
+  not for competing with OpenAI; subject to LLaMA + OpenAI ToU + ShareGPT terms'
+```
+
+**When to use this rule**: every entry where the source page has BOTH a
+structured license field AND a prose section discussing terms. If the
+prose only restates the structured license (no new restrictions), no
+compound-rendering needed.
+
 ### Phase 4: assign bibkey
 
 `bibkey` convention: `{dataset_slug}{year}{source_short}`, e.g.:
