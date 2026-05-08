@@ -733,6 +733,48 @@ No breaking changes to ledger schema or skill workflows; just three small alignm
 
 ---
 
+## v1.8 — applied 2026-05-08
+
+**Theme:** first paired-pipeline dogfood. Tests cross-pipeline integration (paper synthesis ↔ dataset dossier on the same topic). No code changes; pure dogfood + cross-link.
+
+**Topic**: RLHF and preference optimization. **Output**: `~/interview_prep_series/docs/research/rlhf_datasets/` (50 entries, 5 files) + bidirectional cross-link with existing `vol29_rlhf/` paper synthesis.
+
+**Items shipped:**
+
+- **Phase A**: 50-entry RLHF dataset ledger via `/dataset-gather`. 80% verified + 10 honest-unknown licenses. HF concentration 43/50 (RLHF data canonically lives on HF — honest, not lazy).
+- **Phase B**: 5-file agent_index via `/dataset-index`. Per-file letter-prefix anchors (A/B/C). `01_huggingface_preference_data.md` (30) + `02_huggingface_arena_and_eval.md` (13) + `03_github.md` (7) + 00_overview + README.
+- **Phase C**: Round 1 audit. **1 CORRECT** (Nectar's Apache-2.0 declaration in YAML didn't capture the prose restrictions on commercial use) + 8 FLAG-as-already-flagged + 8/8 spot-checks PASSED. v1.7 anti-domain-substitution rule held under pressure.
+- **Phase D**: Bidirectional cross-link between `rlhf_datasets/README.md` and `vol29_rlhf/README.md`. Both validators clean post-edit.
+- **Phase E**: URL check **0/50 hard-404s** — first fully-clean dataset-pipeline run. Empirical signal that v1.7 byte-faithful URL preservation works.
+
+**Findings:**
+
+1. **Compound-license pattern (v1.9 BURN_IN candidate)**: Nectar's HF dataset card declares `license: apache-2.0` in the YAML frontmatter but the prose section adds "non-commercial research preview, not for use competing with OpenAI, subject to LLaMA + OpenAI ToU + ShareGPT terms." The strict-verification protocol that pulls only the YAML `license:` key misses this. Audit caught it (cross-checked the prose) but the rendering subagent didn't. **Action for v1.9**: extend `/dataset-gather` HARD RULES to: "license capture must check BOTH the YAML `license:` field AND the prose section for restrictive caveats. If the prose adds restrictions beyond the YAML license, render the license field as `<base license> + custom restrictions` and document the restrictions in the citation."
+
+2. **HF concentration is honest for some topics**: RLHF data is 86% HuggingFace; 0 entries from Zenodo/OSF/Figshare/ICPSR/UCI/OpenML/AWS/government — those just don't have RLHF data. Compare time-series-anomaly (v1.6) where `source: other` was 29% (security/ICS/biomedical hosts). The "honest but narrow" shape is correct for RLHF; the "other-overloaded" shape is correct for security/ICS. Both are valid.
+
+3. **First fully-clean URL run for dataset pipeline**: 0/50 hard-404s. v1.6 had 1 (Cornell→UCR typo). v1.7 codified the anti-substitution rule. v1.8 confirms the rule holds under a 43-HF-namespace render where capitalization is the failure mode (Anthropic, OpenAssistant, HuggingFaceH4, RLHFlow, etc.).
+
+4. **Bidirectional cross-link template gap**: when adding the reverse link in `vol29_rlhf/README.md`, the existing scope-callout had a list of cross-vol links (vol25/26/27/28). Added the dataset cross-link as a new bullet in that list. Pattern: "for adjacent topics: [list of paper-vols]; for paired-pipeline datasets, see [`../<topic>_datasets/`]". Worth codifying in the agent_index_README.template.md as the canonical paired-pipeline cross-link convention. **Action for v1.9**: update template to show this list-pattern explicitly.
+
+5. **Cross-pipeline duplication is intentional, not a bug**: 8 entries appear in BOTH `vol29_rlhf/` (as paper) and `rlhf_datasets/` (as dataset artifact). Examples: UltraFeedback paper (in vol29 §F1) + UltraFeedback dataset (in rlhf_datasets §A1). HH-RLHF paper (Bai 2022) + HH-RLHF dataset. These are correctly separate references — paper dossier captures methodology; dataset dossier captures the artifact. Cross-pipeline duplication risk surfaced in v1.6 plan but holds up cleanly in practice.
+
+**Verification:**
+
+- `make test`: 141 → 141 passed + 2 xfailed (no test changes; v1.8 is dogfood, not code).
+- All 4 dogfood validators (dataset_ledger, agent_index, audit_trail, url_check_report) green.
+- Both cross-linked READMEs (rlhf_datasets, vol29_rlhf) validate post-edit.
+- Anonymous clone test still works.
+
+**Out-of-v1.8 scope (deferred):**
+
+- Compound-license rendering rule (v1.9 BURN_IN above).
+- agent_index_README.template.md update for paired-pipeline cross-link convention (v1.9).
+- Second paired dogfood (calibration_datasets, peft_datasets) — done if/when needed; v1.8's signal is sufficient.
+- cross_stage validator extension for dataset_ledger (still stretch from v1.6).
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")
