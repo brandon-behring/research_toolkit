@@ -1,19 +1,77 @@
 # research_toolkit
 
-Claude Code skill collection for systematic research workflows: scope a topic → gather primary sources → build a dossier → synthesize an agent-ready indexed folder → audit it.
+**Six Claude Code skills + validators that turn a research topic into an audited research dossier.**
 
-> **Status:** v1.5 shipped. Toolkit is in maintenance-ready state with 97 passing tests + 2 deliberate xfail baselines. See `BURN_IN_NOTES.md` for the full version history.
+You give it a topic. It produces a structured bibliography, a topic-organized dossier, a 5-bullet-per-entry agent-readable synthesis, and an audit trail — all gated by schema validators that fail loudly when a stage produces malformed output. Designed for cases where ad-hoc "summarize the LLM literature on X" prompts would produce plausible-but-unverified prose; this gives you a verifiable artifact instead.
 
-## What to read
+Audience: anyone using Claude Code who wants research output with a paper trail. Output reads cleanly for humans and grounds reasoning for future Claude Code agents working in adjacent projects.
 
-| If you want to... | Read |
-|---|---|
-| Use the toolkit for the first time | [`docs/getting_started.md`](docs/getting_started.md) — 5-min walkthrough |
-| Understand a failure / error message | [`docs/troubleshooting.md`](docs/troubleshooting.md) — 7 common failures with symptom→cause→fix |
-| See what's been improved version-by-version | [`BURN_IN_NOTES.md`](BURN_IN_NOTES.md) — narrative friction log across v1.0–v1.5 |
-| Query unresolved issues | `python scripts/burn_in_query.py --status surfaced` |
-| See planned future work | [`docs/roadmap_v1_2_through_v1_5.md`](docs/roadmap_v1_2_through_v1_5.md) — sequenced post-v1.1 plan (now mostly applied) |
-| See reliability across runs | [`evals/dogfood_metrics.csv`](evals/dogfood_metrics.csv) — per-run hard-404 + audit-correction counts |
+## Pipeline
+
+```
+topic
+  │
+  ▼
+┌──────────────────────┐
+│ /research-plan       │ ─→ research_plan.md          (sub-areas, claim_family taxonomy, scope)
+└──────────────────────┘
+  │
+  ▼
+┌──────────────────────┐
+│ /research-gather     │ ─→ bib_ledger.yml            (verified primary sources;
+└──────────────────────┘                               WebSearch + WebFetch)
+  │
+  ▼
+┌──────────────────────┐
+│ /dossier-build       │ ─→ dossier/0K_<topic>.md     (topic tables; one row per entry;
+└──────────────────────┘                               per-file letter-prefix anchors)
+  │
+  ▼
+┌──────────────────────┐
+│ /agent-index         │ ─→ <consumer>/docs/<topic>/  (5-bullet-per-entry synthesis;
+└──────────────────────┘    ├── 0K_<topic>.md          AGENT-INDEX README; lookup recipes;
+                            └── README.md              glossary)
+  │
+  ├──────────────────────────────────────────────┐
+  ▼                                              ▼
+┌──────────────────────┐                ┌──────────────────────┐
+│ /dossier-audit       │ (one round)    │ /url-freshness-check │
+│ DROP/CORRECT/FLAG    │ + audit-trail  │ HEAD-checks all URLs │
+└──────────────────────┘                └──────────────────────┘
+                            │                       │
+                            └─── cross_stage ───────┘
+                                 (claim_family + orphan-arxiv + stale-ledger checks)
+```
+
+Every stage's output is the next stage's input. Every stage has a schema validator that fails loudly on drift. v1.2 added `cross_stage` — a cross-artifact validator that checks the bib_ledger / dossier / agent_index agree on what they're describing.
+
+## Quickstart
+
+```bash
+git clone https://github.com/brandon-behring/research_toolkit ~/Claude/research_toolkit
+cd ~/Claude/research_toolkit
+make install              # .venv + pip install -e ".[dev]"
+make test                 # 109 pass + 2 xfailed on a clean checkout
+
+# Make skills discoverable from any project:
+mkdir -p ~/.claude/skills
+for skill in research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check; do
+  ln -s ~/Claude/research_toolkit/.claude/skills/$skill.md ~/.claude/skills/$skill.md
+done
+```
+
+Then in any Claude Code session:
+
+```
+/research-plan "your topic"
+/research-gather ~/Claude/research_<slug>/research_plan.md
+/dossier-build ~/Claude/research_<slug>/bib_ledger.yml
+/agent-index ~/Claude/research_<slug>/dossier --output-dir ~/your_project/docs/<topic>/
+/dossier-audit ~/your_project/docs/<topic>/ --focus "<focus area>"
+/url-freshness-check ~/your_project/docs/<topic>/
+```
+
+For a 5-minute walkthrough: [`docs/getting_started.md`](docs/getting_started.md). For common failures: [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ## The 6 skills
 
@@ -26,18 +84,36 @@ Claude Code skill collection for systematic research workflows: scope a topic �
 | `/dossier-audit` | 4 | Indexed folder + scope focus | One round of DROP/CORRECT/FLAG fixes + audit-trail note | `validators/audit_trail.py` |
 | `/url-freshness-check` | utility | Any markdown folder | URL HEAD-check report | `validators/url_check_report.py` |
 
-Plus a v1.2 cross-artifact validator: `validators/cross_stage.py` — checks that bib_ledger / dossier / agent_index agree on what they're describing.
+## Defensive layer (v1.2+)
 
-The handoff contract is enforced by validators — skill N's output validator IS skill N+1's input validator. If schemas drift, downstream skills fail at the validator step before they can produce broken output.
+Three guardrails the toolkit added after dogfood runs surfaced failure modes:
+
+- **`cross_stage` validator** — claim_family taxonomy consistency between plan and ledger; orphan-arxiv warnings; stale-ledger warnings. `--strict` promotes warnings to errors.
+- **arXiv canonical-form check** on `primary_url` — rejects `/pdf/` URLs and malformed IDs at validation time.
+- **Memory-verification anti-cheat heuristic** in the bib_ledger validator — warns when ≥50 entries are all `verified` (the signature of a subagent that bulk-marked entries from memory rather than per-entry WebFetch).
+
+Empirical effect: vol29 (the first dogfood run with all v1.2+ guardrails active) shipped with 0 hard 404s and 0 audit corrections, vs vol26-28 averaging 4 / 3 respectively. See [`evals/dogfood_metrics.csv`](evals/dogfood_metrics.csv) for the trend.
+
+## What to read
+
+| If you want to... | Read |
+|---|---|
+| Use the toolkit for the first time | [`docs/getting_started.md`](docs/getting_started.md) — 5-min walkthrough |
+| Understand a failure / error message | [`docs/troubleshooting.md`](docs/troubleshooting.md) — 7 common failures with symptom→cause→fix |
+| See what's been improved version-by-version | [`BURN_IN_NOTES.md`](BURN_IN_NOTES.md) — narrative friction log v1.0 → v1.5.1 |
+| Query unresolved issues | `python scripts/burn_in_query.py --status surfaced` |
+| See planned future work | [`docs/roadmap_v1_2_through_v1_5.md`](docs/roadmap_v1_2_through_v1_5.md) — sequenced post-v1.1 plan (mostly applied) |
+| See reliability across runs | [`evals/dogfood_metrics.csv`](evals/dogfood_metrics.csv) — per-run hard-404 + audit-correction counts |
 
 ## Repository layout
 
 ```
 ~/Claude/research_toolkit/
 ├── README.md                        # this file
-├── BURN_IN_NOTES.md                 # narrative friction log (v1.0-v1.5)
+├── LICENSE                          # MIT
+├── BURN_IN_NOTES.md                 # narrative friction log (v1.0-v1.5.1)
 ├── burn_in.yml                      # structured BURN_IN index (v1.5)
-├── Makefile                         # `make install` / `make test` / `make audit`
+├── Makefile                         # install / test / audit / burn-in / metrics targets
 ├── pyproject.toml
 ├── .claude/skills/                  # 6 skill bodies (source of truth)
 ├── templates/                       # 6 schema/structure templates
@@ -60,30 +136,12 @@ The handoff contract is enforced by validators — skill N's output validator IS
     ├── test_v1_3_fixtures.py        # 17 cases: backfilled ledgers + medium fixture
     ├── test_pipeline_e2e.py         # 9 cases: validator chain + idempotency
     ├── test_v1_5_artifacts.py       # 12 cases: docs + burn_in + metrics
+    ├── test_v1_5_1_fixes.py         # 12 cases: skill-body lints + audit_trail sequence
     └── fixtures/
         ├── mini_topic_timeseries_anomaly/        # 5 entries (smoke)
         ├── medium_topic_calibration_subset/      # 22 entries (v1.3, schema reference)
         └── vol25_snapshot/{real,recreated}/      # 137 entries (real-world reference)
 ```
-
-## Install
-
-```bash
-git clone <remote> ~/Claude/research_toolkit
-cd ~/Claude/research_toolkit
-make install              # .venv + pip install -e ".[dev]"
-make test                 # 97 pass + 2 xfailed on clean checkout
-
-# Make skills discoverable from any project's CWD:
-mkdir -p ~/.claude/skills
-for skill in research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check; do
-  ln -s ~/Claude/research_toolkit/.claude/skills/$skill.md ~/.claude/skills/$skill.md
-done
-```
-
-After symlinking, the 6 skills are invokable from any project's Claude Code session without per-repo setup.
-
-For a 5-minute end-to-end run, see [`docs/getting_started.md`](docs/getting_started.md).
 
 ## Make targets
 
@@ -91,10 +149,10 @@ For a 5-minute end-to-end run, see [`docs/getting_started.md`](docs/getting_star
 |---|---|
 | `make install` | venv + dev deps |
 | `make test` | full pytest suite |
-| `make smoke` | single validator against mini fixture |
-| `make audit` | run cross_stage --strict against all real-world projects (mini, vol25/real, vol25/recreated, vol26, vol27, vol28 if present) |
+| `make smoke` | single validator against the mini fixture |
+| `make audit` | run `cross_stage --strict` against all real-world projects |
 | `make burn-in` | show unresolved high-severity BURN_IN items |
-| `make metrics` | show dogfood_metrics.csv contents |
+| `make metrics` | pretty-print `dogfood_metrics.csv` |
 | `make clean` | remove caches and venv |
 
 ## Maintenance contract
@@ -111,15 +169,10 @@ Each skill has a mandatory `## Validation` final step that runs `python ~/Claude
 
 **Validator non-scope:** URL liveness (that's `/url-freshness-check`), content faithfulness (that's `/dossier-audit`), hallucination patterns.
 
-**v1.2+ defensive layer:**
-- `cross_stage.py` — claim_family taxonomy consistency between plan + ledger; orphan-arxiv warnings
-- arXiv canonical-form check on `primary_url` (rejects `/pdf/` URLs and malformed IDs)
-- Memory-verification anti-cheat heuristic (warns when ≥50 entries are all `verified` from memory)
-
 ## Filing new issues
 
 Add to both `burn_in.yml` (structured, queryable) and `BURN_IN_NOTES.md` (prose). See `docs/troubleshooting.md` § "How to file a new issue" for the schema.
 
-## License + remote
+## License
 
-Personal toolkit on a private GitHub remote. Not designed for outside contribution at this time.
+Personal toolkit released under [MIT](LICENSE). PRs not actively solicited but welcome — best-effort response.
