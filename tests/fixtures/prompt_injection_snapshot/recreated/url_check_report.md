@@ -1,7 +1,7 @@
 # URL Freshness Report
 
 Generated: 2026-05-07
-Target: tests/fixtures/vol25_snapshot/recreated/agent_index/
+Target: tests/fixtures/prompt_injection_snapshot/recreated/agent_index/
 
 ## Summary
 

@@ -23,7 +23,7 @@
 #   code_url       (str, optional, valid URL when present) — canonical code URL.
 #                   Omit the field entirely when no canonical repo exists; do
 #                   NOT guess `<author>/<paper-slug>` patterns. Reproduced 2x
-#                   across vol27/vol28 dogfood: ~3% of guessed GitHub URLs hit
+#                   across PEFT/calibration dogfood: ~3% of guessed GitHub URLs hit
 #                   hard 404s.
 
 entries:

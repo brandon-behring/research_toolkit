@@ -100,7 +100,7 @@ If any of these fire on your run, see `docs/troubleshooting.md`.
 - `validators/*.py` — schema validators
 - `templates/*.template.{md,yml}` — output schema templates
 - `references/*.md` — protocol docs
-- `tests/fixtures/` — `mini` (5 entries, smoke), `medium_topic_calibration_subset` (22 entries, v1.1+ schema reference), `vol25_snapshot/{real,recreated}` (137 entries, real-world reference)
+- `tests/fixtures/` — `mini` (5 entries, smoke), `medium_topic_calibration_subset` (22 entries, v1.1+ schema reference), `prompt_injection_snapshot/{real,recreated}` (137 entries, real-world reference)
 - `BURN_IN_NOTES.md` + `burn_in.yml` — friction tracking (narrative + queryable)
 - `evals/dogfood_metrics.csv` — reliability metrics across runs
 - `docs/roadmap_v1_2_through_v1_5.md` — version plan

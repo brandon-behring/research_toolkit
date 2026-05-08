@@ -82,7 +82,7 @@ The skill writes a report to `<target>/url_check_report.md` (or a user-specified
 # URL Freshness Report
 
 Generated: 2026-05-06
-Target: docs/vol25_research/
+Target: docs/prompt_injection_research/
 
 ## Summary
 
@@ -94,10 +94,10 @@ Target: docs/vol25_research/
 
 ## Broken URLs (hard 404s)
 
-### docs/vol25_research/05_datasets_and_benchmarks.md
+### docs/prompt_injection_research/05_datasets_and_benchmarks.md
 - https://example.com/blog/that-was-renamed-or-deleted
 
-### docs/vol25_research/06_tools_and_vendors.md
+### docs/prompt_injection_research/06_tools_and_vendors.md
 - https://another-broken-link.example.com/
 
 ## Bot-blocked URLs (flagged for manual review)

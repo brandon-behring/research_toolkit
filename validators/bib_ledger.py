@@ -11,7 +11,7 @@ Optional fields (v1.1):
 When `authors`/`venue`/`code_url` are populated by `/research-gather`, downstream stages
 (`/dossier-build`, `/agent-index`) render from data instead of guessing — eliminating
 the "guessed `<author>/<paper-slug>` GitHub URL → 404" failure mode reproduced across
-vol27 (7/117 hard 404s) and vol28 (3/137 hard 404s).
+PEFT (7/117 hard 404s) and calibration (3/137 hard 404s).
 
 When primary_url points at arxiv.org, this validator additionally requires the canonical
 `arxiv.org/abs/<id>` form. This catches transposition errors and `/pdf/` URLs that
@@ -22,7 +22,7 @@ Asserts bibkey uniqueness across the ledger.
 Memory-verification anti-cheat heuristic (v1.2):
     If a ledger has ≥50 entries AND every single entry has `status: verified`,
     that's the signature of a Stage 2 subagent that marked everything `verified`
-    from memory under time pressure rather than per-entry WebFetch. vol28 produced
+    from memory under time pressure rather than per-entry WebFetch. calibration produced
     1 misattribution-out-of-88 this way that only Stage 5 audit caught.
 
     Default behavior: emit a warning to stderr (informational). The validator
@@ -81,7 +81,7 @@ def _memory_verified_warning(entries: list[dict]) -> str | None:
 
     This pattern is the signature of a subagent that skipped per-entry WebFetch
     and bulk-marked everything as verified — a v1.0/v1.1 dogfood failure mode
-    (vol28 §2.1 BURN_IN). With per-entry verification done correctly, expect at
+    (calibration §2.1 BURN_IN). With per-entry verification done correctly, expect at
     least a couple of mismatched/unverified entries on a 50+-entry run.
     """
     if len(entries) < MEMORY_VERIFIED_THRESHOLD:
@@ -94,7 +94,7 @@ def _memory_verified_warning(entries: list[dict]) -> str | None:
             f"WARN memory-verification suspected: {len(statuses)} entries, "
             f"all marked 'verified' (no 'unverified' or 'mismatched'). Per-entry "
             f"WebFetch verification typically produces ≥2 mismatched/unverified "
-            f"entries on a run this size. See BURN_IN_NOTES.md vol28 §2.1; "
+            f"entries on a run this size. See BURN_IN_NOTES.md calibration §2.1; "
             f"--strict promotes to error"
         )
     return None

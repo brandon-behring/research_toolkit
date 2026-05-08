@@ -15,5 +15,5 @@ def mini_dir() -> Path:
 
 
 @pytest.fixture(scope="session")
-def vol25_dir() -> Path:
-    return FIXTURES / "vol25_snapshot" / "real"
+def prompt_injection_dir() -> Path:
+    return FIXTURES / "prompt_injection_snapshot" / "real"

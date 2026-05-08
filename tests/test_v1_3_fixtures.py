@@ -1,10 +1,10 @@
-"""Regression tests for v1.3 — backfilled vol26/27/28 ledgers + medium fixture.
+"""Regression tests for v1.3 — backfilled eval-methodology/27/28 ledgers + medium fixture.
 
 Covers:
 - Medium fixture validates against all 5 v1.0/v1.1/v1.2 validators (full stack).
 - Medium fixture demonstrates ≥80% authors/venue coverage (the ledger format
   example for v1.1+).
-- Backfilled vol26/27/28 ledgers are referenced via path-existence checks
+- Backfilled eval-methodology/27/28 ledgers are referenced via path-existence checks
   (skipped if the working copies aren't present in this environment) — they
   live outside the toolkit repo, so tests are tolerant.
 """
@@ -64,10 +64,10 @@ def test_medium_cross_stage_strict_passes() -> None:
 
 
 def test_medium_authors_coverage_ge_55_pct() -> None:
-    """Medium fixture (calibration subset of vol28) includes pre-2010 classics
+    """Medium fixture (calibration subset of calibration) includes pre-2010 classics
     (Brier 1950, Platt 1999, Zadrozny 2001/2002, Niculescu-Mizil 2005, Gneiting
     2007, DeGroot 1983, etc.) that don't have arXiv IDs. The arxiv-ID-based
-    backfill script skips them, so coverage is lower than vol26/27/28's ≥80%
+    backfill script skips them, so coverage is lower than eval-methodology/27/28's ≥80%
     target. Realistic floor here is ~55-60%."""
     data = yaml.safe_load((MEDIUM / "bib_ledger.yml").read_text(encoding="utf-8"))
     entries = data["entries"]
@@ -78,7 +78,7 @@ def test_medium_authors_coverage_ge_55_pct() -> None:
 
 def test_medium_venue_coverage_ge_55_pct() -> None:
     """Same rationale as authors coverage — pre-2010 classics drag this below
-    the vol26/27/28 ≥80% target."""
+    the eval-methodology/27/28 ≥80% target."""
     data = yaml.safe_load((MEDIUM / "bib_ledger.yml").read_text(encoding="utf-8"))
     entries = data["entries"]
     with_venue = sum(1 for e in entries if isinstance(e, dict) and e.get("venue"))
@@ -103,13 +103,13 @@ def test_medium_code_url_coverage_ge_40_pct() -> None:
 
 
 def test_medium_has_about_22_entries() -> None:
-    """The vol28 calibration_method + calibration_metric subset has 22 entries.
+    """The calibration calibration_method + calibration_metric subset has 22 entries.
     If this drifts substantially, regenerate the fixture."""
     data = yaml.safe_load((MEDIUM / "bib_ledger.yml").read_text(encoding="utf-8"))
     n = len(data["entries"])
     assert 20 <= n <= 25, (
         f"medium fixture has {n} entries; expected ~22. "
-        f"Re-run scripts/build_medium_fixture.py if vol28 has drifted."
+        f"Re-run scripts/build_medium_fixture.py if calibration has drifted."
     )
 
 
@@ -125,9 +125,9 @@ def test_medium_under_anti_cheat_threshold() -> None:
 # ---------- Backfilled real-world ledgers (tolerant of absence) ----------
 
 
-@pytest.mark.parametrize("vol", ["vol26", "vol27", "vol28"])
+@pytest.mark.parametrize("vol", ["eval_methodology", "peft", "calibration"])
 def test_backfilled_ledger_validates_when_present(vol: str) -> None:
-    """vol26/27/28 ledgers backfilled by scripts/backfill_ledger.py validate.
+    """Backfilled ledgers (eval_methodology / peft / calibration runs) validate.
 
     Skipped if the working copy isn't in this environment (CI / fresh clone).
     """
@@ -137,7 +137,7 @@ def test_backfilled_ledger_validates_when_present(vol: str) -> None:
     assert bib_ledger.validate(ledger) == []
 
 
-@pytest.mark.parametrize("vol", ["vol26", "vol27", "vol28"])
+@pytest.mark.parametrize("vol", ["eval_methodology", "peft", "calibration"])
 def test_backfilled_ledger_has_high_authors_coverage(vol: str) -> None:
     """Each backfilled vol has ≥80% authors-field coverage (v1.3 target)."""
     ledger = Path.home() / "Claude" / f"research_{vol}" / "bib_ledger.yml"

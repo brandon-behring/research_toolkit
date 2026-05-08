@@ -16,7 +16,7 @@ allowed-tools: Read, Bash, Edit
 ```
 /url-freshness-check ~/some_project/docs/timeseries_research/
 /url-freshness-check ~/some_project/docs/jailbreak_research/ --inline
-/url-freshness-check ~/Claude/research_toolkit/tests/fixtures/vol25_snapshot/real/agent_index/ --report /tmp/url_check.md
+/url-freshness-check ~/Claude/research_toolkit/tests/fixtures/prompt_injection_snapshot/real/agent_index/ --report /tmp/url_check.md
 ```
 
 **Default report path**: `<target_folder>/url_check_report.md`.
@@ -38,7 +38,7 @@ Read `~/Claude/research_toolkit/references/url_check_protocol.md` — covers the
 
 ### Phase 2: extract URLs
 
-Walk the target folder; extract all unique URLs from every `*.md` file. **Use the positive char-class regex** — the negative char-class form silently returns 0 URLs on macOS grep (high-priority BURN_IN finding from vol26):
+Walk the target folder; extract all unique URLs from every `*.md` file. **Use the positive char-class regex** — the negative char-class form silently returns 0 URLs on macOS grep (high-priority BURN_IN finding from eval-methodology):
 
 ```bash
 mkdir -p .url_check_tmp
@@ -48,7 +48,7 @@ grep -hroE 'https?://[a-zA-Z0-9./?=&_~%#:+-]+' "$TARGET_FOLDER" \
   > .url_check_tmp/urls.txt
 ```
 
-**Do NOT use** the negative char-class form `[^[:space:]\)\]"\<]+` — on macOS `grep -E`, the bracketed escape sequences silently produce 0 matches (no error). vol26 lost an entire URL-check run to this. The positive form `[a-zA-Z0-9./?=&_~%#:+-]+` works on both macOS and Linux grep.
+**Do NOT use** the negative char-class form `[^[:space:]\)\]"\<]+` — on macOS `grep -E`, the bracketed escape sequences silently produce 0 matches (no error). eval-methodology lost an entire URL-check run to this. The positive form `[a-zA-Z0-9./?=&_~%#:+-]+` works on both macOS and Linux grep.
 
 Trailing punctuation cleanup matters — Markdown often appends `.`, `,`, or `:` to URL boundaries.
 
@@ -66,7 +66,7 @@ A well-rendered agent_index typically has ~1.5–2 URLs per entry. If `$N` is be
 
 ### Phase 3: HEAD-check (inline curl when N>50)
 
-**Performance note (vol27 BURN_IN):** when running this skill via a subagent on a 100+ URL artifact, the WebFetch tool path can rate-limit / time out. For artifacts with N ≥ 50 URLs, use the inline `curl -L -G` bulk-check below, which completes in ~60 seconds for 100+ URLs without hitting WebFetch quotas. Use the WebFetch path only when N < 50 OR when you specifically need WebFetch's robots.txt / allowlist behavior.
+**Performance note (PEFT BURN_IN):** when running this skill via a subagent on a 100+ URL artifact, the WebFetch tool path can rate-limit / time out. For artifacts with N ≥ 50 URLs, use the inline `curl -L -G` bulk-check below, which completes in ~60 seconds for 100+ URLs without hitting WebFetch quotas. Use the WebFetch path only when N < 50 OR when you specifically need WebFetch's robots.txt / allowlist behavior.
 
 #### Fast path (recommended, N ≥ 50)
 

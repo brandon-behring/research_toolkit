@@ -13,14 +13,14 @@ Four scope choices made before this roadmap was committed:
    future-you (or future Claude Code agents reading the repo cold) can find the
    sequenced plan; executing any of v1.2-v1.5 is a separate decision per
    version, gated by its own clarifying-question round.
-2. **v1.3 backfill scope: all 3 vols.** vol26 + vol27 + vol28 = ~227 entries
-   gain `authors` / `venue` / `code_url`. Even though vol26 is shipped
+2. **v1.3 backfill scope: all 3 vols.** eval-methodology + PEFT + calibration = ~227 entries
+   gain `authors` / `venue` / `code_url`. Even though eval-methodology is shipped
    methodology, the backfill makes future re-runs deterministic for any vol.
 3. **Audience: future-you + future Claude Code agents.** v1.5 docs (B7) are
    *tight* — ~80 lines getting_started, ~60 lines troubleshooting. Not full
    onboarding for external collaborators; not a screencast. The audience reads
    the repo cold and needs to be productive in <10 minutes.
-4. **vol29+ is planned.** v1.5 reliability metrics CSV (C9) is high-value
+4. **RLHF+ is planned.** v1.5 reliability metrics CSV (C9) is high-value
    *because* there will be more dogfood runs to track. Every future vol logs
    to `evals/dogfood_metrics.csv`; trend visible after 2-3 runs.
 
@@ -63,17 +63,17 @@ probabilistic; validator-level checks are deterministic.
 - Add a `--strict` flag that promotes warnings to errors for CI gating.
 
 **A4. Resolve or xfail the 2 baseline test fails**
-- Re-run vol25 recreation under v1.1 skills (which now have per-file letter-prefix
+- Re-run prompt-injection recreation under v1.1 skills (which now have per-file letter-prefix
   codified + dash-default URLs + count-assertion). Expect: section_anchors_match
   passes; entry_counts_within_tolerance may still fail if the bibliography drift
   is real.
-- For whatever doesn't pass: `@pytest.mark.xfail(strict=True, reason="<vol25
+- For whatever doesn't pass: `@pytest.mark.xfail(strict=True, reason="<prompt-injection
   drift, see BURN_IN_NOTES.md §...>")`. The `strict=True` matters — it surfaces
   if the test starts passing again.
 
 **B6. CI inventory + gate audit**
 - Read `.github/workflows/test.yml` and confirm: runs `make test` on push/PR,
-  matrix covers Python 3.11+ at minimum, runs validators against vol25 fixtures
+  matrix covers Python 3.11+ at minimum, runs validators against prompt-injection fixtures
   not just mini.
 - If gaps: file a follow-up PR adding the missing gates.
 
@@ -96,7 +96,7 @@ probabilistic; validator-level checks are deterministic.
 ### Acceptance criteria
 
 - `make test` reports green (0 fail, 0 unexpectedly-passing xfail).
-- Cross-stage validator catches a deliberately-orphan bibkey in vol25/recreated
+- Cross-stage validator catches a deliberately-orphan bibkey in prompt-injection/recreated
   test variant.
 - CI workflow gates merges to main on v1.2 test suite.
 
@@ -110,12 +110,12 @@ where it actually breaks.
 
 ### Items
 
-**A1. Backfill `authors`/`venue`/`code_url` in vol26/27/28 ledgers (all 3 vols, ~227 entries)**
+**A1. Backfill `authors`/`venue`/`code_url` in eval-methodology/27/28 ledgers (all 3 vols, ~227 entries)**
 - Programmatic backfill of `authors` via bibkey-heuristic (with manual review
   for surnames known to be tricky — Ben-Zaken, Rücklé, etc.).
-- Manual `venue` backfill: ~72 entries in vol26 + ~67 in vol27 + ~88 in vol28
-  = ~227 lookups. Spread across ~3 sessions. Use vol25/real's existing venue
-  claims as reference where overlap exists. vol26 is included even though
+- Manual `venue` backfill: ~72 entries in eval-methodology + ~67 in PEFT + ~88 in calibration
+  = ~227 lookups. Spread across ~3 sessions. Use prompt-injection/real's existing venue
+  claims as reference where overlap exists. eval-methodology is included even though
   shipped — backfilling makes future re-runs deterministic.
 - `code_url` backfill: opt-in, only for entries where the canonical repo is
   *known* (not guessed). Use the v1.1 BURN_IN finding as the rule:
@@ -123,7 +123,7 @@ where it actually breaks.
   unrelated handles — populate when WebFetch-confirmed, otherwise omit.
 
 **C10. Medium fixture** — `tests/fixtures/medium_topic_calibration_subset/`
-- ~30 entries from the vol28 calibration ledger (subset across 4 claim_families).
+- ~30 entries from the calibration calibration ledger (subset across 4 claim_families).
 - Exercises sub-section logic (file 02 with B1-B6 anchors at scale) that the
   mini fixture (5 entries) can't reach.
 - Includes a populated `authors`/`venue`/`code_url` set on every entry —
@@ -131,8 +131,8 @@ where it actually breaks.
 
 ### Deliverables
 
-- 3 backfilled ledger files (`research_vol26/`, `research_vol27/`,
-  `research_vol28/bib_ledger.yml`).
+- 3 backfilled ledger files (`research_eval_methodology/`, `research_peft/`,
+  `research_calibration/bib_ledger.yml`).
 - New `tests/fixtures/medium_topic_calibration_subset/` directory with all 4
   artifacts (research_plan, bib_ledger, dossier, agent_index).
 - Documentation update: `templates/bib_ledger.template.yml` shows the medium
@@ -149,7 +149,7 @@ where it actually breaks.
 
 ### Acceptance criteria
 
-- vol26/27/28 ledgers have ≥80% coverage on `authors` and `venue` fields,
+- eval-methodology/27/28 ledgers have ≥80% coverage on `authors` and `venue` fields,
   ≥40% coverage on `code_url`.
 - Medium fixture is referenced by `dossier-build.md` skill body as the
   worked example.
@@ -222,16 +222,16 @@ the toolkit, and make the BURN_IN log queryable for trend analysis.
 - Helper script `scripts/burn_in_query.py` for filtering ("show all unresolved
   high-severity findings").
 
-**C9. Reliability metrics tracking** — `evals/dogfood_metrics.csv` (high-value: vol29+ planned)
+**C9. Reliability metrics tracking** — `evals/dogfood_metrics.csv` (high-value: RLHF+ planned)
 - One row per dogfood run: `{date, vol, total_entries, total_urls,
   hard_404_count, attribution_corrections_in_audit, version_skill_used}`.
-- Initial seeding: 5 rows for vol25/recreated + vol26 + vol27 + vol28 + (the
+- Initial seeding: 5 rows for prompt-injection/recreated + eval-methodology + PEFT + calibration + (the
   v1.3-medium-fixture run if it counts as dogfood).
 - Future runs append to this file as part of the BURN_IN-write step.
-- **Real signal expected after 2-3 future vols.** vol29+ is planned per the
+- **Real signal expected after 2-3 future vols.** RLHF+ is planned per the
   decisions captured at the top of this document; the trend visible in this
   CSV is the only quantitative answer to "did v1.1+ actually reduce failure
-  rates" beyond the n=2 vol27/vol28 baseline.
+  rates" beyond the n=2 PEFT/calibration baseline.
 
 ### Deliverables
 

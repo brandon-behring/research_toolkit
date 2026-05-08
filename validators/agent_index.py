@@ -20,7 +20,7 @@ Required for each non-README synthesis *.md file in the folder:
 
 The validator does NOT enforce that every entry has every canonical bullet — different
 content types use different bullet schemas (papers use 5-bullet; vendor / lab / standards
-profiles often use Status / Source / Scope or similar). This loose schema reflects vol25's
+profiles often use Status / Source / Scope or similar). This loose schema reflects prompt-injection's
 heterogeneous content. The mini fixture (positive-case ideal) demonstrates the strict
 5-bullet schema for paper synthesis.
 

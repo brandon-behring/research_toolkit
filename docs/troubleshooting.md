@@ -85,7 +85,7 @@ produces ≥2 mismatched/unverified entries on a run this size.
 
 **Cause:** Stage 2 (`/research-gather`) marked every entry `verified` from
 memory under time pressure rather than per-entry WebFetch confirmation. This
-is the vol28 §2.1 anti-pattern that produced 1 misattribution out of 88
+is the calibration §2.1 anti-pattern that produced 1 misattribution out of 88
 which only Stage 5 audit caught.
 
 **Fix:** the warning is informational. To resolve:
@@ -129,7 +129,7 @@ stages.
 **Symptom:** `/research-gather` final report says "73 entries" but
 `grep -c "^- bibkey:" bib_ledger.yml` shows 88.
 
-**Cause:** Subagent self-counting drift (vol28 §2.2). Subagents under context
+**Cause:** Subagent self-counting drift (calibration §2.2). Subagents under context
 pressure can produce inconsistent narrative counts vs file counts.
 
 **Fix:** v1.1 skill body adds a count-assertion in Phase 6:
@@ -150,13 +150,13 @@ python scripts/burn_in_query.py --status surfaced --severity high
 
 **Symptom:** `make test` reports `2 xfailed`.
 
-**Cause:** v1.2 marked the vol25 recreation_diff baseline tests
+**Cause:** v1.2 marked the prompt-injection recreation_diff baseline tests
 (`test_recreated_entry_counts_within_tolerance`,
 `test_recreated_section_anchors_match`) as `xfail strict=True`. They reflect
-v1.0 vol25 recreation drift, not v1.2 tooling defects.
+v1.0 prompt-injection recreation drift, not v1.2 tooling defects.
 
 **Fix:** none — this is the expected state. If they ever pass (e.g., after a
-v1.x re-run of vol25 recreation under newer skills), `strict=True` will fail
+v1.x re-run of prompt-injection recreation under newer skills), `strict=True` will fail
 the suite to flag the change.
 
 ## How to file a new issue you can't fix immediately

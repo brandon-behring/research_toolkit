@@ -1,4 +1,4 @@
-# Overview — Prompt Injection & Adversarial Prompts (vol25 recreated)
+# Overview — Prompt Injection & Adversarial Prompts (prompt-injection recreated)
 
 **Purpose:** orient the reader to the threat model, terminology, and structural taxonomy used across the rest of this synthesis.
 **Scope:** prompt-injection and adversarial-prompt research published 2021–2026; coverage cutoff May 2026.

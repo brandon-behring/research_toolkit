@@ -201,10 +201,10 @@ def test_dogfood_metrics_dates_in_iso_format() -> None:
 
 
 def test_dogfood_metrics_includes_v1_0_baseline_runs() -> None:
-    """The CSV should have at least vol26 (v1.0 GATE) + vol27 + vol28 (v1.1) backfilled."""
+    """The CSV should have at least eval-methodology (v1.0 GATE) + PEFT + calibration (v1.1) backfilled."""
     with DOGFOOD_CSV.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         vols = [row["vol"] for row in reader]
-    assert "vol26" in vols, f"missing vol26 baseline; vols={vols}"
-    assert "vol27" in vols
-    assert "vol28" in vols
+    assert "eval-methodology" in vols, f"missing eval-methodology baseline; vols={vols}"
+    assert "PEFT" in vols
+    assert "calibration" in vols

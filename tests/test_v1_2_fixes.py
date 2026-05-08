@@ -392,11 +392,11 @@ def test_v1_2_validators_pass_on_existing_fixtures() -> None:
     assert bib_ledger.validate(
         fixtures_dir / "mini_topic_timeseries_anomaly" / "bib_ledger.yml"
     ) == []
-    # vol25 real: large ledger but mixed status.
+    # prompt-injection real: large ledger but mixed status.
     assert bib_ledger.validate(
-        fixtures_dir / "vol25_snapshot" / "real" / "bib_ledger.yml"
+        fixtures_dir / "prompt_injection_snapshot" / "real" / "bib_ledger.yml"
     ) == []
-    # vol25 recreated: also mixed.
+    # prompt-injection recreated: also mixed.
     assert bib_ledger.validate(
-        fixtures_dir / "vol25_snapshot" / "recreated" / "bib_ledger.yml"
+        fixtures_dir / "prompt_injection_snapshot" / "recreated" / "bib_ledger.yml"
     ) == []

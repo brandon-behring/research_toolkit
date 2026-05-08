@@ -1,6 +1,6 @@
-# Research Plan: Prompt Injection & Adversarial Prompts (vol25 recreated)
+# Research Plan: Prompt Injection & Adversarial Prompts (prompt-injection recreated)
 
-Comprehensive citation foundation for prompt-injection and adversarial-prompt research, mirroring the scope of the vol25 dossier in `~/interview_prep_series/docs/research/vol25_prompt_injection/`. Target ~120-150 primary sources spanning attacks (direct, indirect, agentic, multimodal, training-time), defenses (detection, smoothing, architectural, latent-space, alignment), evaluation (benchmarks, leaderboards, CTFs), tooling (open-source + commercial vendors + eval SaaS), and standards/regulatory frameworks. Coverage cutoff: May 2026. This plan was reverse-engineered from the existing vol25 dossier as the Phase 3.5 recreation seed; `/research-gather` will re-discover entries from scratch without consulting `real/bib_ledger.yml`.
+Comprehensive citation foundation for prompt-injection and adversarial-prompt research, mirroring the scope of the prompt-injection dossier in `~/interview_prep_series/docs/research/prompt_injection_research/`. Target ~120-150 primary sources spanning attacks (direct, indirect, agentic, multimodal, training-time), defenses (detection, smoothing, architectural, latent-space, alignment), evaluation (benchmarks, leaderboards, CTFs), tooling (open-source + commercial vendors + eval SaaS), and standards/regulatory frameworks. Coverage cutoff: May 2026. This plan was reverse-engineered from the existing prompt-injection dossier as the Phase 3.5 recreation seed; `/research-gather` will re-discover entries from scratch without consulting `real/bib_ledger.yml`.
 
 ## Sub-areas
 

@@ -1,7 +1,7 @@
 """Backfill `authors`/`venue`/`code_url` into a bib_ledger.yml from its dossier.
 
 The v1.1 schema added optional `authors`/`venue`/`code_url` fields to bib_ledger
-entries. The vol26/27/28 ledgers were created before v1.1 and don't have them
+entries. The eval-methodology/27/28 ledgers were created before v1.1 and don't have them
 populated — but the corresponding dossier files DO have venue + authors + GitHub
 metadata in their table cells. This script promotes that metadata back into the
 ledger so future re-runs of /dossier-build and /agent-index can render from data

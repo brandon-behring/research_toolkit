@@ -24,7 +24,7 @@ allowed-tools: Read, Write, Bash
 
 - Starting a new research effort on a topic with no existing dossier.
 - Run **once** per topic. The plan is referenced throughout the rest of the pipeline (`/research-gather`, `/dossier-build`, `/agent-index`).
-- Skip this skill only when retrofitting a pre-existing dossier (e.g., the vol25_snapshot has no plan because it predates this stage).
+- Skip this skill only when retrofitting a pre-existing dossier (e.g., the prompt_injection_snapshot has no plan because it predates this stage).
 
 **Upstream:** none — this is the first stage.
 **Downstream:** `/research-gather` reads the plan to decide what sources to find.

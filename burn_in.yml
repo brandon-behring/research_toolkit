@@ -33,7 +33,7 @@
 entries:
 
 # ---------------------------------------------------------------------------
-# Phase 3.5 — vol25 full-mode recreation
+# Phase 3.5 — prompt-injection full-mode recreation
 # ---------------------------------------------------------------------------
 
 - id: 3.5-2.1
@@ -53,7 +53,7 @@ entries:
   status: applied
   fix_version: v1.1
   fix_commit: '0f5a2d8'
-  notes: 'v1.1 added optional authors/venue/code_url fields; v1.3 backfilled vol26/27/28'
+  notes: 'v1.1 added optional authors/venue/code_url fields; v1.3 backfilled eval-methodology/27/28'
 
 - id: 3.5-3.1
   phase: phase-3.5
@@ -74,7 +74,7 @@ entries:
   notes: 'v1.1 added authors as optional bib_ledger field; backfill in v1.3 populates from dossier'
 
 # ---------------------------------------------------------------------------
-# Phase 5a — vol26 LLM eval methodology (v1.0 GATE)
+# Phase 5a — eval-methodology LLM eval methodology (v1.0 GATE)
 # ---------------------------------------------------------------------------
 
 - id: 5a-2.1
@@ -97,7 +97,7 @@ entries:
   notes: 'replaced with positive char-class; documented in skill body'
 
 # ---------------------------------------------------------------------------
-# Phase 5b — vol27 PEFT
+# Phase 5b — PEFT PEFT
 # ---------------------------------------------------------------------------
 
 - id: 5b-3.1
@@ -119,7 +119,7 @@ entries:
   notes: 'minor; one-line guidance in /research-gather skill could help'
 
 # ---------------------------------------------------------------------------
-# Phase 5c — vol28 calibration & uncertainty
+# Phase 5c — calibration calibration & uncertainty
 # ---------------------------------------------------------------------------
 
 - id: 5c-2.1

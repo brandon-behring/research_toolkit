@@ -10,11 +10,11 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
-## Phase 3.5: vol25 full-mode recreation
+## Phase 3.5: prompt-injection full-mode recreation
 
 **Date started:** 2026-05-07
-**Output:** `tests/fixtures/vol25_snapshot/recreated/`
-**Comparison:** `tests/fixtures/vol25_snapshot/real/` (137 entries, 7 dossier files, 9 indexed files)
+**Output:** `tests/fixtures/prompt_injection_snapshot/recreated/`
+**Comparison:** `tests/fixtures/prompt_injection_snapshot/real/` (137 entries, 7 dossier files, 9 indexed files)
 
 ### Stage 1: /research-plan (reverse-engineered)
 
@@ -74,7 +74,7 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ### Stage 5: /dossier-audit (1 round, smoke)
 
-**Result on smoke run (2026-05-07):** Round 1 against `tests/fixtures/vol25_snapshot/recreated/agent_index/` with focus "anonymous arXiv entries and Authors-via-bibkey-heuristic accuracy". Verified 6 entries via WebFetch; produced 0 DROP / 3 CORRECT / 1 FLAG / 2 SPOT-CHECK PASSED. Both validators (`audit_trail.py`, `agent_index.py`) exit 0 after edits. Heuristic Author rendering was wrong on 3 of 5 arXiv entries (first-author surname diverged from the bibkey stem); titles/URLs were correct.
+**Result on smoke run (2026-05-07):** Round 1 against `tests/fixtures/prompt_injection_snapshot/recreated/agent_index/` with focus "anonymous arXiv entries and Authors-via-bibkey-heuristic accuracy". Verified 6 entries via WebFetch; produced 0 DROP / 3 CORRECT / 1 FLAG / 2 SPOT-CHECK PASSED. Both validators (`audit_trail.py`, `agent_index.py`) exit 0 after edits. Heuristic Author rendering was wrong on 3 of 5 arXiv entries (first-author surname diverged from the bibkey stem); titles/URLs were correct.
 
 **1. Audit-trail format string differs between skill body and audit_protocol.md (status: surfaced — minor inconsistency)**
 - `audit_protocol.md` § "Audit-trail note format" template lists three count buckets: "<count> dropped, <count> corrected, <count> flagged".
@@ -131,7 +131,7 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 - **Action for v1.1:** Add a "cross-reference rule" section to `agent-index.md` skill body or `dual_audience_design.md` reference. Decide: should every paper be cross-referenced from N files where N = number of conceptual angles it touches? Or only the "landmark" subset?
 
 **8. Per-file letter-prefix convention (A, B, C, D, E, F, G) for section anchors not specified in agent-index template (status: surfaced — design gap)**
-- Real vol25 uses `## A1.` … `## A5.` in `01_direct_attacks.md`, `## B1.` … `## B4.` in `02_indirect_and_agentic_attacks.md`, `## C1.` … `## C6.` in `03_defenses.md`, etc. This makes section anchors globally unique across the synthesis (so a lookup recipe can say "see § C2." unambiguously).
+- Real prompt-injection uses `## A1.` … `## A5.` in `01_direct_attacks.md`, `## B1.` … `## B4.` in `02_indirect_and_agentic_attacks.md`, `## C1.` … `## C6.` in `03_defenses.md`, etc. This makes section anchors globally unique across the synthesis (so a lookup recipe can say "see § C2." unambiguously).
 - The recreated synthesis uses `## A1.` … `## A5.` in every file. The agent_index template doesn't specify the letter convention.
 - **Why it matters:** Lookup recipes in the README would collide on `## A1.` if they cross-file references. Globally-unique anchors are the editorially correct choice.
 - **Action for v1.1:** Add letter-prefix-per-file convention to `agent_index_README.template.md` and `agent-index.md` skill body workflow phase 5.
@@ -139,21 +139,21 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 **Interpretation of overall gate behavior:**
 - Per the continuation plan ("Discrepancies don't fail the gate; they get logged in BURN_IN_NOTES.md"), these 2 test failures are documentation of an honest fidelity gap, not a stop-ship signal.
 - The 2 failures are **expected** for v1.0 given:
-  1. recreation runs in 1-2 hours of LLM work vs vol25's months of human curation
+  1. recreation runs in 1-2 hours of LLM work vs prompt-injection's months of human curation
   2. cross-reference convention not yet specified in skills (item #7 above)
   3. letter-prefix convention not yet specified in templates (item #8 above)
 - v1.1 design cycle should resolve items #7 and #8, after which recreation_diff tests should pass cleanly.
 
 ---
 
-## Phase 5a: vol26 LLM eval methodology (v1.0 GATE)
+## Phase 5a: eval-methodology LLM eval methodology (v1.0 GATE)
 
 **Date started:** 2026-05-07
-**Output:** `~/Claude/research_vol26/bib_ledger.yml`
+**Output:** `~/Claude/research_eval_methodology/bib_ledger.yml`
 
 ### Stage 2: /research-gather
 
-**Result:** 72 verified entries written to `~/Claude/research_vol26/bib_ledger.yml`. Validator exits 0. Per-claim_family distribution: benchmark_agentic 18, benchmark_static 16, llm_as_judge 13, human_eval_protocol 10, holistic_framework 9, contamination_detection 4, meta_eval 2.
+**Result:** 72 verified entries written to `~/Claude/research_eval_methodology/bib_ledger.yml`. Validator exits 0. Per-claim_family distribution: benchmark_agentic 18, benchmark_static 16, llm_as_judge 13, human_eval_protocol 10, holistic_framework 9, contamination_detection 4, meta_eval 2.
 
 **Landmark paper corrections during verification (3 corrections, 12 confirmed clean):**
 
@@ -161,7 +161,7 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 - The plan listed `zhuo2023contamination` at arXiv:2306.05715 as a "data contamination survey." That arXiv ID actually resolves to Hellas et al. (2023) "Exploring the Responses of Large Language Models to Beginner Programmers' Help Requests" — completely off-topic.
 - The likely intended paper is Sainz et al. (2023) "NLP Evaluation in trouble: On the Need to Measure LLM Data Contamination for each Benchmark" (arXiv:2310.18018, EMNLP 2023 Findings).
 - **Correction:** Registered `sainz2023contamination` at arXiv:2310.18018 (status: verified). The original `zhuo2023contamination` bibkey is dropped.
-- **Why it matters:** The reverse-engineered research_plan.md contained a real attribution error (bibkey + URL both wrong). The WebFetch verification step caught it. Same self-correction pattern as Stage 1 vol25 BURN_IN #1 (Crescendo first-author misattribution).
+- **Why it matters:** The reverse-engineered research_plan.md contained a real attribution error (bibkey + URL both wrong). The WebFetch verification step caught it. Same self-correction pattern as Stage 1 prompt-injection BURN_IN #1 (Crescendo first-author misattribution).
 
 **2. wei2024judgement — bibkey was a placeholder (status: replaced, applied)**
 - The plan annotation said "(relevant arXiv TBD by /research-gather)". Two strong candidates surfaced: Shi et al. (2024) "Judging the Judges: A Systematic Study of Position Bias in LLM-as-a-Judge" (arXiv:2406.07791) and Chen et al. (2024) "Humans or LLMs as the Judge? A Study on Judgement Biases" (arXiv:2402.10669).
@@ -195,7 +195,7 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 **F5. Vendor blog and GitHub URL entries don't have an "arXiv ID" field, so /dossier-build's downstream rendering loses author information (status: surfaced — recurrence of Stage 2 #2)**
 - 5 of 72 entries are non-arXiv: `openai2024swebenchverified` (OpenAI blog), `zheng2023chatbotarenablog` (LMSYS blog), `lmsys2024hardprompts` (LMSYS blog), `li2024arenahard` (LMSYS blog), `li2023alpacaeval` (GitHub), `gao2023lmevalharness` (GitHub), `huggingface2024openllmleaderboard2` (HF Space). These survive validation but the bibkey-heuristic for Authors used downstream will be a guess (e.g., "lmsys2024hardprompts" → "LMSYS"? "LMSys"? a real human first author?).
-- **Why it matters:** Same gap noted in Phase 3.5 vol25 BURN_IN Stage 2 #2 / Stage 3 #2. The schema is too minimal for /dossier-build without WebFetch round-trips.
+- **Why it matters:** Same gap noted in Phase 3.5 prompt-injection BURN_IN Stage 2 #2 / Stage 3 #2. The schema is too minimal for /dossier-build without WebFetch round-trips.
 - **Action for v1.1:** Either expand the schema with optional `authors_display` field that /research-gather populates from the source page, OR have /dossier-build mandatorily WebFetch each entry once.
 
 **Time spent:** ~45 minutes (mostly WebSearch + WebFetch on 15 landmarks plus ~50 broader sources).
@@ -209,45 +209,45 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ### Stage 3: /dossier-build
 
-**Result:** 5 dossier files written to `~/Claude/research_vol26/dossier/` (`01_static_benchmarks.md` 16 entries, `02_agentic_benchmarks.md` 18, `03_human_eval.md` 10, `04_llm_as_judge.md` 13, `05_holistic_and_contamination.md` 15) plus `_dossier_readme.md`. Total 72 entries; matches bib_ledger count exactly. `validators/dossier.py` exits 0.
+**Result:** 5 dossier files written to `~/Claude/research_eval_methodology/dossier/` (`01_static_benchmarks.md` 16 entries, `02_agentic_benchmarks.md` 18, `03_human_eval.md` 10, `04_llm_as_judge.md` 13, `05_holistic_and_contamination.md` 15) plus `_dossier_readme.md`. Total 72 entries; matches bib_ledger count exactly. `validators/dossier.py` exits 0.
 
-**Friction observations specific to vol26 (versus vol25 Phase 3.5):**
+**Friction observations specific to eval-methodology (versus prompt-injection Phase 3.5):**
 
 **1. Naturally clean file split (status: positive — no friction)**
-- vol26's research_plan.md sub-areas A1-A5 mapped 1:1 to claim_family values, and the final 5-file split (with A5 absorbing both holistic_framework and contamination_detection plus meta_eval) needed no editorial wrestling. By contrast vol25 had heterogeneous content forcing 7 dossier files. v1.0 takeaway: when the plan's sub-areas align with claim_family taxonomy, the split is mechanical.
+- eval-methodology's research_plan.md sub-areas A1-A5 mapped 1:1 to claim_family values, and the final 5-file split (with A5 absorbing both holistic_framework and contamination_detection plus meta_eval) needed no editorial wrestling. By contrast prompt-injection had heterogeneous content forcing 7 dossier files. v1.0 takeaway: when the plan's sub-areas align with claim_family taxonomy, the split is mechanical.
 
-**2. Bibkey-heuristic Authors rendering succeeded for ~93% of vol26 entries (status: improved over vol25)**
-- Of 72 entries, 5 are vendor / corporate blogs (`zheng2023chatbotarenablog`, `lmsys2024hardprompts`, `li2024arenahard`, `openai2024swebenchverified`, `huggingface2024openllmleaderboard2`). The bibkey stem doesn't yield a person — I rendered as `LMSYS team`, `OpenAI`, `HuggingFace`, `EleutherAI` per the corporate-author convention noted in vol25 Stage 3 #2.
-- The other 67 entries' bibkey-stems matched real first-author surnames cleanly (verified spot-checks during render). vol26 has fewer pseudonym / hyphenated-surname / pre-2018 papers than vol25, so the heuristic miss-rate is lower.
+**2. Bibkey-heuristic Authors rendering succeeded for ~93% of eval-methodology entries (status: improved over prompt-injection)**
+- Of 72 entries, 5 are vendor / corporate blogs (`zheng2023chatbotarenablog`, `lmsys2024hardprompts`, `li2024arenahard`, `openai2024swebenchverified`, `huggingface2024openllmleaderboard2`). The bibkey stem doesn't yield a person — I rendered as `LMSYS team`, `OpenAI`, `HuggingFace`, `EleutherAI` per the corporate-author convention noted in prompt-injection Stage 3 #2.
+- The other 67 entries' bibkey-stems matched real first-author surnames cleanly (verified spot-checks during render). eval-methodology has fewer pseudonym / hyphenated-surname / pre-2018 papers than prompt-injection, so the heuristic miss-rate is lower.
 - **Recurring friction (not new):** still no `authors_display` field in bib_ledger; same v1.1 design item as Phase 3.5 Stage 3 #2.
 
 **3. The "verbatim title" rule fights with display-name brevity in 5-bullet entries (status: surfaced — minor)**
-- e.g., for `zheng2023mtbench` the dossier-table title is "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena" but the agent-index 5-bullet display name is "MT-Bench" (the practitioner handle). citation_rules.md § "Verbatim title rendering" says the dossier preserves verbatim while 5-bullet display names "can shorten to a recognizable handle." This worked but needs the agent to make ~10 such handle-shortening calls for vol26 (e.g., GAIA, GSM8K, MMLU, EvalPlus, OSWorld, WebArena). No skill-body guidance on which canonical handle to pick when the paper has multiple short names (e.g., HumanEval vs Codex paper title).
+- e.g., for `zheng2023mtbench` the dossier-table title is "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena" but the agent-index 5-bullet display name is "MT-Bench" (the practitioner handle). citation_rules.md § "Verbatim title rendering" says the dossier preserves verbatim while 5-bullet display names "can shorten to a recognizable handle." This worked but needs the agent to make ~10 such handle-shortening calls for eval-methodology (e.g., GAIA, GSM8K, MMLU, EvalPlus, OSWorld, WebArena). No skill-body guidance on which canonical handle to pick when the paper has multiple short names (e.g., HumanEval vs Codex paper title).
 - **Action for v1.1:** Add a "common handles" table to citation_rules.md or templates/5_bullet_entry.template.md.
 
-**4. Validator's column-5 prefix list works fine for vol26 (status: improvement vs vol25)**
-- vol26 entries are mostly arXiv preprints or GitHub repos, so column 5 = "GitHub" naturally fits all rows including blog-only entries (use "—"). vol25 had standards PDFs and vendor product pages where the natural column header would be "URL" or "Doc URL" — no such friction in vol26. v1.0 takeaway: the strict column-5 prefix list works for paper-heavy dossiers; the v1.1 widening question (vol25 Stage 3 #1) only matters for vendor/standards-heavy volumes.
+**4. Validator's column-5 prefix list works fine for eval-methodology (status: improvement vs prompt-injection)**
+- eval-methodology entries are mostly arXiv preprints or GitHub repos, so column 5 = "GitHub" naturally fits all rows including blog-only entries (use "—"). prompt-injection had standards PDFs and vendor product pages where the natural column header would be "URL" or "Doc URL" — no such friction in eval-methodology. v1.0 takeaway: the strict column-5 prefix list works for paper-heavy dossiers; the v1.1 widening question (prompt-injection Stage 3 #1) only matters for vendor/standards-heavy volumes.
 
-**5. The "1 entry per dossier row" rule fits vol26 cleanly with no cross-listing (status: positive — no friction)**
-- Unlike vol25 (where ~6 entries legitimately belonged in two topic files: GCG, NeMo Guardrails, BIPIA, etc.), vol26's 72 entries each have exactly one natural primary file. Cross-references are handled in the agent-index lookup recipes rather than duplicating dossier rows. vol25 Stage 3 #3 friction does not recur.
+**5. The "1 entry per dossier row" rule fits eval-methodology cleanly with no cross-listing (status: positive — no friction)**
+- Unlike prompt-injection (where ~6 entries legitimately belonged in two topic files: GCG, NeMo Guardrails, BIPIA, etc.), eval-methodology's 72 entries each have exactly one natural primary file. Cross-references are handled in the agent-index lookup recipes rather than duplicating dossier rows. prompt-injection Stage 3 #3 friction does not recur.
 
 **Time spent (Stage 3):** ~25 minutes (~5 minutes per dossier file plus readme).
 
 ### Stage 4: /agent-index
 
-**Result:** 7 files written to `~/interview_prep_series/docs/research/vol26_eval_methodology/` (`00_overview.md`, 5 topic files, `README.md`). 72 `**Source:**` bullets total — matches bib_ledger and dossier exactly. README has 26 lookup recipes and 28 glossary terms (both within target ranges of 15-20 and 20-30 respectively). `validators/agent_index.py` exits 0.
+**Result:** 7 files written to `~/interview_prep_series/docs/research/eval_methodology_synthesis/` (`00_overview.md`, 5 topic files, `README.md`). 72 `**Source:**` bullets total — matches bib_ledger and dossier exactly. README has 26 lookup recipes and 28 glossary terms (both within target ranges of 15-20 and 20-30 respectively). `validators/agent_index.py` exits 0.
 
-**Friction observations specific to vol26:**
+**Friction observations specific to eval-methodology:**
 
 **6. Letter-prefix-per-file convention applied without template support (status: applied but un-templated)**
-- Per the user's prompt instructions, I used A1-A4 in `01`, B1-B4 in `02`, C1-C4 in `03`, D1-D4 in `04`, E1-E4 in `05` so cross-file lookup recipes are unambiguous. The `agent_index_README.template.md` and `agent-index.md` skill body do NOT specify this convention — same gap as vol25 Phase 3.5 Stage 4 #8. **Repeats from vol25; high-priority v1.1 fix.**
+- Per the user's prompt instructions, I used A1-A4 in `01`, B1-B4 in `02`, C1-C4 in `03`, D1-D4 in `04`, E1-E4 in `05` so cross-file lookup recipes are unambiguous. The `agent_index_README.template.md` and `agent-index.md` skill body do NOT specify this convention — same gap as prompt-injection Phase 3.5 Stage 4 #8. **Repeats from prompt-injection; high-priority v1.1 fix.**
 
-**7. The "no LLM-generated specifics" rule is heavily-tested by vol26 because every entry is a benchmark with a numeric headline figure (status: surfaced — content rule worked correctly)**
-- Many vol26 entries have iconic numbers (MMLU "57 subjects", GAIA "466 questions", HumanEval "164 problems", MATH "12,500 problems", BIRD "95 databases"). I confirmed each cited number against the bib_ledger title, the abstract URL pattern, or the standard reference statement. Several "common knowledge" numbers I declined to cite specifically because I couldn't point at an abstract excerpt (e.g., MMLU's "57" appears in title; MATH's 12,500 appears in title; HumanEval's 164 does NOT appear in title and I generalized to "Hand-written Python programming problems" without the count). This is the rule working as designed — but it required active discipline because plausible numbers came to mind for entries where the abstract verification was uncertain.
+**7. The "no LLM-generated specifics" rule is heavily-tested by eval-methodology because every entry is a benchmark with a numeric headline figure (status: surfaced — content rule worked correctly)**
+- Many eval-methodology entries have iconic numbers (MMLU "57 subjects", GAIA "466 questions", HumanEval "164 problems", MATH "12,500 problems", BIRD "95 databases"). I confirmed each cited number against the bib_ledger title, the abstract URL pattern, or the standard reference statement. Several "common knowledge" numbers I declined to cite specifically because I couldn't point at an abstract excerpt (e.g., MMLU's "57" appears in title; MATH's 12,500 appears in title; HumanEval's 164 does NOT appear in title and I generalized to "Hand-written Python programming problems" without the count). This is the rule working as designed — but it required active discipline because plausible numbers came to mind for entries where the abstract verification was uncertain.
 - **Action for v1.1:** Add an explicit "if the canonical headline number is in the title, you may cite it; otherwise generalize" clarifier in citation_rules.md.
 
 **8. Dossier-to-synthesis information loss for "Key contribution" column (status: surfaced — minor)**
-- Dossier table has 7 columns including "One-line description" and "Key contribution" (two distinct cells). The agent-index 5-bullet entry has only "Mechanism" and "Result" bullets — same 2-axis structure but with somewhat different semantic load. For ~30% of entries the dossier "Key contribution" was a slight rephrasing of "One-line description" (vol25 Stage 3 #4 noted this for non-paper entries; in vol26 it recurred for some paper entries too — e.g., when the paper's key contribution IS the dataset itself, the description and contribution end up similar).
+- Dossier table has 7 columns including "One-line description" and "Key contribution" (two distinct cells). The agent-index 5-bullet entry has only "Mechanism" and "Result" bullets — same 2-axis structure but with somewhat different semantic load. For ~30% of entries the dossier "Key contribution" was a slight rephrasing of "One-line description" (prompt-injection Stage 3 #4 noted this for non-paper entries; in eval-methodology it recurred for some paper entries too — e.g., when the paper's key contribution IS the dataset itself, the description and contribution end up similar).
 - **Action for v1.1:** Either tighten the editorial guidance in dossier_table.template.md to require distinct content in cols 6+7, OR collapse to a single "Description" column for paper-heavy dossiers.
 
 **9. Status-flag rendering: `(vendor blog)` and `(post-2025; recheck)` flags work but are stored on the line WITHIN the Status bullet, conflicting with the canonical-order check (status: surfaced — false-alarm risk)**
@@ -261,31 +261,31 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 **Total time spent (Stages 3+4):** ~50 minutes.
 
-**Whether anything blocks v1.0 tag:** No. All validators exit 0. Output structurally matches the templates. Friction items 6 (letter-prefix convention not in template) and 9 (status-flag composition) are recurring/known and consistent with vol25 Phase 3.5 — neither blocks v1.0; both go in the v1.1 backlog. Items 3 (display-name canonical handles), 7 (no-LLM-specifics edge cases), and 8 (description vs key-contribution overlap) are new vol26-surfaced items deserving v1.1 design attention.
+**Whether anything blocks v1.0 tag:** No. All validators exit 0. Output structurally matches the templates. Friction items 6 (letter-prefix convention not in template) and 9 (status-flag composition) are recurring/known and consistent with prompt-injection Phase 3.5 — neither blocks v1.0; both go in the v1.1 backlog. Items 3 (display-name canonical handles), 7 (no-LLM-specifics edge cases), and 8 (description vs key-contribution overlap) are new eval-methodology-surfaced items deserving v1.1 design attention.
 
 ### Stage 5: /dossier-audit (1 round, smoke)
 
-**Result on smoke run (2026-05-07):** Round 1 against `~/interview_prep_series/docs/research/vol26_eval_methodology/` with focus "benchmark version numbers and leaderboard freshness". Verified 5 entries via WebFetch: MMLU-Pro (10 options), GAIA (466 questions), MT-Bench (80 multi-turn), AlpacaEval 2.0 / Length-Controlled, SWE-bench Verified (500 instances). Findings: 0 DROP / 1 CORRECT / 0 FLAG / 4 SPOT-CHECK PASSED. Both validators (`audit_trail.py`, `agent_index.py`) exit 0 after edits. Time spent: ~6 minutes (within ≤8 minute budget; 4 WebFetches + 1 WebSearch within ≤5+≤2 budget).
+**Result on smoke run (2026-05-07):** Round 1 against `~/interview_prep_series/docs/research/eval_methodology_synthesis/` with focus "benchmark version numbers and leaderboard freshness". Verified 5 entries via WebFetch: MMLU-Pro (10 options), GAIA (466 questions), MT-Bench (80 multi-turn), AlpacaEval 2.0 / Length-Controlled, SWE-bench Verified (500 instances). Findings: 0 DROP / 1 CORRECT / 0 FLAG / 4 SPOT-CHECK PASSED. Both validators (`audit_trail.py`, `agent_index.py`) exit 0 after edits. Time spent: ~6 minutes (within ≤8 minute budget; 4 WebFetches + 1 WebSearch within ≤5+≤2 budget).
 
-**1. Vendor-blog 403 forces audit fallback to WebSearch (status: surfaced — recurring vol26 wrinkle)**
+**1. Vendor-blog 403 forces audit fallback to WebSearch (status: surfaced — recurring eval-methodology wrinkle)**
 - The OpenAI SWE-bench Verified blog (https://openai.com/index/introducing-swe-bench-verified/) returned 403 to WebFetch despite the entry's `(vendor blog) Verified` flag implying it had been fetched at gather time. The audit fell back to WebSearch summary (which surfaced 500-instance + 93-developer + Aug-2024 numbers). Same allowlist gap noted in Phase 3.5 Stage 6 (#1, openai.com bot-blocking).
 - **Why it matters:** When a vendor blog is the primary source for a benchmark entry AND is bot-blocked, audit-time verification can only reach it indirectly (search snippets, third-party rehosts). The `(vendor blog)` flag should arguably escalate to `(vendor blog; bot-blocked at audit)` so downstream readers know the content was not directly re-verified.
 - **Action for v1.1:** Either (a) extend `citation_rules.md` to add a `(vendor blog; bot-blocked)` sub-flag for openai.com / lmsys.org / similar domains, or (b) require the audit skill to record each WebFetch HTTP status in the audit-trail note.
 
 **2. Project-version vs. paper-title disambiguation isn't covered in entry-render guidance (status: surfaced — content quality)**
 - The Dubois et al. (2024) entry was titled `**Length-Controlled AlpacaEval (AlpacaEval 2.0)**` — the paper's title is "Length-Controlled AlpacaEval"; "AlpacaEval 2.0" is a separate project-version label on the AlpacaEval site (referring to the GPT-4-Preview baseline+annotator release, distinct from the LC bias-correction). The parenthetical conflated two related but mechanistically distinct things. The audit caught it via WebFetch on the paper abstract + the project site.
-- **Why it matters:** Several vol26 entries pair an arXiv paper with a community-maintained leaderboard or project (AlpacaEval, Chatbot Arena, SWE-bench, MT-Bench). The render-time decision "should the entry title use the paper title, the project name, or both?" is unspecified in `5_bullet_entry.template.md`. The default of putting the project name parenthetically risks conflation when the project has its own version numbering.
+- **Why it matters:** Several eval-methodology entries pair an arXiv paper with a community-maintained leaderboard or project (AlpacaEval, Chatbot Arena, SWE-bench, MT-Bench). The render-time decision "should the entry title use the paper title, the project name, or both?" is unspecified in `5_bullet_entry.template.md`. The default of putting the project name parenthetically risks conflation when the project has its own version numbering.
 - **Action for v1.1:** Add an editorial rule to `citation_rules.md`: when an arXiv paper introduces a methodology that a separate community project then versions independently (e.g., LC AlpacaEval vs. AlpacaEval 2.0; SWE-bench paper vs. SWE-bench Verified; MT-Bench paper vs. live leaderboard), keep the paper title as the entry title and put project-version disambiguation in the Mechanism bullet, not the title.
 
-**3. The four-bucket audit-trail format (DROP/CORRECT/FLAG/SPOT-CHECK) reads better than the three-bucket reference template (status: confirms vol25 Stage 5 #1)**
-- The user's invocation prompt requested four buckets; `audit_protocol.md` § "Audit-trail note format" lists only three. The four-bucket form is more informative because it surfaces verification *coverage* (4 spot-checks PASSED) alongside *changes* (1 corrected). vol25 Stage 5 #1 already flagged this as a v1.1 canonicalization decision; vol26 confirms the four-bucket form is the more useful one in practice.
-- **Action for v1.1:** Same as vol25 Stage 5 #1 — make four-bucket canonical in both `dossier-audit.md` Phase 6 and `references/audit_protocol.md`.
+**3. The four-bucket audit-trail format (DROP/CORRECT/FLAG/SPOT-CHECK) reads better than the three-bucket reference template (status: confirms prompt-injection Stage 5 #1)**
+- The user's invocation prompt requested four buckets; `audit_protocol.md` § "Audit-trail note format" lists only three. The four-bucket form is more informative because it surfaces verification *coverage* (4 spot-checks PASSED) alongside *changes* (1 corrected). prompt-injection Stage 5 #1 already flagged this as a v1.1 canonicalization decision; eval-methodology confirms the four-bucket form is the more useful one in practice.
+- **Action for v1.1:** Same as prompt-injection Stage 5 #1 — make four-bucket canonical in both `dossier-audit.md` Phase 6 and `references/audit_protocol.md`.
 
 **Time spent (Stage 5):** ~6 minutes (4 WebFetches + 1 WebSearch + 2 inline Edits + 2 validator runs).
 
 ### Stage 6: /url-freshness-check (smoke)
 
-**Result (2026-05-07):** 122 unique URLs extracted; 120 → 200 OK; 1 → 403 (openai.com — allowlisted as bot-blocked); 1 → 404 (`https://github.com/huggingface/open_llm_leaderboard` — repo archived June 2024). Hard 404 fixed inline (replaced with `EleutherAI/lm-evaluation-harness` + archival note in Mechanism bullet); both validators still pass post-edit. URL report written to `~/Claude/research_vol26/url_check_report.md` (per Phase 3.5 Stage 6 #3 finding — outside the agent_index folder so it doesn't inflate file counts in any future diff test).
+**Result (2026-05-07):** 122 unique URLs extracted; 120 → 200 OK; 1 → 403 (openai.com — allowlisted as bot-blocked); 1 → 404 (`https://github.com/huggingface/open_llm_leaderboard` — repo archived June 2024). Hard 404 fixed inline (replaced with `EleutherAI/lm-evaluation-harness` + archival note in Mechanism bullet); both validators still pass post-edit. URL report written to `~/Claude/research_eval_methodology/url_check_report.md` (per Phase 3.5 Stage 6 #3 finding — outside the agent_index folder so it doesn't inflate file counts in any future diff test).
 
 **1. Confirms Phase 3.5 Stage 6 #1 — bash regex from `references/url_check_protocol.md` returns 0 URLs (status: confirmed — high-priority v1.0 backlog)**
 - Same broken regex as Phase 3.5; same workaround (positive char class `[a-zA-Z0-9./?=&_~%#:+-]+`). Two consecutive dogfood runs hit the same bug → confirms this is a real fix needed for v1.0 (or at minimum tagged as a known issue at v1.0 with the workaround documented in toolkit README).
@@ -309,15 +309,15 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 | Audit corrections | 1 (LC AlpacaEval title disambiguation) |
 | URL fixes | 1 (open_llm_leaderboard 404 → lm-evaluation-harness) |
 | Friction items added to BURN_IN | 13 (Phase 5a §§ 2-6) |
-| `make test` regression | 18 pass + 2 fail (vol25 recreation_diff baseline unchanged) |
+| `make test` regression | 18 pass + 2 fail (prompt-injection recreation_diff baseline unchanged) |
 | **v1.0 ship gate** | **READY** — both validator-passing and friction-tracked. No blockers. |
 
 ---
 
-## Phase 5b: vol27 PEFT (post-v1.0)
+## Phase 5b: PEFT PEFT (post-v1.0)
 
 **Date:** 2026-05-07
-**Output:** `~/interview_prep_series/docs/research/vol27_peft/` (7 files, 67 entries)
+**Output:** `~/interview_prep_series/docs/research/peft_synthesis/` (7 files, 67 entries)
 **Topic:** parameter-efficient fine-tuning (LoRA family, adapters, prompt-based PEFT, IA³, surveys)
 
 ### Stage 2: /research-gather
@@ -330,7 +330,7 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 - `rucklé2021adapterdrop` (Andreas Rücklé) preserves the `é` through bib_ledger → dossier → agent_index → validator. UTF-8 path is fine end-to-end.
 
 **3. Year-of-record ambiguity for arXiv-vs-venue split (status: surfaced — minor)**
-- Several papers were on arXiv in year N and accepted at a conference in year N+1 (AdapterFusion: 2020 arXiv → EACL 2021; AdapterDrop: 2020 arXiv → EMNLP 2021; UniPELT: 2021 arXiv → ACL 2022; P-tuning v2: 2021 arXiv → ACL 2022). The subagent picked venue/publication year, matching vol26 precedent. One inconsistency: `aghajanyan2020intrinsic` kept 2020 (arXiv submission year, not ICLR 2021 publication year) because the literature consistently cites it as 2020.
+- Several papers were on arXiv in year N and accepted at a conference in year N+1 (AdapterFusion: 2020 arXiv → EACL 2021; AdapterDrop: 2020 arXiv → EMNLP 2021; UniPELT: 2021 arXiv → ACL 2022; P-tuning v2: 2021 arXiv → ACL 2022). The subagent picked venue/publication year, matching eval-methodology precedent. One inconsistency: `aghajanyan2020intrinsic` kept 2020 (arXiv submission year, not ICLR 2021 publication year) because the literature consistently cites it as 2020.
 - **Why it matters:** The bibkey "year" is sometimes a citation choice, not a fact about the paper. Documenting the rule (default to venue/publication year unless community-standard citation says otherwise) would help future runs.
 - **Action:** Add a one-line guidance in `/research-gather` skill: "for bibkey year, prefer venue/publication year; fall back to arXiv-submission year only when literature consistently cites that year."
 
@@ -356,7 +356,7 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 - **Why it matters:** Stage-4-as-second-eye on Stage-3 output is a useful default. Confirmed working.
 
 **2. Cross-vol linking convention worked (status: confirmed)**
-- Each entry has one primary location; cross-vol overlaps with vol25 (none in this run) and vol26 (e.g., calibration of PEFT'd models would touch both vol27 + vol28) are surfaced via the README scope-callout, not via inline duplication. Same pattern as vol26.
+- Each entry has one primary location; cross-vol overlaps with prompt-injection (none in this run) and eval-methodology (e.g., calibration of PEFT'd models would touch both PEFT + calibration) are surfaced via the README scope-callout, not via inline duplication. Same pattern as eval-methodology.
 
 ### Stage 5: /dossier-audit (round 1)
 
@@ -370,7 +370,7 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 - The url-freshness-check subagent timed out at the WebFetch verification step (over 120 URLs). Falling back to inline `curl -sS -L` bulk-check was much faster (60 seconds for all 117 URLs) and surfaced the same 7 hard-404s. Subagent path is more thorough (uses WebFetch which respects robots.txt-style allowlists) but slower.
 - **Action:** Document the inline-curl fallback as a recipe for large URL sets. v1.1 might add an explicit "if N>50 URLs, use inline curl" branch in the skill body.
 
-**2. URL-extraction regex BURN_IN finding from vol26 confirmed again (status: applied)**
+**2. URL-extraction regex BURN_IN finding from eval-methodology confirmed again (status: applied)**
 - The positive char-class form `[a-zA-Z0-9./?=&_~%#:+-]+` works correctly on macOS grep. The negative form `[^[:space:]\)\]"\<]+` silently returns 0 URLs (high-priority bug from Phase 5a #2). Confirming the v1.0 fix-recipe applies here.
 
 ### Phase 5b summary table
@@ -388,16 +388,16 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 | Audit corrections | 3 (DyLoRA repo, LongLoRA Spotlight flag, LoRA Land tech-report flag) + 1 FLAG |
 | URL fixes | 7 hard-404 GitHub repo fixes (HIGH PRIORITY v1.1 finding — see Stage 3 #1) |
 | Friction items added to BURN_IN | 8 (Phase 5b §§ 1-8 across stages) |
-| `make test` regression | 18 pass + 2 fail (vol25 recreation_diff baseline unchanged; identical to v1.0 baseline) |
+| `make test` regression | 18 pass + 2 fail (prompt-injection recreation_diff baseline unchanged; identical to v1.0 baseline) |
 | New material tweaks applied to skills | 0 (highest-priority finding deferred to v1.1) |
-| **v1.1 tag bump** | **NO** — findings are recorded but no skill-body edits applied yet; defer to consolidated v1.1 PR after vol28. |
+| **v1.1 tag bump** | **NO** — findings are recorded but no skill-body edits applied yet; defer to consolidated v1.1 PR after calibration. |
 
 ---
 
-## Phase 5c: vol28 calibration & uncertainty (post-v1.0)
+## Phase 5c: calibration calibration & uncertainty (post-v1.0)
 
 **Date:** 2026-05-07
-**Output:** `~/interview_prep_series/docs/research/vol28_calibration/` (8 files, 88 entries)
+**Output:** `~/interview_prep_series/docs/research/calibration_synthesis/` (8 files, 88 entries)
 **Topic:** calibration methods, calibration metrics, conformal prediction, UQ, OOD detection, LLM-specific calibration
 
 ### Stage 2: /research-gather
@@ -419,16 +419,16 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 ### Stage 3: /dossier-build
 
 **1. Six-file layout exercises letter-prefix anchors A-F (status: clean)**
-- vol28's 6 dossier files use anchors A1-A4, B1-B3, C1-C4, D1-D4, E1-E3, F1. No collisions. Confirms the per-file letter-prefix convention scales beyond vol27's A-E.
+- calibration's 6 dossier files use anchors A1-A4, B1-B3, C1-C4, D1-D4, E1-E3, F1. No collisions. Confirms the per-file letter-prefix convention scales beyond PEFT's A-E.
 
-**2. dossier-build subagent held the GitHub-`—` line (status: applied — vol27 BURN_IN finding propagated)**
-- Stage 3 subagent explicitly refused to guess `<author>/<paper-slug>` GitHub patterns for repos it didn't directly know, marking `—` for ~28 entries instead. This is the v1.0/v1.1-tracked behavior change from vol27 Stage 6 finding (Phase 5b §1).
-- **Why it matters:** Confirms the BURN_IN finding from vol27 was actionable in-prompt — feeding the rule into the subagent's prompt was sufficient to change behavior. v1.1 PR can codify this in the skill body.
+**2. dossier-build subagent held the GitHub-`—` line (status: applied — PEFT BURN_IN finding propagated)**
+- Stage 3 subagent explicitly refused to guess `<author>/<paper-slug>` GitHub patterns for repos it didn't directly know, marking `—` for ~28 entries instead. This is the v1.0/v1.1-tracked behavior change from PEFT Stage 6 finding (Phase 5b §1).
+- **Why it matters:** Confirms the BURN_IN finding from PEFT was actionable in-prompt — feeding the rule into the subagent's prompt was sufficient to change behavior. v1.1 PR can codify this in the skill body.
 
 ### Stage 4: /agent-index
 
 **1. 88 entries scaled cleanly to dual-audience format (status: clean)**
-- README has 32 lookup recipes + 36 glossary terms — slightly larger than vol27's 32+30 because vol28 covers 6 sub-areas vs vol27's 5. No schema strain.
+- README has 32 lookup recipes + 36 glossary terms — slightly larger than PEFT's 32+30 because calibration covers 6 sub-areas vs PEFT's 5. No schema strain.
 
 ### Stage 5: /dossier-audit (round 1)
 
@@ -442,9 +442,9 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ### Stage 6: /url-freshness-check
 
-**1. vol27's GitHub-guess BURN_IN finding reproduced (status: confirmed — HIGH PRIORITY for v1.1)**
+**1. PEFT's GitHub-guess BURN_IN finding reproduced (status: confirmed — HIGH PRIORITY for v1.1)**
 - 3 hard-404 GitHub URLs guessed despite the v1.0 dossier-build subagent doing the right thing for ~28 cases. Two of three (Ashukha 2020 `bayesgroup/pytorch-ensembles`, Xiong 2024 `MiaoXiong2333/UQ-NLG`) are slug-guesses; one (Brier 1950 Source) was a DOI URL with `<>` characters that broke URL parsers.
-- **Why it matters:** Confirms vol27 finding for the second time across two domains. The dossier/agent-index pipeline produces ~3% hard-404 rate on guessed GitHub URLs (3/137 vol28; 7/117 vol27). v1.1 needs to codify "no `<author>/<paper-slug>` guesses, mark `—`."
+- **Why it matters:** Confirms PEFT finding for the second time across two domains. The dossier/agent-index pipeline produces ~3% hard-404 rate on guessed GitHub URLs (3/137 calibration; 7/117 PEFT). v1.1 needs to codify "no `<author>/<paper-slug>` guesses, mark `—`."
 - **Action for v1.1**: Codify the dash-default rule in `/dossier-build` and `/agent-index` skill bodies as a hard rule, not a suggestion.
 
 **2. ResearchGate / ACM / JSTOR consistent bot-block (status: noted, no action)**
@@ -467,20 +467,20 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 | Landmark-paper corrections caught | 0 of 17 (all 17 known landmarks resolved cleanly) |
 | Audit corrections | 3 (Yin→Zhang misattribution; Lin/Kadavath display-title fixes) + 0 FLAGS |
 | arXiv-ID spot-checks | 10/10 PASSED |
-| URL fixes | 3 hard-404s (Brier DOI URL-unsafe; 2 GitHub-slug guesses — same pattern as vol27) |
+| URL fixes | 3 hard-404s (Brier DOI URL-unsafe; 2 GitHub-slug guesses — same pattern as PEFT) |
 | Friction items added to BURN_IN | 9 (Phase 5c §§ 1-9 across stages) |
-| `make test` regression | 18 pass + 2 fail (vol25 recreation_diff baseline unchanged; identical to v1.0 + vol27 baselines) |
+| `make test` regression | 18 pass + 2 fail (prompt-injection recreation_diff baseline unchanged; identical to v1.0 + PEFT baselines) |
 | New material tweaks applied to skills | 0 (highest-priority findings consolidated for v1.1 PR) |
-| **v1.2 tag bump** | **NO** — findings recorded; consolidated v1.1 PR (post-vol27+vol28) is the right next step. |
+| **v1.2 tag bump** | **NO** — findings recorded; consolidated v1.1 PR (post-PEFT+calibration) is the right next step. |
 
 ### Cross-vol findings consolidated for v1.1
 
-The vol27 + vol28 dogfood runs surfaced four reproducible v1.1 design items:
+The PEFT + calibration dogfood runs surfaced four reproducible v1.1 design items:
 
-1. **GitHub-URL guessing** (vol27 §3.1, vol28 §6.1) — codify dash-default rule in `/dossier-build` + `/agent-index` skill bodies. **Highest priority.**
-2. **Stage 2 verification protocol** (vol28 §2.1) — either default-`unverified` or explicit time-budget guidance, to prevent memory-based "verified" inflation.
-3. **Stage 5 default audit protocol** (vol28 §5.1) — make 10-entry random arXiv-ID spot-check the default whenever Stage 2 reports memory-based work.
-4. **Display-title preservation** (vol28 §5.2) — synthesis-time rule: display title = arXiv title verbatim.
+1. **GitHub-URL guessing** (PEFT §3.1, calibration §6.1) — codify dash-default rule in `/dossier-build` + `/agent-index` skill bodies. **Highest priority.**
+2. **Stage 2 verification protocol** (calibration §2.1) — either default-`unverified` or explicit time-budget guidance, to prevent memory-based "verified" inflation.
+3. **Stage 5 default audit protocol** (calibration §5.1) — make 10-entry random arXiv-ID spot-check the default whenever Stage 2 reports memory-based work.
+4. **Display-title preservation** (calibration §5.2) — synthesis-time rule: display title = arXiv title verbatim.
 
 These four items represent the post-v1.0 design backlog. A consolidated v1.1 PR addressing #1-#4 plus the existing v1.0 backlog (URL-extraction regex, bibkey-heuristic Authors gap, per-file letter-prefix in templates) is the right next-cycle artifact.
 
@@ -508,7 +508,7 @@ All cross-vol findings above are now fixed in skill bodies, templates, validator
 - `.claude/skills/url-freshness-check.md` — replaced negative char-class regex (silently 0 on macOS) with positive form `[a-zA-Z0-9./?=&_~%#:+-]+`. Added `if N≥50 use inline curl bulk-check` fast-path branch (60s for 100+ URLs vs WebFetch timeout). Added URL-extraction sanity check.
 
 **References**
-- `references/audit_protocol.md` — added "Default arXiv-ID spot-check" section: when Stage 2 reports memory-based work, Stage 5 must include a 10-entry random arXiv-ID spot-check by default. Added "Display-title preservation rule" with worked examples from vol28 corrections.
+- `references/audit_protocol.md` — added "Default arXiv-ID spot-check" section: when Stage 2 reports memory-based work, Stage 5 must include a 10-entry random arXiv-ID spot-check by default. Added "Display-title preservation rule" with worked examples from calibration corrections.
 
 **Tests**
 - `tests/test_v1_1_fixes.py` (NEW, 27 tests) — covers all v1.1 changes:
@@ -521,18 +521,18 @@ All cross-vol findings above are now fixed in skill bodies, templates, validator
   - Backward-compat regression on existing fixtures (3 tests)
 
 **Test fixture cleanup**
-- `tests/fixtures/vol25_snapshot/real/bib_ledger.yml` — entry 63 (`kim2024selfreminder`) had empty `primary_url` (a v1.0-era known defect that the validator silently flagged because no test exercised vol25/real). Populated with `https://www.nature.com/articles/s42256-023-00765-8` and renamed `test_vol25_bib_ledger_has_one_known_violation` → `test_vol25_bib_ledger_passes_cleanly`.
+- `tests/fixtures/prompt_injection_snapshot/real/bib_ledger.yml` — entry 63 (`kim2024selfreminder`) had empty `primary_url` (a v1.0-era known defect that the validator silently flagged because no test exercised prompt-injection/real). Populated with `https://www.nature.com/articles/s42256-023-00765-8` and renamed `test_prompt_injection_bib_ledger_has_one_known_violation` → `test_prompt_injection_bib_ledger_passes_cleanly`.
 
 ### Verification
 
-- `make test`: 45 pass + 2 known-baseline fail (vol25 recreation_diff entry-counts + section-anchors — unchanged from v1.0; flagged in BURN_IN as deliberate v1.0 gaps not in v1.1 scope).
+- `make test`: 45 pass + 2 known-baseline fail (prompt-injection recreation_diff entry-counts + section-anchors — unchanged from v1.0; flagged in BURN_IN as deliberate v1.0 gaps not in v1.1 scope).
 - `python -m pytest tests/test_v1_1_fixes.py -v`: 27 / 27 pass in <1 s.
-- All 6 real-world bib_ledgers (mini, vol25/real, vol25/recreated, vol26, vol27, vol28) validate cleanly under v1.1 schema.
+- All 6 real-world bib_ledgers (mini, prompt-injection/real, prompt-injection/recreated, eval-methodology, PEFT, calibration) validate cleanly under v1.1 schema.
 - Standalone invocation `python validators/<x>.py path` now works for all 6 validators.
 
 ### Out-of-v1.1 scope (deferred to v1.2 or never)
 
-- v1.0 BURN_IN's two recreation_diff baseline fails (entry-counts within tolerance, section-anchors match) — these reflect the recreation's structural divergence from real, not a tooling defect. Resolving would require either re-running vol25 recreation with v1.1 skills or relaxing the tolerances; both are beyond v1.1's "fix the tooling" charter.
+- v1.0 BURN_IN's two recreation_diff baseline fails (entry-counts within tolerance, section-anchors match) — these reflect the recreation's structural divergence from real, not a tooling defect. Resolving would require either re-running prompt-injection recreation with v1.1 skills or relaxing the tolerances; both are beyond v1.1's "fix the tooling" charter.
 - Pydantic / config-framework / packaging changes — out of scope per project instructions.
 
 **v1.2+ roadmap:** see `docs/roadmap_v1_2_through_v1_5.md` — sequenced post-v1.1 plan covering 10 audit items across 4 versions (v1.2 defensive hardening, v1.3 data + fixture grounding, v1.4 pipeline test surface, v1.5 ops + ergonomics). Roadmap is aspirational; each version is gated by its own user decision.
@@ -545,9 +545,9 @@ All cross-vol findings above are now fixed in skill bodies, templates, validator
 
 **Items shipped (all 4):**
 
-- **A2 cross_stage validator** (`validators/cross_stage.py`, NEW) — claim_family-vs-research-plan-taxonomy hard check; orphan-arxiv-ID soft warnings (dossier + agent_index); stale-ledger-entry warnings; `--strict` flag promotes warnings to errors. Fixes a real bug class: bib_ledger entries using a claim_family not in the plan's taxonomy were silently accepted before. Also surfaces vol25/real's 9 stale ledger entries (in ledger but not synthesized) and 202 cross-reference IDs (in synthesis but not in own ledger — vol25's intentional cross-reference pattern).
-- **A3 anti-cheat heuristic** (`validators/bib_ledger.py`) — if ≥50 entries AND every entry has `status: verified` (no `unverified` or `mismatched`), emit a "memory-verification suspected" warning. `--strict` promotes to error. Catches the vol28 §2.1 anti-pattern where Stage 2 marked all 88 entries `verified` from memory under time pressure. Validates correctly: warns on vol27 (67 entries) and vol28 (88 entries); silent on vol25/real (137 entries with mixed status) and mini fixture (small).
-- **A4 xfail baseline tests** (`tests/test_recreation_diff.py`) — the 2 vol25 recreation_diff fails (entry_counts_within_tolerance, section_anchors_match) marked `@pytest.mark.xfail(strict=True)` with BURN_IN-referencing reason. They reflect v1.0 recreation drift, not tooling bugs. `strict=True` means we'll be notified if they ever pass (e.g., after v1.3 backfill re-runs vol25 recreation).
+- **A2 cross_stage validator** (`validators/cross_stage.py`, NEW) — claim_family-vs-research-plan-taxonomy hard check; orphan-arxiv-ID soft warnings (dossier + agent_index); stale-ledger-entry warnings; `--strict` flag promotes warnings to errors. Fixes a real bug class: bib_ledger entries using a claim_family not in the plan's taxonomy were silently accepted before. Also surfaces prompt-injection/real's 9 stale ledger entries (in ledger but not synthesized) and 202 cross-reference IDs (in synthesis but not in own ledger — prompt-injection's intentional cross-reference pattern).
+- **A3 anti-cheat heuristic** (`validators/bib_ledger.py`) — if ≥50 entries AND every entry has `status: verified` (no `unverified` or `mismatched`), emit a "memory-verification suspected" warning. `--strict` promotes to error. Catches the calibration §2.1 anti-pattern where Stage 2 marked all 88 entries `verified` from memory under time pressure. Validates correctly: warns on PEFT (67 entries) and calibration (88 entries); silent on prompt-injection/real (137 entries with mixed status) and mini fixture (small).
+- **A4 xfail baseline tests** (`tests/test_recreation_diff.py`) — the 2 prompt-injection recreation_diff fails (entry_counts_within_tolerance, section_anchors_match) marked `@pytest.mark.xfail(strict=True)` with BURN_IN-referencing reason. They reflect v1.0 recreation drift, not tooling bugs. `strict=True` means we'll be notified if they ever pass (e.g., after v1.3 backfill re-runs prompt-injection recreation).
 - **B6 CI workflow audit** — `.github/workflows/test.yml` audited: runs `python -m pytest` on push/PR for Python 3.11+3.12, installs `pip install -e ".[dev]"`. Functionally equivalent to `make test`. No gaps; v1.2 changes flow through automatically.
 
 **Tests (NEW: tests/test_v1_2_fixes.py, 14 cases):**
@@ -557,17 +557,17 @@ All cross-vol findings above are now fixed in skill bodies, templates, validator
 
 **Verification:**
 - `make test`: **59 passed + 2 xfailed** (the 2 baselines from A4). Up from v1.1's 45 passed + 2 baseline fails.
-- All 6 real-world projects (mini, vol25/real, vol25/recreated, vol26, vol27, vol28) cross_stage-validate cleanly in default mode.
-- Anti-cheat correctly identifies vol27 + vol28 as memory-verified suspects (warning); silent on properly-mixed vol25/real.
+- All 6 real-world projects (mini, prompt-injection/real, prompt-injection/recreated, eval-methodology, PEFT, calibration) cross_stage-validate cleanly in default mode.
+- Anti-cheat correctly identifies PEFT + calibration as memory-verified suspects (warning); silent on properly-mixed prompt-injection/real.
 
 **Critical bug caught + fixed during v1.2 implementation:**
-- The cross_stage validator's first regex `arxiv\.org/abs/(\d{4}\.\d{4,5})` only matched URL-form references. Real-world dossiers use citation-form `arXiv:<id>` in the arXiv/DOI column. The validator silently passed on vol27/vol28 for the wrong reason (extracting 0 IDs). Fixed regex to `(?:arxiv\.org/abs/|arxiv:)(\d{4}\.\d{4,5})` (case-insensitive). Confirmed real-world matching works. **Lesson:** when a defensive validator passes on every fixture you point it at, suspect it's not actually doing the check before celebrating.
+- The cross_stage validator's first regex `arxiv\.org/abs/(\d{4}\.\d{4,5})` only matched URL-form references. Real-world dossiers use citation-form `arXiv:<id>` in the arXiv/DOI column. The validator silently passed on PEFT/calibration for the wrong reason (extracting 0 IDs). Fixed regex to `(?:arxiv\.org/abs/|arxiv:)(\d{4}\.\d{4,5})` (case-insensitive). Confirmed real-world matching works. **Lesson:** when a defensive validator passes on every fixture you point it at, suspect it's not actually doing the check before celebrating.
 
 **Out-of-v1.2 scope (deferred to v1.3+):**
-- Backfilling vol26/27/28 ledgers with `authors`/`venue`/`code_url` fields (v1.3 A1).
+- Backfilling eval-methodology/27/28 ledgers with `authors`/`venue`/`code_url` fields (v1.3 A1).
 - Medium fixture for stress-testing dossier-build at >5 entries (v1.3 C10).
 - E2E pipeline smoke test (v1.4 B5).
-- Re-running vol25 recreation under v1.2 skills to close the xfail'd baseline gap (v1.3 candidate).
+- Re-running prompt-injection recreation under v1.2 skills to close the xfail'd baseline gap (v1.3 candidate).
 
 ---
 
@@ -577,30 +577,30 @@ All cross-vol findings above are now fixed in skill bodies, templates, validator
 
 **Items shipped (both):**
 
-- **A1 backfilled vol26/27/28 ledgers** — new helper `scripts/backfill_ledger.py` extracts `authors`/`venue`/`code_url` from each vol's dossier paper-tables (which already had the human-curated metadata) and merges back into the ledger. Idempotent: skips fields that are already populated.
-  - vol26: 65/72 entries backfilled (90% authors+venue, 74% code_url)
-  - vol27: 65/67 entries backfilled (97% authors+venue, 84% code_url)
-  - vol28: 75/88 entries backfilled (85% authors+venue, 65% code_url)
+- **A1 backfilled eval-methodology/27/28 ledgers** — new helper `scripts/backfill_ledger.py` extracts `authors`/`venue`/`code_url` from each vol's dossier paper-tables (which already had the human-curated metadata) and merges back into the ledger. Idempotent: skips fields that are already populated.
+  - eval-methodology: 65/72 entries backfilled (90% authors+venue, 74% code_url)
+  - PEFT: 65/67 entries backfilled (97% authors+venue, 84% code_url)
+  - calibration: 75/88 entries backfilled (85% authors+venue, 65% code_url)
   - Skipped entries are non-arxiv classics (Platt 1999, Brier 1950, JSTOR/DOI/Springer URLs etc.) — backfill uses arxiv ID as the join key. Future v1.x could add title-fuzzy matching for these.
 
-- **C10 medium fixture** — `tests/fixtures/medium_topic_calibration_subset/` (22 entries, vol28 calibration_method + calibration_metric subset) with full v1.1+ schema coverage. Generator script `scripts/build_medium_fixture.py` regenerates from current vol28 state (re-run after future vol28 audits). Validates against all 5 v1.0/v1.1/v1.2 validators including cross_stage --strict.
+- **C10 medium fixture** — `tests/fixtures/medium_topic_calibration_subset/` (22 entries, calibration calibration_method + calibration_metric subset) with full v1.1+ schema coverage. Generator script `scripts/build_medium_fixture.py` regenerates from current calibration state (re-run after future calibration audits). Validates against all 5 v1.0/v1.1/v1.2 validators including cross_stage --strict.
 
 **Tests (NEW: tests/test_v1_3_fixtures.py, 17 cases):**
 - Medium fixture: passes 4 validators (research_plan, bib_ledger, dossier, agent_index) + cross_stage default + cross_stage --strict (6 cases)
 - Optional-field coverage on medium fixture: ≥55% authors, ≥55% venue, ≥40% code_url (3 cases)
 - Medium fixture size + below anti-cheat threshold (2 cases)
-- vol26/27/28 backfilled ledgers validate + ≥80% authors coverage (parametrized 6 cases — skipped if working copy absent)
+- eval-methodology/27/28 backfilled ledgers validate + ≥80% authors coverage (parametrized 6 cases — skipped if working copy absent)
 
 **Verification:**
 - `make test`: **76 passed + 2 xfailed** (up from v1.2's 59 + 2)
-- Medium fixture exercises dossier sub-section logic at the size where vol27 stressed (22 entries vs mini's 5)
+- Medium fixture exercises dossier sub-section logic at the size where PEFT stressed (22 entries vs mini's 5)
 - Backfilled ledgers preserve all existing data — idempotent re-runs produce no diff
 
 **Why the medium fixture coverage threshold is 55% not 80%:**
-The medium fixture is a calibration subset that intentionally includes pre-2010 classical-stats papers (Brier 1950, Platt 1999, DeGroot 1983, Zadrozny 2001/2002, Niculescu-Mizil 2005, Gneiting 2007). These have venue + authors info in the dossier but no arXiv IDs in the ledger, so the arxiv-ID-based backfill skipped them. The vol26/27/28 LLM-era ledgers don't have this skew so they hit the ≥80% target. Documented in test docstrings.
+The medium fixture is a calibration subset that intentionally includes pre-2010 classical-stats papers (Brier 1950, Platt 1999, DeGroot 1983, Zadrozny 2001/2002, Niculescu-Mizil 2005, Gneiting 2007). These have venue + authors info in the dossier but no arXiv IDs in the ledger, so the arxiv-ID-based backfill skipped them. The eval-methodology/27/28 LLM-era ledgers don't have this skew so they hit the ≥80% target. Documented in test docstrings.
 
 **Out-of-v1.3 scope (deferred to v1.4+):**
-- Re-running vol25 recreation under v1.1+v1.2 skills (would close xfail'd baselines but is its own dogfood run).
+- Re-running prompt-injection recreation under v1.1+v1.2 skills (would close xfail'd baselines but is its own dogfood run).
 - Title-fuzzy matching in backfill (would push medium fixture to ≥80%; currently a 55% floor is sufficient for the fixture's purpose).
 - E2E pipeline smoke test (v1.4 B5).
 
@@ -635,7 +635,7 @@ A "real" E2E would mock WebSearch+WebFetch + drive Claude Code agents through th
 
 ## v1.5 — applied 2026-05-07
 
-**Theme:** ops + ergonomics — lower the cliff for future-you / future Claude Code agents reading the repo cold; make BURN_IN queryable; track reliability metrics across runs for vol29+.
+**Theme:** ops + ergonomics — lower the cliff for future-you / future Claude Code agents reading the repo cold; make BURN_IN queryable; track reliability metrics across runs for RLHF+.
 
 **Items shipped (all 3):**
 
@@ -645,17 +645,17 @@ A "real" E2E would mock WebSearch+WebFetch + drive Claude Code agents through th
   - `scripts/burn_in_query.py` — filter by status/severity/phase/stage/fix_version with table/yaml/ids output formats.
   - As of v1.5: 5 high-severity items, all `applied`. 0 unresolved high-severity. Rest are 4 medium + 7 low (mostly `applied` or `deferred`).
 
-- **C9 dogfood metrics CSV** — `evals/dogfood_metrics.csv` with 4 backfilled rows (vol25_recreated baseline, vol26 v1.0 gate, vol27 v1.1, vol28 v1.1). Columns: date, vol, total_entries, total_urls, hard_404_count, attribution_corrections_in_audit, toolkit_version, notes. Future runs (vol29+) append a row each. Trend visible after 2-3 future runs.
+- **C9 dogfood metrics CSV** — `evals/dogfood_metrics.csv` with 4 backfilled rows (prompt_injection_recreated baseline, eval-methodology v1.0 gate, PEFT v1.1, calibration v1.1). Columns: date, vol, total_entries, total_urls, hard_404_count, attribution_corrections_in_audit, toolkit_version, notes. Future runs (RLHF+) append a row each. Trend visible after 2-3 future runs.
 
 **Tests (NEW: tests/test_v1_5_artifacts.py, 12 cases):**
 - B7: getting_started + troubleshooting exist with reasonable size; getting_started mentions all 6 skills; troubleshooting covers 5 known failure topics (4 cases)
 - C8: burn_in.yml parses; entries well-formed (id uniqueness, required fields, severity/status enums, fix_version when applied); query script runs; all 3 output formats produce non-empty output; high-severity items all resolved (5 cases)
-- C9: dogfood_metrics.csv parses with required columns; dates in YYYY-MM-DD; includes vol26+vol27+vol28 baselines (3 cases)
+- C9: dogfood_metrics.csv parses with required columns; dates in YYYY-MM-DD; includes eval-methodology+PEFT+calibration baselines (3 cases)
 
 **Verification:**
 - `make test`: **97 passed + 2 xfailed** (up from v1.4's 85 + 2; up from v1.0's pre-v1.1 48 baseline by 2x).
 - 0 unresolved high-severity BURN_IN items (`burn_in_query.py --severity high --status surfaced` returns empty).
-- vol25/recreated, vol26, vol27, vol28 all logged in metrics CSV; vol29+ slot ready.
+- prompt-injection/recreated, eval-methodology, PEFT, calibration all logged in metrics CSV; RLHF+ slot ready.
 
 ## v1.5.1 — applied 2026-05-07
 
@@ -673,7 +673,7 @@ A "real" E2E would mock WebSearch+WebFetch + drive Claude Code agents through th
 
 **Verification:**
 - `make test`: **109 passed + 2 xfailed** (up from v1.5's 97 + 2)
-- All 7 real READMEs (mini, medium, vol25/real, vol25/recreated, vol26/27/28) pass the new audit_trail sequence rule
+- All 7 real READMEs (mini, medium, prompt-injection/real, prompt-injection/recreated, eval-methodology/27/28) pass the new audit_trail sequence rule
 - 0 unresolved high-severity BURN_IN items unchanged
 
 **Why this is v1.5.1 not v1.6:**
@@ -682,11 +682,11 @@ No breaking changes to ledger schema or skill workflows; just three small alignm
 ---
 
 **Out-of-v1.5 scope (truly deferred — out of v1.x charter):**
-- ~~Re-running vol25 recreation under v1.1+v1.2+v1.3 skills to close the 2 xfailed baselines~~ — **partially done 2026-05-07 post-v1.5**: applied v1.5 per-file letter-prefix anchor convention to `tests/fixtures/vol25_snapshot/recreated/dossier/` + `agent_index/` files 02-07 (A→B/C/D/E/F/G prefixes). Result:
+- ~~Re-running prompt-injection recreation under v1.1+v1.2+v1.3 skills to close the 2 xfailed baselines~~ — **partially done 2026-05-07 post-v1.5**: applied v1.5 per-file letter-prefix anchor convention to `tests/fixtures/prompt_injection_snapshot/recreated/dossier/` + `agent_index/` files 02-07 (A→B/C/D/E/F/G prefixes). Result:
   - **File 02 now fully matches real/** (4 sub-sections each, B-prefix anchors aligned). The v1.5 codification works as designed.
   - **Files 01/03/04 still differ** because the v1.0 recreation chose fewer sub-sections (3 vs real's 5/6/6) — editorial granularity, not a tooling defect. The xfail reasons in `tests/test_recreation_diff.py` were updated with this honest diagnosis. xfails are now likely **permanent** (would require either re-running /research-gather + /dossier-build editorially or hand-splitting existing sub-sections).
-  - The entry-counts xfail's true cause is also editorial: vol25/real includes ~202 cross-reference arxiv IDs that the recreation deliberately doesn't render (it synthesizes only its own ledger). Same "permanent xfail" outcome.
-  - Logged as a row in `evals/dogfood_metrics.csv` (vol25_recreated_anchor_renamed under toolkit_version v1.5).
+  - The entry-counts xfail's true cause is also editorial: prompt-injection/real includes ~202 cross-reference arxiv IDs that the recreation deliberately doesn't render (it synthesizes only its own ledger). Same "permanent xfail" outcome.
+  - Logged as a row in `evals/dogfood_metrics.csv` (prompt_injection_recreated_anchor_renamed under toolkit_version v1.5).
 - Skill-body execution mocking + Claude Code SDK integration for true E2E (separate plan if it ever happens).
 - New skills (`/dossier-export`, `/dossier-merge`, `/dossier-diff`) — explicit "out of v1.x" per the roadmap.
 - Pydantic / config-framework / packaging changes — out of CLAUDE.md scope.
