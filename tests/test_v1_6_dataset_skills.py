@@ -290,3 +290,26 @@ def test_smoke_fixture_passes_dataset_validator() -> None:
     if not SMOKE_FIXTURE.exists():
         pytest.skip(f"{SMOKE_FIXTURE} not present")
     assert dataset_ledger.validate(SMOKE_FIXTURE) == []
+
+
+# ---------- v1.7: anti-domain-substitution rule lint ----------
+
+
+def test_dataset_index_skill_has_anti_domain_substitution_rule() -> None:
+    """v1.7 BURN_IN finding from v1.6 dogfood: Stage 4 substituted Cornell
+    for UCR (Eamonn Keogh's actual affiliation). v1.7 codified the rule:
+    Source URL is byte-for-byte from the ledger; never auto-correct domains.
+
+    This lint test asserts the rule is present in the /dataset-index skill
+    body so a future skill-body refactor doesn't accidentally drop it.
+    """
+    text = (SKILLS / "dataset-index.md").read_text(encoding="utf-8")
+    assert "NO domain substitution" in text or "no domain auto-correct" in text.lower(), (
+        "/dataset-index skill body must codify the v1.7 'no domain substitution from "
+        "memory' rule. See tests/test_v1_6_dataset_skills.py docstring for context."
+    )
+    # Also verify the Cornell→UCR example is preserved as the canonical worked failure.
+    assert "cornell" in text.lower() and "ucr" in text.lower(), (
+        "Skill body should reference the Cornell→UCR example so a cold-reading "
+        "subagent understands the failure mode concretely."
+    )

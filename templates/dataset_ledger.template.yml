@@ -12,7 +12,7 @@
 #                                     huggingface | kaggle | zenodo | osf | figshare |
 #                                     icpsr | aws_open_data | gcp_public | azure_open |
 #                                     nih | ncbi | fred | nasa | common_crawl |
-#                                     data_gov | uci | openml | paperswithcode |
+#                                     data_gov | uci | openml |
 #                                     github | other
 #   status         (str, enum) — unverified | verified | mismatched
 #                                `verified` requires WebFetch confirmation of name +

@@ -87,7 +87,7 @@ For each ledger entry, render as:
 **HARD RULES (carry up from skill body conventions):**
 
 - **Name**: copy `dataset_ledger.name` verbatim. Do NOT abbreviate to a slug.
-- **Source URL**: from `dataset_ledger.primary_url` directly.
+- **Source URL — NO domain substitution from memory** (v1.7 BURN_IN finding from v1.6 dogfood). Copy `dataset_ledger.primary_url` byte-for-byte. The ledger is the source of truth. The Stage 4 rendering subagent in v1.6 substituted `cs.cornell.edu` for `cs.ucr.edu` (Eamonn Keogh is at UC Riverside, not Cornell) because of memorized "researcher domain" associations. **Do NOT auto-correct domain/host names — even if your prior knowledge of the author's affiliation suggests a different domain.** Trust the ledger.
 - **Access**: combine `access_method` + `auth_required`. Default `direct` +
   `auth_required: N` if both unknown — flag with `(uncertain access)`.
 - **Schema**: short summary; link to `schema_url` if ledger has it. Do NOT

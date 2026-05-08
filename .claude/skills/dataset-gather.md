@@ -1,6 +1,6 @@
 ---
 name: dataset-gather
-description: Discover public datasets for a research topic and populate dataset_ledger.yml. Searches across HuggingFace, Kaggle, academic repos (Zenodo/OSF/Figshare/ICPSR), aggregators (paperswithcode/Google Dataset Search/OpenML), cloud-vendor open data, domain-specific portals, government open data, and classical ML repos. Output consumed by /dataset-index.
+description: Discover public datasets for a research topic and populate dataset_ledger.yml. Searches across HuggingFace, Kaggle, academic repos (Zenodo/OSF/Figshare/ICPSR), aggregators (Google Dataset Search/OpenML), cloud-vendor open data, domain-specific portals (PhysioNet/iTrust/etc.), government open data, and classical ML repos. Output consumed by /dataset-index.
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 ---
 
@@ -68,7 +68,7 @@ For each `--sources` category (default: all 8), run discovery per
 - **HuggingFace**: WebFetch `https://huggingface.co/api/datasets?search=<topic>&limit=100` for a JSON listing. Extract name + dataset card URL.
 - **Kaggle**: WebSearch `<topic> site:kaggle.com/datasets`. WebFetch each candidate.
 - **Zenodo / OSF / Figshare / ICPSR**: WebSearch `<topic> site:zenodo.org` (etc.) + each platform's own search.
-- **Aggregators**: WebSearch `<topic> site:paperswithcode.com/datasets` and `<topic> site:datasetsearch.research.google.com`.
+- **Aggregators**: WebSearch `<topic> site:datasetsearch.research.google.com` (Google Dataset Search). Note: paperswithcode.com/datasets was an aggregator in v1.6 but is dead as of 2026 (redirects to HF papers/trending) — removed in v1.7.
 - **Cloud open data**: WebSearch `<topic> site:registry.opendata.aws` (etc.).
 - **Domain-specific**: skip if topic clearly off-domain. Otherwise: search NIH/NCBI for biomedical, FRED for economics, NASA for earth/climate, Common Crawl for web-scale.
 - **Government**: WebSearch `<topic> site:data.gov` etc.
