@@ -111,15 +111,22 @@ For strict-live projects you MUST also write these companion artifacts as part o
 2. **`<output_dir>/evidence_ledger.yml`** — read `templates/evidence_ledger.template.yml`.
    For each substantive claim that will appear in downstream synthesis (typically: the paper's headline result, key methodological choice, and any benchmark/scale numbers), create one evidence entry with `evidence_id`, `source_url`, `source_type`, `source_quality` (`primary` / `official` / `secondary` / `user_note`), `verification_method`, and `supports` (claim IDs + field paths). Record the `evidence_id` on the bib_ledger entry's `evidence_ids` list.
 
-3. **`<output_dir>/claim_graph.jsonl`** — read `templates/claim_graph.template.jsonl`.
-   For each bib_ledger entry, write JSONL records:
-   - one `entity` record (entity_type = paper/dataset/benchmark/repo/etc.)
-   - one `source` record (with cache_ids)
-   - one `claim` record per evidence entry (claim_type = `fact` for headline result; populate `confidence.score` and `confidence.factors` based on source quality + verification status)
-   - one `evidence` record per evidence_ledger entry (linking claim_ids and cache_ids)
+3. **`<output_dir>/claim_graph.jsonl`** — generated mechanically from the artifacts written in steps 1 + 2. Run:
+
+   ```bash
+   python ~/Claude/research_toolkit/scripts/build_claim_graph.py <output_dir>
+   ```
+
+   The builder reads bib_ledger / dataset_ledger / evidence_ledger / cache_manifest and emits:
+   - one `entity` record per bib/dataset entry (entity_type derived from `claim_family` for bib or `source` field for dataset)
+   - one `source` record per unique primary URL (cache_ids unioned across ledger entries pointing at that URL)
+   - one `claim` record per distinct claim_id referenced in `evidence_ledger.supports[*].claim_id`, with text from the highest-quality supporting evidence's `excerpt` field; ties broken by longest excerpt. Confidence score: `primary → 0.95, official → 0.85, secondary → 0.60, user_note → 0.50`
+   - one `evidence` record per evidence_ledger entry
    - one `cache_blob` record per cache_manifest entry
 
-   **Note**: in Phase 2 of the v2.0 work this manual claim_graph creation will be replaced by `scripts/build_claim_graph.py`. Until that script exists, populate claim_graph.jsonl by following the template — one record per line, fields per `templates/claim_graph.template.jsonl`.
+   The builder validates output before writing; non-zero exit means the project state is inconsistent (typically: a claim's evidence isn't referenced by any bib/dataset entry, so entity_ids can't be derived).
+
+   `--no-overwrite` will refuse if `claim_graph.jsonl` already exists; default is overwrite-from-scratch (the bib/dataset/evidence ledgers are the source of truth).
 
 Validate each artifact before exit (see Phase 6).
 

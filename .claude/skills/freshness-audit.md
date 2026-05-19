@@ -76,14 +76,21 @@ Use current-date-aware search windows, not fixed years. Secondary sources are di
 
 ### Phase 5: write trust dashboard
 
-Update `<project_dir>/dashboard.md` with:
-- stale blockers
-- evidence coverage
-- cache completeness
-- weak claims
-- conflicts
-- action queue
-- next refresh dates by freshness tier
+Generate the dashboard mechanically:
+
+```bash
+python ~/Claude/research_toolkit/scripts/build_dashboard.py <project_dir> --today <YYYY-MM-DD>
+```
+
+The builder reads all v2 artifacts and emits `dashboard.md` with Trust State
+metrics (stale blockers, evidence coverage, cache completeness, conflicts,
+weak claims) and an Action Queue with one line per freshness tier needing
+refresh.
+
+You may edit the dashboard afterward to add narrative observations (e.g.,
+specific next-actions, friction notes), but the mechanical metrics will be
+overwritten on the next builder run (default is overwrite). Pass
+`--no-overwrite` to preserve hand-edits at the cost of stale metrics.
 
 ### Phase 6: final validation
 

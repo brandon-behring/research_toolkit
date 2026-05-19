@@ -127,6 +127,83 @@ def test_research_kb_export_script_writes_valid_jsonl(tmp_path: Path) -> None:
     assert research_kb_export.validate(out) == []
 
 
+def test_build_claim_graph_smoke(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    out = tmp_path / "claim_graph_built.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_claim_graph.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    assert out.exists()
+    assert claim_graph.validate(out) == []
+    records = [
+        json.loads(line)
+        for line in out.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    record_types = {r.get("record_type") for r in records}
+    assert {"entity", "source", "claim", "evidence", "cache_blob"}.issubset(record_types)
+
+
+def test_build_claim_graph_refuses_overwrite(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    existing = project / "claim_graph.jsonl"
+    assert existing.exists()
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_claim_graph.py"),
+            str(project),
+            "--no-overwrite",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode != 0
+    assert "refusing to overwrite" in result.stderr
+
+
+def test_build_dashboard_smoke(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    out = tmp_path / "dashboard_built.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(project),
+            "--output",
+            str(out),
+            "--today",
+            "2026-05-19",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    assert out.exists()
+    content = out.read_text(encoding="utf-8")
+    assert "Trust State" in content
+    assert "stale blockers:" in content
+    assert "evidence coverage:" in content
+    assert "cache completeness:" in content
+    assert "Action Queue" in content
+    assert "Refresh volatile entries by" in content
+
+
 def test_v2_skills_codify_strict_live_cache_and_export_rules() -> None:
     skills = REPO_ROOT / ".claude" / "skills"
     gather = (skills / "research-gather.md").read_text(encoding="utf-8")

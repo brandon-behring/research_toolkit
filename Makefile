@@ -1,4 +1,4 @@
-.PHONY: install symlinks test smoke dataset-smoke v2-smoke audit audit-strict burn-in metrics lint clean help
+.PHONY: install symlinks test smoke dataset-smoke v2-smoke builders-smoke audit audit-strict burn-in metrics lint clean help
 
 PYTHON ?= python3
 VENV   ?= .venv
@@ -17,6 +17,7 @@ help:
 	@echo "  smoke           run a single validator against the mini fixture"
 	@echo "  dataset-smoke   run dataset_ledger validator against the dataset smoke fixture (v1.6)"
 	@echo "  v2-smoke        run strict-live v2 validators against the v2 fixture"
+	@echo "  builders-smoke  run build_claim_graph + build_dashboard against the v2 fixture (output to /tmp)"
 	@echo "  audit           run cross_stage --strict against all real-world projects"
 	@echo "  audit-strict    strict audit target that fails on validator failures"
 	@echo "                  (mini, medium, prompt-injection real/recreated, $(REAL_TOPICS))"
@@ -59,6 +60,14 @@ v2-smoke:
 	$(PY) validators/claim_graph.py tests/fixtures/v2_strict_live_ai_agents/claim_graph.jsonl
 	$(PY) validators/research_kb_export.py tests/fixtures/v2_strict_live_ai_agents/research_kb_export.jsonl
 	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v2_strict_live_ai_agents
+
+builders-smoke:
+	$(PY) scripts/build_claim_graph.py tests/fixtures/v2_strict_live_ai_agents --output /tmp/built_claim_graph.jsonl
+	$(PY) validators/claim_graph.py /tmp/built_claim_graph.jsonl
+	$(PY) scripts/build_dashboard.py tests/fixtures/v2_strict_live_ai_agents --output /tmp/built_dashboard.md --today 2026-05-19
+	@test -s /tmp/built_dashboard.md || (echo "FATAL: built dashboard.md is empty" >&2; exit 1)
+	@grep -q "Trust State" /tmp/built_dashboard.md || (echo "FATAL: dashboard missing Trust State" >&2; exit 1)
+	@echo "OK: builders-smoke"
 
 audit:
 	@echo "=== mini fixture ==="
