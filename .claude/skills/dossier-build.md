@@ -1,6 +1,6 @@
 ---
 name: dossier-build
-description: Render a populated bib_ledger.yml into N topic-organized Markdown table files (the dossier). Groups entries by claim_family, picks topic file boundaries, renders 7-column tables, and preserves strict-live verification status from evidence. Output consumed by /agent-index.
+description: Render a populated bib_ledger.yml into N topic-organized Markdown table files (the dossier). Groups entries by claim_family, picks topic file boundaries, renders 7-column tables, and reads evidence_ledger.yml when present to render strict-live verification status flags (read-only — does not write v2 artifacts). Output consumed by /agent-index.
 allowed-tools: Read, Write, Edit, Bash
 ---
 

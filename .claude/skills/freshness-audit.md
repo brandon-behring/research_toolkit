@@ -18,6 +18,8 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 - Before `/research-kb-export`.
 - Any time `validators/freshness.py --strict` fails, or a dashboard shows stale blockers.
 
+**Not the same as `/url-freshness-check`.** This skill is the v2 strict-live trust audit: it reads `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, validates referential integrity, re-fetches stale primary sources, and updates the dashboard. `/url-freshness-check` is a generic HTTP-HEAD utility on any markdown folder (2xx/3xx/4xx categorization, no v2 awareness). For a v2 project both can be useful: run `/url-freshness-check` on the rendered agent-index markdown to catch dead URLs, and run this skill on the project root to refresh stale evidence and rebuild trust state.
+
 ## Workflow
 
 ### Phase 1: load strict-live artifacts

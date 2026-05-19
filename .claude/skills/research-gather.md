@@ -87,22 +87,41 @@ Populating these three optional fields here means `/dossier-build` and `/agent-i
 
 If no claim_family from the plan fits, flag this to the user — either the plan's taxonomy is missing a category, or the source is genuinely off-scope.
 
-### Phase 4: write bib_ledger.yml
+### Phase 4: write bib_ledger.yml (+ v2 artifacts for strict-live projects)
 
 Read `~/Claude/research_toolkit/templates/bib_ledger.template.yml` for the canonical schema.
-For v2 runs, also read:
-- `templates/evidence_ledger.template.yml`
-- `templates/cache_manifest.template.yml`
-- `templates/claim_graph.template.jsonl`
 
-Populate v2 strict-live fields on every entry: `retrieved_at`, `verified_at`,
+Write entries to `<output_dir>/bib_ledger.yml`. If the file already exists, append new entries (deduplicate by bibkey — fail with a clear error on duplicate).
+
+#### v2 strict-live writes (when project uses `schema_version: 2`)
+
+Populate v2 strict-live fields on every bib_ledger entry: `retrieved_at`, `verified_at`,
 `verification_method`, `verified_fields`, `freshness_tier`,
 `stale_after_days`, `evidence_ids`, and `cache_ids`.
 
-Cache every reachable source locally. Use `scripts/cache_source.py` for simple
-public URLs and record the resulting cache entry in `cache_manifest.yml`.
+For strict-live projects you MUST also write these companion artifacts as part of this skill's output. Downstream skills (`/agent-index`, `/freshness-audit`, `/dossier-audit`) assume they exist:
 
-Write entries to `<output_dir>/bib_ledger.yml`. If the file already exists, append new entries (deduplicate by bibkey — fail with a clear error on duplicate).
+1. **`<output_dir>/cache_manifest.yml`** — read `templates/cache_manifest.template.yml`.
+   For each reachable source, run:
+   ```bash
+   python ~/Claude/research_toolkit/scripts/cache_source.py <url> --topic <topic_slug>
+   ```
+   The script prints a manifest entry; append it to `cache_manifest.yml`. The script writes the raw blob + extracted text + metadata JSON into `~/Claude/research_cache/` (gitignored). Record the returned `cache_id` on the bib_ledger entry's `cache_ids` list.
+
+2. **`<output_dir>/evidence_ledger.yml`** — read `templates/evidence_ledger.template.yml`.
+   For each substantive claim that will appear in downstream synthesis (typically: the paper's headline result, key methodological choice, and any benchmark/scale numbers), create one evidence entry with `evidence_id`, `source_url`, `source_type`, `source_quality` (`primary` / `official` / `secondary` / `user_note`), `verification_method`, and `supports` (claim IDs + field paths). Record the `evidence_id` on the bib_ledger entry's `evidence_ids` list.
+
+3. **`<output_dir>/claim_graph.jsonl`** — read `templates/claim_graph.template.jsonl`.
+   For each bib_ledger entry, write JSONL records:
+   - one `entity` record (entity_type = paper/dataset/benchmark/repo/etc.)
+   - one `source` record (with cache_ids)
+   - one `claim` record per evidence entry (claim_type = `fact` for headline result; populate `confidence.score` and `confidence.factors` based on source quality + verification status)
+   - one `evidence` record per evidence_ledger entry (linking claim_ids and cache_ids)
+   - one `cache_blob` record per cache_manifest entry
+
+   **Note**: in Phase 2 of the v2.0 work this manual claim_graph creation will be replaced by `scripts/build_claim_graph.py`. Until that script exists, populate claim_graph.jsonl by following the template — one record per line, fields per `templates/claim_graph.template.jsonl`.
+
+Validate each artifact before exit (see Phase 6).
 
 ### Phase 5 (optional): cache PDFs
 
@@ -166,7 +185,11 @@ Validator checks: required fields present, types valid, bibkeys unique, status e
 
 **Produces:**
 - `<output_dir>/bib_ledger.yml` — populated bibliography ledger
+- `<output_dir>/evidence_ledger.yml` (v2 strict-live only) — field-level evidence entries linking claims to primary/official sources
+- `<output_dir>/cache_manifest.yml` (v2 strict-live only) — SHA-256-keyed manifest of cached source artifacts
+- `<output_dir>/claim_graph.jsonl` (v2 strict-live only) — JSONL records (entity / source / claim / evidence / cache_blob) consumed by `/research-kb-export`
+- `~/Claude/research_cache/` (v2 strict-live only) — raw + text + metadata blobs written by `scripts/cache_source.py` (gitignored)
 - `<output_dir>/papers/` — cached PDFs (only with `--cache-pdfs`)
 - `<output_dir>/cache/bib_primary_source_cache.yml` — PDF metadata (only with `--cache-pdfs`)
 
-**Consumed by:** `/dossier-build <bib_ledger_path>` — renders the entries into topic-organized Markdown tables.
+**Consumed by:** `/dossier-build <bib_ledger_path>` — renders the entries into topic-organized Markdown tables. For v2 strict-live projects, `/freshness-audit` and `/agent-index` also read the v2 companion artifacts.

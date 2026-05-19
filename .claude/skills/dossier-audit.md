@@ -80,6 +80,46 @@ Apply each finding using Edit tool with exact-match replacement:
 
 If any DROP would empty out a sub-section, surface that as a structural change requiring user decision.
 
+#### v2 strict-live propagation (when the project is v2)
+
+For v2 projects, audit findings must also propagate to `evidence_ledger.yml`,
+`cache_manifest.yml`, and `claim_graph.jsonl` at the project root (parent
+directory of `<indexed_folder>`). Otherwise `/freshness-audit --strict` will
+fail because the v2 artifacts will desync from the markdown.
+
+For each finding, apply the corresponding v2 edits:
+
+- **DROP** (removed entry for bibkey `<bk>`):
+  - In `evidence_ledger.yml`: remove every evidence entry whose `supports` field
+    references claim IDs tied to `<bk>` (search the `supports.<entry>.claim_id`
+    for the dropped bibkey).
+  - In `claim_graph.jsonl`: remove every record whose `id` references `<bk>`
+    (`ent_<bk>*`, `src_<bk>*`, `claim_<bk>*`, etc.). Also remove orphaned
+    `evidence` and `cache_blob` records that no surviving claim references.
+  - In `cache_manifest.yml`: leave entries alone unless no surviving evidence
+    entry references the `cache_id` — only then remove. Cache blobs are cheap
+    to keep and may be reused.
+
+- **CORRECT** (changed a field on `<bk>`):
+  - If the change touches an evidence-backed field (title, year, authors,
+    headline result): update the corresponding `claim` record's `text` in
+    `claim_graph.jsonl`. Update `evidence_ledger.yml` entry's `verification_method`
+    to reflect re-verification (e.g., `webfetch_2026_05_19`); update the
+    entry's `confidence.factors` to note the correction.
+  - If the change is cosmetic (formatting, anchor name): no v2 propagation needed.
+
+- **FLAG** (annotated `(unverified, YYYY-MM-DD)` or generalized a number):
+  - In `evidence_ledger.yml`: lower the `confidence.score` on the relevant
+    evidence entry and add a factor noting the audit annotation
+    (e.g., `audit_round_<N>_flagged`).
+  - In `claim_graph.jsonl`: optionally set the matching `claim` record's
+    `status` to `conflicted` if the FLAG indicates the claim contradicts
+    verified evidence.
+
+Apply all v2 edits before running Phase 7 regression checks. If you cannot
+determine the project root (e.g., `<indexed_folder>` is detached or v2
+artifacts are missing), report this and ask the user — do NOT silently skip.
+
 ### Phase 6: write audit-trail note
 
 Append to `<indexed_folder>/README.md` under the existing `## Verification & limits` section (NOT a new top-level section). Format:
@@ -98,6 +138,20 @@ Before reporting success:
 - `wc -l` on each file → confirm shrinkage matches DROP count
 - `grep` for known-corrected old strings → returns empty (CORRECT findings actually applied)
 - `python ~/Claude/research_toolkit/validators/agent_index.py <indexed_folder>` → still passes after edits
+
+For v2 strict-live projects, additionally run from the project root
+(`<indexed_folder>/..`):
+
+```bash
+python ~/Claude/research_toolkit/validators/freshness.py --strict <project_dir>
+python ~/Claude/research_toolkit/validators/evidence_ledger.py <project_dir>/evidence_ledger.yml
+python ~/Claude/research_toolkit/validators/claim_graph.py <project_dir>/claim_graph.jsonl
+```
+
+These catch desync between the markdown edits and the v2 ledger/graph
+propagation from Phase 5. A common failure: DROP removed a bibkey from markdown
+but the matching `evidence` record in `claim_graph.jsonl` still references the
+deleted claim — claim_graph validation flags the orphan.
 
 If any regression check fails, do NOT report success. Surface the issue; the user fixes it and re-runs.
 
@@ -137,6 +191,7 @@ This is the regression check from Phase 7 — schema must remain valid after edi
 **Produces:**
 - Inline edits to `<indexed_folder>/0K_<topic>.md` files (DROP / CORRECT / FLAG fixes applied)
 - Round-N audit-trail note appended to `<indexed_folder>/README.md`
+- (v2 strict-live only) propagated edits to `<project_dir>/evidence_ledger.yml`, `<project_dir>/claim_graph.jsonl`, and (rarely) `<project_dir>/cache_manifest.yml` so the v2 trust state stays consistent with the markdown
 
 **Consumed by:**
 - Another `/dossier-audit` round with a different `--focus` (if the round produced findings)

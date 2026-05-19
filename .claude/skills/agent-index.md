@@ -81,13 +81,51 @@ Order matters — Source / Code / Mechanism / Result / Status. Code may be omitt
 For v2 strict-live outputs, `Evidence` may be a compact inline suffix instead
 of a sixth bullet when that is more readable (for example, `... [ev_x_0001]`).
 The invariant is that every substantive row/block has at least one evidence ID
-that exists in `evidence_ledger.yml`.
+that exists in `evidence_ledger.yml` (enforced by Phase 4b below).
 
 #### Cell-rendering rules carried up from /dossier-build (HARD RULES — reproduced 2x as 404s in PEFT/calibration dogfood)
 
 - **Display title**: copy the dossier's title verbatim. **Do not abbreviate to a practitioner nickname.** Example failure (calibration Stage 5 fix): "Verbalized Confidence" → must be "Teaching Models to Express Their Uncertainty in Words". "LMs (Mostly) Know What They Know" → "Language Models (Mostly) Know What They Know". If the paper's actual arXiv title is awkwardly long, render it verbatim anyway and let the section header / lookup-recipe carry the practitioner nickname.
 - **Code field**: prefer the dossier's `<GitHub>` cell. When it's `—`, write `—` here too. **Do NOT guess `<firstauthor>/<paper-slug>` GitHub URLs.** PEFT found 7/117 such guesses 404'd; calibration found 3/137 more. Real repos live at lab orgs (`pilancilab/spectral_adapter`), unrelated handles (`EricLBuehler/xlora`, `tripplyons/oft`), or simply don't exist. The url-freshness-check stage will surface real repos via inline correction; your job is not to invent them. If you find yourself typing `github.com/<paper-firstauthor>/<paper-name>`, STOP and use `—`.
 - **Status field**: when Code is `—` because no repo exists, append `(no widely-known repo)` to Status (e.g., `(no widely-known repo) Verified.`). When Venue defaulted to "arXiv preprint" because the dossier didn't have a verified venue, append `(uncertain venue)`. These flags localize audit work.
+
+### Phase 4b: append synthesis evidence (v2 strict-live only)
+
+For v2 projects, `/research-gather` writes one evidence entry per primary source.
+Synthesis often introduces **cross-cutting claims** that span multiple sources
+(e.g., "X family of attacks is consistently mitigated by Y defense across [refs]")
+— these need their own evidence entries.
+
+Locate the project's `evidence_ledger.yml`. Convention: parent directory of the
+indexed folder (`<output_dir>/../evidence_ledger.yml`). If the indexed folder
+is the project root, use `<output_dir>/evidence_ledger.yml`. Skip this phase if
+no `evidence_ledger.yml` exists (the project is v1, not v2).
+
+For each evidence ID referenced in your rendered 5-bullet blocks
+(`Evidence: ev_<topic>_NNNN` bullets and inline `[ev_x_NNNN]` suffixes):
+
+1. Check whether the ID already exists in `evidence_ledger.yml`.
+2. If yes, leave it (research-gather already populated it).
+3. If no, append a new entry:
+   - `evidence_id`: the ID you cited in the markdown
+   - `source_type`: `synthesis` (a synthesis-specific quality distinct from primary/secondary)
+   - `source_quality`: `secondary` (cross-cutting claims aren't primary observation)
+   - `verification_method`: `cross_reference` (you're aggregating from multiple primary entries already in evidence_ledger)
+   - `supports`: list the claim IDs and the field paths in your synthesis files
+   - `cache_ids`: list the cache_ids of the primary sources you cross-referenced
+   - `confidence`: optional; if you include it, factors should list the primary sources cross-referenced
+
+Do NOT duplicate primary-source evidence entries here. This phase is strictly
+for synthesis-level claims that arise from your aggregation work. If you find
+yourself wanting to add an evidence entry for "what paper X says," that belongs
+in `/research-gather`'s output, not here — note it as a v2.1 backlog item rather
+than retrofitting.
+
+After appending, re-validate:
+
+```bash
+python ~/Claude/research_toolkit/validators/evidence_ledger.py <evidence_ledger_path>
+```
 
 ### Phase 5: write the README
 
@@ -145,6 +183,7 @@ This catches **claim_family taxonomy drift** (a bib_ledger entry uses a `claim_f
 - `<output_dir>/README.md` — agent-index hub with lookup recipes, glossary, scope boundary
 - `<output_dir>/00_overview.md` (optional) — extended overview / threat model / glossary
 - `<output_dir>/01_<topic>.md` … `<output_dir>/0K_<topic>.md` — synthesis files with 5-bullet entries
+- (v2 strict-live only) appended entries in `<output_dir>/../evidence_ledger.yml` for synthesis-specific cross-cutting claims (Phase 4b)
 
 **Consumed by:**
 - `/dossier-audit <output_dir> --focus <area>` — independent verification round
