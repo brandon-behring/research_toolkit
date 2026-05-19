@@ -13,6 +13,7 @@ Mirrors `5_bullet_entry.template.md` (paper-pipeline) but with dataset-specific 
   - **Size+License:** <rows / GB / tokens>; <license shorthand: CC-BY-4.0, MIT, custom, unknown>
   - **Tasks:** <what the dataset is used for; benchmarks built on it>
   - **Status:** <Verified | Unverified | (uncertain license) Verified>
+  - **Evidence:** ev_<topic>_dataset_0001
 ```
 
 ## Worked example (filled in)
@@ -59,6 +60,8 @@ Mirrors `5_bullet_entry.template.md` (paper-pipeline) but with dataset-specific 
   benchmark papers if known, but don't fabricate citations.
 - **Status**: same as paper-pipeline. Append `(uncertain X)` when a field
   is honest-unknown, never when it's "I didn't bother checking."
+- **Evidence**: v2 outputs include evidence IDs from `evidence_ledger.yml`.
+  Include all IDs needed to support access, schema, size/license, and task claims.
 
 ## Why these 5 bullets (vs paper-pipeline's Source/Code/Mechanism/Result/Status)
 

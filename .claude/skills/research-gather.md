@@ -42,10 +42,18 @@ Read the input `research_plan.md`. Extract:
 
 Read `~/Claude/research_toolkit/references/citation_rules.md` for URL canonical forms and bibkey convention.
 
+For strict-live v2 projects, also read
+`~/Claude/research_toolkit/references/strict_live_v2.md`. The v2 contract is
+primary-first, current-date-aware, and evidence-backed: every substantive claim
+needs an evidence ID, every reachable source gets cached locally, and stale
+entries block strict validation.
+
 ### Phase 2: per-sub-area search
 
-For each sub-area, plan 2–4 web search queries based on its source-type list. Examples:
-- `arXiv preprint` → `"<topic> arxiv 2024" OR "<topic> arxiv 2025"`
+For each sub-area, plan 2–4 web search queries based on its source-type list.
+Use the current calendar year and the prior year for fast-moving fields; do
+NOT hard-code stale year pairs. Examples:
+- `arXiv preprint` → `"<topic> arxiv <current year>" OR "<topic> arxiv <prior year>"`
 - `conference proceedings` → `"<topic> NeurIPS|ICML|ICLR|KDD|VLDB"`
 - `vendor blog` → `"<topic> site:vendor.com|microsoft.com|anthropic.com"`
 - `dataset card` → `"<topic> dataset huggingface.co/datasets"`
@@ -56,7 +64,9 @@ Use `WebSearch` for each query. For results that look promising, use `WebFetch` 
 - Is the URL canonical? (arXiv `/abs/` not `/pdf/`; GitHub repo root not subdir)
 - Can you assign a bibkey from the authors + year + a 1-3 word slug?
 
-Skip items already listed in `Known landmark papers` — note them as pre-populated, don't re-search.
+Known landmark papers still require live verification in strict-live v2. Do not
+trust memory or a plan annotation for title, first author, year, venue, code, or
+current status.
 
 ### Phase 3: assign bibkey + claim_family + (optional) populate downstream fields
 
@@ -80,6 +90,17 @@ If no claim_family from the plan fits, flag this to the user — either the plan
 ### Phase 4: write bib_ledger.yml
 
 Read `~/Claude/research_toolkit/templates/bib_ledger.template.yml` for the canonical schema.
+For v2 runs, also read:
+- `templates/evidence_ledger.template.yml`
+- `templates/cache_manifest.template.yml`
+- `templates/claim_graph.template.jsonl`
+
+Populate v2 strict-live fields on every entry: `retrieved_at`, `verified_at`,
+`verification_method`, `verified_fields`, `freshness_tier`,
+`stale_after_days`, `evidence_ids`, and `cache_ids`.
+
+Cache every reachable source locally. Use `scripts/cache_source.py` for simple
+public URLs and record the resulting cache entry in `cache_manifest.yml`.
 
 Write entries to `<output_dir>/bib_ledger.yml`. If the file already exists, append new entries (deduplicate by bibkey — fail with a clear error on duplicate).
 

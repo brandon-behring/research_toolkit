@@ -1,0 +1,27 @@
+# Cache manifest template (strict-live v2)
+# Maintained by /research-gather, /dataset-gather, /freshness-audit.
+#
+# Full source snapshots live in ~/Claude/research_cache by default and are
+# private/local research artifacts. Commit manifests and hashes; keep large
+# cache blobs gitignored unless explicitly archiving a small fixture.
+
+schema_version: 2
+topic: '<topic slug>'
+generated_at: <YYYY-MM-DD>
+current_as_of: <YYYY-MM-DD>
+freshness_policy: strict_live
+cache_root: ~/Claude/research_cache
+
+entries:
+- cache_id: cache_<sha-prefix>
+  source_url: https://arxiv.org/abs/2501.00001
+  fetched_at: <YYYY-MM-DD>
+  content_type: text/html
+  bytes: 12345
+  sha256: <64 lowercase hex chars>
+  raw_path: ~/Claude/research_cache/blobs/sha256/<sha256>
+  text_path: ~/Claude/research_cache/text/sha256/<sha256>.txt
+  metadata_path: ~/Claude/research_cache/metadata/sha256/<sha256>.json
+  restricted: false
+  rights_status: private_use
+  extraction_status: ok       # ok | partial | raw_only | failed

@@ -60,6 +60,8 @@ Canonical term + aliases + one-line definition. Lives here in the README, OR poi
 ## Verification & limits
 
 - Citations resolved as of <YYYY-MM-DD>.
+- Strict-live v2 evidence IDs: <present / not applicable>. If present, see
+  `evidence_ledger.yml`, `cache_manifest.yml`, and `claim_graph.jsonl`.
 - <Note any post-cutoff vendor/blog claims that should be re-verified>.
 - This synthesis is a snapshot. <Note volatility characteristics of the field>.
 - <Add audit-trail notes here as `**Independent audit, round N (YYYY-MM-DD):** ...` paragraphs after each `/dossier-audit` invocation.>

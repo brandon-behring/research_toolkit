@@ -1,6 +1,9 @@
 # Workflow overview
 
-The research_toolkit codifies a 5-stage research workflow plus 1 utility skill. Each stage produces a typed artifact that the next stage consumes.
+The research_toolkit codifies a staged research workflow plus utility skills.
+Each stage produces a typed artifact that the next stage consumes. v2 adds a
+strict-live research OS layer for evidence, cache, freshness, dashboards, and
+`research-kb` export.
 
 ## Stage diagram
 
@@ -22,6 +25,11 @@ The research_toolkit codifies a 5-stage research workflow plus 1 utility skill. 
        ┌──────────────────────┐
        │ /url-freshness-check │   (utility — invokable on any markdown collection)
        └──────────────────────┘
+
+       ┌──────────────────────┐      ┌──────────────────────┐
+       │   /freshness-audit   │─────▶│ /research-kb-export  │
+       │ v2 trust/dashboard   │      │ JSONL ingestion feed │
+       └──────────────────────┘      └──────────────────────┘
 ```
 
 ## Stage handoffs
@@ -34,6 +42,8 @@ The research_toolkit codifies a 5-stage research workflow plus 1 utility skill. 
 | 3 | `/agent-index` | Dossier files | Indexed folder (5-bullet + AGENT-INDEX) | `validators/agent_index.py` |
 | 4 | `/dossier-audit` | Indexed folder + scope focus | Inline edits + audit-trail note | `validators/audit_trail.py` |
 | utility | `/url-freshness-check` | Any markdown folder | URL check report | `validators/url_check_report.py` |
+| utility | `/freshness-audit` | v2 project dir | refreshed ledgers + `dashboard.md` | `validators/freshness.py` |
+| utility | `/research-kb-export` | v2 project dir | JSONL inbox file | `validators/research_kb_export.py` |
 
 ## When each skill applies
 
@@ -43,6 +53,8 @@ The research_toolkit codifies a 5-stage research workflow plus 1 utility skill. 
 - **`/agent-index`**: after the dossier is content-complete. Synthesizes the dossier into a dual-audience indexed folder optimized for downstream agent + human consumption. Run once; re-run only after material dossier edits.
 - **`/dossier-audit`**: after `/agent-index` produces the synthesis. Each invocation is one round of complementary-scope verification. Stop iterating when a round returns "clean."
 - **`/url-freshness-check`**: any time. Useful before publishing the synthesis externally or after long gaps where blog posts may have drifted to 404.
+- **`/freshness-audit`**: v2 strict-live trust pass. Refreshes stale entries, checks evidence/cache IDs, validates cache hashes, and updates the trust dashboard.
+- **`/research-kb-export`**: after strict freshness passes. Emits normalized JSONL records for `~/Claude/research-kb`.
 
 ## Pipeline correctness
 

@@ -1,0 +1,4 @@
+{"record_type":"entity","id":"ent_paper_example2025","topic":"<topic slug>","entity_type":"paper","canonical_name":"Example Paper Title","aliases":["Example 2025"]}
+{"record_type":"source","id":"src_example2025","topic":"<topic slug>","source_url":"https://arxiv.org/abs/2501.00001","cache_ids":["cache_<sha-prefix>"]}
+{"record_type":"claim","id":"claim_<topic>_0001","topic":"<topic slug>","claim_type":"fact","text":"Example claim supported by the source.","evidence_ids":["ev_<topic>_0001"],"entity_ids":["ent_paper_example2025"],"status":"active","confidence":{"score":0.95,"factors":["primary source","cached raw snapshot"]}}
+{"record_type":"evidence","id":"graph_ev_<topic>_0001","topic":"<topic slug>","evidence_id":"ev_<topic>_0001","claim_ids":["claim_<topic>_0001"],"cache_ids":["cache_<sha-prefix>"]}

@@ -19,7 +19,8 @@ allowed-tools: Read, Bash, Edit
 /url-freshness-check ~/Claude/research_toolkit/tests/fixtures/prompt_injection_snapshot/real/agent_index/ --report /tmp/url_check.md
 ```
 
-**Default report path**: `<target_folder>/url_check_report.md`.
+**Default report path**: `<target_folder>/../url_check_report.md` (outside the
+target synthesis folder so the report does not become an agent-index artifact).
 
 ## When to use
 
@@ -91,7 +92,7 @@ for chunk in .url_check_tmp/chunk_*; do
   (
     while IFS= read -r url; do
       status=$(curl -s -o /dev/null -w "%{http_code}" -L -m 15 \
-                    -A "Mozilla/5.0 research_toolkit/0.1" \
+                    -A "Mozilla/5.0 research_toolkit/2.0" \
                     -I "$url" 2>/dev/null || echo "000")
       echo "$status $url"
     done < "$chunk" > "$chunk.results"
@@ -111,7 +112,7 @@ while IFS= read -r line; do
   url="${line#* }"
   if [[ "$status" =~ ^4 ]]; then
     retry=$(curl -s -o /dev/null -w "%{http_code}" -L -m 15 \
-                 -A "Mozilla/5.0 research_toolkit/0.1" \
+                 -A "Mozilla/5.0 research_toolkit/2.0" \
                  -H "Range: bytes=0-1024" \
                  "$url" 2>/dev/null || echo "000")
     echo "$retry $url"
@@ -150,7 +151,7 @@ Sort URLs into:
 
 ### Phase 7: write report
 
-Write to `<report_path>` (default `<target_folder>/url_check_report.md`). Format per `references/url_check_protocol.md`:
+Write to `<report_path>` (default `<target_folder>/../url_check_report.md`). Format per `references/url_check_protocol.md`:
 
 ```markdown
 # URL Freshness Report
@@ -210,7 +211,7 @@ Validator checks: H1 is `# URL Freshness Report`; `## Summary` section present w
 ## Output / handoff
 
 **Produces:**
-- `<report_path>` (default `<target_folder>/url_check_report.md`) — categorized URL report
+- `<report_path>` (default `<target_folder>/../url_check_report.md`) — categorized URL report
 - (with `--inline`) inline `(broken-link as of YYYY-MM-DD)` annotations on hard-404 URLs in source files
 
 **Consumed by:**

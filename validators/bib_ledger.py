@@ -46,6 +46,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from validators._common import URL_RE, cli_main
+from validators.v2_common import (
+    is_v2_mapping,
+    validate_strict_live_entry,
+    validate_strict_live_top,
+)
 
 ALLOWED_STATUS = {"unverified", "verified", "mismatched"}
 REQUIRED_FIELDS = ("bibkey", "primary_url", "title", "status", "claim_family")
@@ -111,6 +116,10 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
     if not isinstance(data, dict) or "entries" not in data:
         return ["top-level must be a mapping with key 'entries:'"]
 
+    v2 = is_v2_mapping(data)
+    if v2:
+        errors.extend(validate_strict_live_top(data))
+
     entries = data["entries"]
     if not isinstance(entries, list) or not entries:
         return ["'entries' must be a non-empty list"]
@@ -169,6 +178,9 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
             errors.append(
                 f"{loc}.status: {status!r} not in {sorted(ALLOWED_STATUS)}"
             )
+
+        if v2:
+            errors.extend(validate_strict_live_entry(entry, loc=loc))
 
     # Anti-cheat heuristic — memory-verified detection. Soft by default.
     only_dicts = [e for e in entries if isinstance(e, dict)]

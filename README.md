@@ -6,6 +6,7 @@ The toolkit covers two parallel pipelines:
 
 - **Paper synthesis** (6 skills, v1.0+): given a topic, produces a structured bibliography of primary sources + a topic-organized dossier + a 5-bullet-per-entry agent-readable synthesis + an audit trail.
 - **Dataset discovery** (3 skills, v1.6+): given a topic, produces a structured ledger of public datasets + a 5-bullet-per-entry dataset dossier (Source / Access / Schema / Size+License / Tasks) — useful when you need "what data exists for this topic" with metadata, not paper bibliography.
+- **Strict-live research OS** (2 skills + validators, v2.0): adds field-level evidence, local source caching, freshness blockers, claim-graph JSONL, trust dashboards, and `research-kb` export.
 
 Both pipelines are gated by schema validators that fail loudly when a stage produces malformed output. Designed for cases where ad-hoc "summarize the LLM literature on X" or "find datasets for X" prompts would produce plausible-but-unverified prose; this gives you a verifiable artifact instead.
 
@@ -86,11 +87,11 @@ v1.9 extended `cross_stage` so the same orphan / stale-entry detection applies t
 git clone https://github.com/brandon-behring/research_toolkit ~/Claude/research_toolkit
 cd ~/Claude/research_toolkit
 make install              # .venv + pip install -e ".[dev]"
-make test                 # 151 pass + 2 xfailed on a clean checkout
+make test                 # full validator/regression suite
 
 # Make skills discoverable from any project:
 mkdir -p ~/.claude/skills
-for skill in research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check; do
+for skill in research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export; do
   ln -s ~/Claude/research_toolkit/.claude/skills/$skill.md ~/.claude/skills/$skill.md
 done
 ```
@@ -131,6 +132,15 @@ For a 5-minute walkthrough: [`docs/getting_started.md`](docs/getting_started.md)
 
 Reuses paper-pipeline's `/dossier-audit` (focus area: "license risks + access stability") and `/url-freshness-check`. Searches 8 source categories — see `references/dataset_sources.md` for the per-source discovery strategy + gotchas.
 
+### Strict-live v2 research OS
+
+| Skill | Stage | Input | Output | Validator |
+|---|---|---|---|---|
+| `/freshness-audit` | utility | v2 project dir | refreshed ledgers + `dashboard.md` | `validators/freshness.py` |
+| `/research-kb-export` | utility | v2 project dir | JSONL inbox file for `~/Claude/research-kb` | `validators/research_kb_export.py` |
+
+v2 projects add `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, and `research_kb_export.jsonl`. Full source snapshots are cached locally under `~/Claude/research_cache/` for private research use and later ingestion.
+
 ## Defensive layer (v1.2+)
 
 Three guardrails the toolkit added after dogfood runs surfaced failure modes:
@@ -161,7 +171,7 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 ├── burn_in.yml                      # structured BURN_IN index (v1.5)
 ├── Makefile                         # install / test / audit / burn-in / metrics targets
 ├── pyproject.toml
-├── .claude/skills/                  # 6 skill bodies (source of truth)
+├── .claude/skills/                  # 11 skill bodies (source of truth)
 ├── templates/                       # 6 schema/structure templates
 ├── references/                      # 6 protocol docs (audit_protocol, url_check_protocol, ...)
 ├── validators/                      # 7 schema validators (cross_stage added v1.2)
@@ -193,9 +203,12 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 | Command | Effect |
 |---|---|
 | `make install` | venv + dev deps |
+| `make symlinks` | symlink all skill bodies into `~/.claude/skills/` |
 | `make test` | full pytest suite |
 | `make smoke` | single validator against the mini fixture |
+| `make v2-smoke` | strict-live v2 validator chain against the v2 fixture |
 | `make audit` | run `cross_stage --strict` against all real-world projects |
+| `make audit-strict` | CI-style strict audit target that fails on validator failures |
 | `make burn-in` | show unresolved high-severity BURN_IN items |
 | `make metrics` | pretty-print `dogfood_metrics.csv` |
 | `make clean` | remove caches and venv |

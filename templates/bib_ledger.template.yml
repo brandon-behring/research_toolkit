@@ -26,12 +26,29 @@
 #                   across PEFT/calibration dogfood: ~3% of guessed GitHub URLs hit
 #                   hard 404s.
 
+schema_version: 2
+topic: example_topic
+generated_at: <YYYY-MM-DD>
+current_as_of: <YYYY-MM-DD>
+freshness_policy: strict_live
+
 entries:
 - bibkey: example2024fooexample
   primary_url: https://arxiv.org/abs/2401.12345
   title: 'Example Paper Title: A Short Subtitle'
   status: unverified
   claim_family: example_family
+  retrieved_at: <YYYY-MM-DD>
+  verified_at:
+  verification_method: webfetch
+  verified_fields:
+  - primary_url
+  freshness_tier: active
+  stale_after_days: 90
+  evidence_ids:
+  - ev_example_0001
+  cache_ids:
+  - cache_example_0001
 - bibkey: another2025bar
   primary_url: https://arxiv.org/abs/2503.67890
   title: 'Another Example: Different Domain'
@@ -41,3 +58,17 @@ entries:
   authors: Smith et al. (2025)
   venue: NeurIPS 2025
   code_url: https://github.com/example-org/another-bar
+  retrieved_at: <YYYY-MM-DD>
+  verified_at: <YYYY-MM-DD>
+  verification_method: webfetch
+  verified_fields:
+  - title
+  - authors
+  - year
+  - primary_url
+  freshness_tier: active
+  stale_after_days: 90
+  evidence_ids:
+  - ev_example_0002
+  cache_ids:
+  - cache_example_0002

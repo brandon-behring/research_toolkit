@@ -1,6 +1,6 @@
 ---
 name: dossier-build
-description: Render a populated bib_ledger.yml into N topic-organized Markdown table files (the dossier). Groups entries by claim_family, picks topic file boundaries, renders 7-column tables, updates entry status to verified. Output consumed by /agent-index.
+description: Render a populated bib_ledger.yml into N topic-organized Markdown table files (the dossier). Groups entries by claim_family, picks topic file boundaries, renders 7-column tables, and preserves strict-live verification status from evidence. Output consumed by /agent-index.
 allowed-tools: Read, Write, Edit, Bash
 ---
 
@@ -89,9 +89,16 @@ For each row, prefer the bib_ledger's optional `authors`, `venue`, `code_url` fi
 
 If you find yourself writing a GitHub URL based on the pattern `github.com/<paper-firstauthor>/<paper-name>`, STOP. That's the failing pattern. Use `—`.
 
-### Phase 4: update bib_ledger status
+### Phase 4: preserve / update evidence-backed status
 
-For each entry now cited in a dossier file, update its status from `unverified` to `verified` in `bib_ledger.yml`. (If a verified entry's title or authors don't match what you found while writing the dossier, set status to `mismatched` and surface the conflict.)
+Rendering an entry into a dossier does NOT make it verified. For v2
+strict-live projects, `verified` only means the relevant fields have supporting
+evidence IDs and cache IDs in `evidence_ledger.yml` / `cache_manifest.yml`.
+
+For v1 legacy ledgers, keep the existing status unless you actually re-fetch
+the primary source while rendering. If a verified entry's title or authors do
+not match the evidence you find, set status to `mismatched` and surface the
+conflict.
 
 ### Phase 5: write dossier README
 
@@ -126,6 +133,6 @@ Validator checks: paper-table headers (`Title | Authors (year) | Venue | arXiv/D
 **Produces:**
 - `<output_dir>/0K_<topic>.md` — N topic-organized Markdown files (typically 5–7)
 - `<output_dir>/_dossier_readme.md` — stats + cross-reference to bib_ledger
-- Updates to `<bib_ledger_path>` (status field transitions: `unverified` → `verified` for cited entries)
+- Updates to `<bib_ledger_path>` only when evidence-backed status or mismatch information changed
 
 **Consumed by:** `/agent-index <dossier_dir>` — synthesizes the dossier into a dual-audience indexed folder.

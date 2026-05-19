@@ -9,14 +9,15 @@ reading the repo cold. Not external collaborators.
 |---|---|
 | "what literature exists for X?"                 | paper pipeline (`/research-plan`)      |
 | "what public datasets exist for X?"             | dataset pipeline (`/dataset-research`) |
+| "make this current + reusable KB evidence"      | strict-live v2 (`/freshness-audit`)    |
 | Both (paired research)                          | run both; cross-link the agent-indexes |
 
 The paper pipeline (v1.0+) is described first; the dataset pipeline (v1.6+) is below at "## Dataset pipeline".
 
 ## What this toolkit does
 
-Six Claude Code skills that build a structured research dossier from a topic
-prompt. Pipeline stages:
+Claude Code skills that build a structured research dossier from a topic
+prompt. Paper-pipeline stages:
 
 1. `/research-plan <topic>` → produces `research_plan.md` (sub-area taxonomy + claim_family taxonomy + scope)
 2. `/research-gather <plan>` → WebSearches + WebFetches primary sources; writes `bib_ledger.yml`
@@ -26,6 +27,8 @@ prompt. Pipeline stages:
 6. `/url-freshness-check <agent_index>` → bulk-checks every URL; writes report
 
 Each stage has a schema validator. Each stage's output is the next stage's input.
+Strict-live v2 adds `evidence_ledger.yml`, `cache_manifest.yml`,
+`claim_graph.jsonl`, trust dashboards, and `research-kb` export.
 
 ## Install
 
@@ -34,7 +37,7 @@ The skills live as symlinks in `~/.claude/skills/`. Install:
 ```bash
 cd ~/Claude/research_toolkit
 make install     # pip install -e ".[dev]"
-make symlinks    # symlinks 6 skill bodies into ~/.claude/skills/
+make symlinks    # symlinks all skill bodies into ~/.claude/skills/
 ```
 
 Verify Claude Code sees them:
@@ -103,6 +106,26 @@ Reuse the same audit + URL-check stages with a license-focused audit:
 /url-freshness-check ~/your_project/docs/<topic>_datasets/
 ```
 
+## Strict-live v2
+
+Use this when you want a durable research OS artifact rather than a one-time
+snapshot. v2 projects cache every reachable source locally under
+`~/Claude/research_cache/`, track field-level evidence in `evidence_ledger.yml`,
+and export JSONL for `~/Claude/research-kb`.
+
+Typical flow after a gather/index run:
+
+```
+/freshness-audit ~/Claude/research_<slug>/ --strict
+/research-kb-export ~/Claude/research_<slug>/
+```
+
+Validate the fixture:
+
+```bash
+make v2-smoke
+```
+
 ### Worked example: "time-series anomaly detection datasets"
 
 The v1.6 dogfood — real numbers from `~/Claude/research_time_series_anomaly/`.
@@ -126,6 +149,7 @@ python validators/dataset_ledger.py ~/Claude/research_<slug>_datasets/dataset_le
 python validators/dossier.py ~/Claude/research_<slug>/dossier
 python validators/agent_index.py ~/your_project/docs/<topic>/
 python validators/cross_stage.py ~/Claude/research_<slug>      # cross-artifact consistency
+python validators/freshness.py --strict ~/Claude/research_<slug>  # v2 evidence/cache/freshness
 ```
 
 Cross-stage `--strict` promotes warnings (orphan IDs, stale ledger entries) to
@@ -153,6 +177,8 @@ If any of these fire on your run, see `docs/troubleshooting.md`.
 - `validators/*.py` — schema validators
 - `templates/*.template.{md,yml}` — output schema templates
 - `references/*.md` — protocol docs
+- `~/Claude/research_cache/` — private global v2 source cache
+- `~/Claude/research-kb/inbox/research_toolkit/` — v2 JSONL exports
 - `tests/fixtures/` — `mini` (5 entries, smoke), `medium_topic_calibration_subset` (22 entries, v1.1+ schema reference), `prompt_injection_snapshot/{real,recreated}` (137 entries, real-world reference)
 - `BURN_IN_NOTES.md` + `burn_in.yml` — friction tracking (narrative + queryable)
 - `evals/dogfood_metrics.csv` — reliability metrics across runs

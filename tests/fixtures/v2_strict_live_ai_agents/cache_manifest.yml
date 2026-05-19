@@ -1,0 +1,20 @@
+schema_version: 2
+topic: ai_agent_security
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+cache_root: ./cache
+
+entries:
+- cache_id: cache_agent_security_html
+  source_url: https://example.com/agent-security-benchmark
+  fetched_at: 2026-05-19
+  content_type: text/html
+  bytes: 320
+  sha256: d579a24446c41df4850c6db762d61e3570f91e017745ac463244eb9846b9ea7d
+  raw_path: cache/raw/agent_security.html
+  text_path: cache/text/agent_security.txt
+  metadata_path: cache/metadata/agent_security.json
+  restricted: false
+  rights_status: private_use
+  extraction_status: ok

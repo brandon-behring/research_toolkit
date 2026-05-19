@@ -57,6 +57,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from validators._common import URL_RE, cli_main
+from validators.v2_common import (
+    is_v2_mapping,
+    validate_strict_live_entry,
+    validate_strict_live_top,
+)
 
 ALLOWED_STATUS = {"unverified", "verified", "mismatched"}
 ALLOWED_TASK_FAMILY = {
@@ -126,6 +131,10 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
 
     if not isinstance(data, dict) or "entries" not in data:
         return ["top-level must be a mapping with key 'entries:'"]
+
+    v2 = is_v2_mapping(data)
+    if v2:
+        errors.extend(validate_strict_live_top(data))
 
     entries = data["entries"]
     if not isinstance(entries, list) or not entries:
@@ -206,6 +215,9 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
                 f"{loc}.task_family: {task_family!r} not in fixed enum "
                 f"{sorted(ALLOWED_TASK_FAMILY)}"
             )
+
+        if v2:
+            errors.extend(validate_strict_live_entry(entry, loc=loc))
 
     only_dicts = [e for e in entries if isinstance(e, dict)]
     warning = _memory_verified_warning(only_dicts)

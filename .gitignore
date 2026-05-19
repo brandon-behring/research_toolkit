@@ -14,6 +14,8 @@ venv/
 # Skill output sandboxes (created by skills during use; don't commit)
 sandbox/
 scratch/
+research_cache/
+research-kb/inbox/
 
 # BURN_IN_NOTES is committed but tweak diffs aren't
 BURN_IN_NOTES.local.md

@@ -1,0 +1,31 @@
+# Evidence ledger template (strict-live v2)
+# Maintained by /research-gather, /dataset-gather, /freshness-audit.
+#
+# Every substantive Markdown claim should map to an evidence_id here.
+
+schema_version: 2
+topic: '<topic slug>'
+generated_at: <YYYY-MM-DD>
+current_as_of: <YYYY-MM-DD>
+freshness_policy: strict_live
+
+entries:
+- evidence_id: ev_<topic>_0001
+  source_url: https://arxiv.org/abs/2501.00001
+  source_type: paper          # paper | dataset | repo | vendor | standard | policy | benchmark | leaderboard | blog | api | other
+  source_quality: primary     # primary | official | secondary | user_note
+  retrieved_at: <YYYY-MM-DD>
+  verification_method: webfetch
+  cache_ids:
+  - cache_<sha-prefix>
+  supports:
+  - claim_id: claim_<topic>_0001
+    field_path: bib_ledger.entries[0].title
+    evidence_role: supports   # supports | contradicts | qualifies | defines | dates | identifies
+  excerpt: '<short claim-supporting excerpt or extracted metadata summary>'
+  rights_status: private_use  # public | private_use | restricted | unknown | cache_only
+  confidence:
+    score: 0.95
+    factors:
+    - primary source
+    - cached raw snapshot

@@ -37,6 +37,12 @@ Read `~/Claude/research_toolkit/references/dual_audience_design.md` BEFORE gener
 
 Read `~/Claude/research_toolkit/references/citation_rules.md` for URL canonical forms, status flags, and the "no LLM-generated specifics" rule (the most load-bearing content rule).
 
+For strict-live v2 projects, read
+`~/Claude/research_toolkit/references/strict_live_v2.md` and preserve compact
+evidence IDs on each substantive table row / 5-bullet block. Markdown should
+stay readable, but every claim-bearing bullet must be traceable to
+`evidence_ledger.yml`.
+
 ### Phase 2: read dossier + plan
 
 Read every `*.md` file in `<dossier_dir>` (excluding `_dossier_readme.md`). Extract entries from each table.
@@ -65,11 +71,17 @@ For each dossier entry, render as a 5-bullet block:
   - **Mechanism:** <factual one-liner: what does the paper actually do?>
   - **Result:** <distinct contribution / key claim>
   - **Status:** Verified | Unverified | (vendor blog) | ...
+  - **Evidence:** ev_<topic>_0001
 ```
 
 Order matters — Source / Code / Mechanism / Result / Status. Code may be omitted (e.g., for leaderboard or vendor-page entries with no separate code repo). For vendor / standards / lab profiles, use a content-appropriate variant (Source / Status / Product line / Mechanism / Integration). See `templates/5_bullet_entry.template.md` § "Variant".
 
 **Critical rule**: any quantitative claim in Mechanism or Result MUST be from the primary source's abstract. If only in the body, mark with `(unverified body claim)`. **Never invent specific numbers** — that's the most common hallucination mode for synthesis work.
+
+For v2 strict-live outputs, `Evidence` may be a compact inline suffix instead
+of a sixth bullet when that is more readable (for example, `... [ev_x_0001]`).
+The invariant is that every substantive row/block has at least one evidence ID
+that exists in `evidence_ledger.yml`.
 
 #### Cell-rendering rules carried up from /dossier-build (HARD RULES — reproduced 2x as 404s in PEFT/calibration dogfood)
 

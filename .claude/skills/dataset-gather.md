@@ -49,6 +49,17 @@ you're working from this catalog.
 Read `~/Claude/research_toolkit/templates/dataset_ledger.template.yml` for
 the schema.
 
+For strict-live v2 projects, also read
+`~/Claude/research_toolkit/references/strict_live_v2.md` plus:
+- `templates/evidence_ledger.template.yml`
+- `templates/cache_manifest.template.yml`
+- `templates/claim_graph.template.jsonl`
+
+The v2 contract is primary-first, current-date-aware, evidence-backed, and
+max-local-cache by default. Every substantive claim gets an evidence ID; every
+reachable source page/API payload/artifact gets cached locally for personal use
+and later `research-kb` ingestion.
+
 Read `~/Claude/research_toolkit/validators/dataset_ledger.py` to understand
 the validator's enforcement (especially `task_family` fixed enum + memory-
 verification anti-cheat heuristic at ≥30 entries).
@@ -74,6 +85,10 @@ For each `--sources` category (default: all 8), run discovery per
 - **Government**: WebSearch `<topic> site:data.gov` etc.
 - **UCI / OpenML / awesome-* lists**: WebSearch `<topic> site:archive.ics.uci.edu` and `<topic> site:openml.org`. WebFetch awesome-public-datasets-style lists.
 
+Use current-date-aware queries for fast-moving dataset/model-card ecosystems;
+do not rely on fixed year examples. Secondary sources are discovery aids only;
+final metadata and claims must cite primary or official dataset pages.
+
 Dedupe across sources by primary URL (some datasets are mirrored on multiple
 platforms; prefer the canonical source — usually HF for ML datasets, the
 academic repo for academic datasets).
@@ -91,6 +106,15 @@ For every candidate, WebFetch the source page and extract:
 - `access_method` — `hf datasets` / `direct` / `API` / `signup wall` / `credentialed`
 - `auth_required` — true if download requires login / API key / signed agreement
 - `citation` — recommended citation form
+
+For v2, also populate per-entry strict-live fields: `retrieved_at`,
+`verified_at`, `verification_method`, `verified_fields`, `freshness_tier`,
+`stale_after_days`, `evidence_ids`, and `cache_ids`.
+
+Cache every reachable dataset card, API JSON, README, schema page, license page,
+repo archive, and downloadable artifact by default. If a very large dataset is
+reachable and your access/terms allow it, cache it; record size, hash, access
+conditions, and `restricted` status in `cache_manifest.yml`.
 
 Assign `task_family` from the **fixed enum** (one of: classification,
 regression, sequence_labeling, generation, retrieval, ranking, multimodal,

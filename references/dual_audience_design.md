@@ -22,7 +22,7 @@ Brandon works across machines with agents heavily (multi-machine workflow, multi
 
 6. **Glossary at end of overview** — canonical term + aliases + one-line definition + primary citation. Resolves ambiguous lookups without forcing the agent to do a web search. Place in the README or in `00_overview.md`.
 
-7. **Inline staleness/verification markers** — `(unverified)`, `(vendor blog)`, `(post-2025; recheck)` flags appear *on the entry*, not in a footer. The agent reading entry-by-entry sees the staleness signal in context.
+7. **Inline staleness/verification markers** — `(unverified)`, `(vendor blog)`, and `(recheck after YYYY-MM-DD)` flags appear *on the entry*, not in a footer. The agent reading entry-by-entry sees the staleness signal in context.
 
 8. **Plain declarative prose** — no rhetorical questions, allusions, or framing that requires inference. Each sentence stands alone. "X does Y" beats "you might wonder whether X does Y."
 
@@ -34,7 +34,7 @@ Brandon works across machines with agents heavily (multi-machine workflow, multi
 
 - **Content requiring re-derivation**. If a fact requires reading the cited paper's full body to verify, don't claim it in the synthesis — link to the paper and let the agent fetch the body if needed. Synthesis abstracts what's in the abstract, not what's deep in the methods.
 
-- **Time-sensitive claims without date markers**. Vendor acquisitions, version numbers, and shipping status drift quarterly. Always include the date the claim was last verified, OR mark `(post-2025; recheck)`.
+- **Time-sensitive claims without date markers**. Vendor acquisitions, version numbers, and shipping status drift quarterly. Always include the date the claim was last verified and the next recheck date.
 
 - **Author opinions disguised as fact**. "X is the best defense" is an opinion. "X reports the highest ASR reduction in [authors] 2024" is a fact citation. Synthesis is about the latter.
 

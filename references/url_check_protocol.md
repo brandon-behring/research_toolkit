@@ -12,7 +12,9 @@ set -uo pipefail
 
 mkdir -p .url_check_tmp
 # Step 1: extract all unique URLs from the target folder.
-grep -hroE 'https?://[^[:space:]\)\]"\<]+' "$TARGET_FOLDER" \
+# Use the positive char-class form; the negative char-class version returns
+# 0 matches on some macOS grep builds.
+grep -hroE 'https?://[a-zA-Z0-9./?=&_~%#:+-]+' "$TARGET_FOLDER" \
   | sort -u \
   | sed 's/[\.,:;]\+$//' \
   > .url_check_tmp/urls.txt
@@ -25,7 +27,7 @@ for chunk in .url_check_tmp/chunk_*; do
   (
     while IFS= read -r url; do
       status=$(curl -s -o /dev/null -w "%{http_code}" -L -m 15 \
-                    -A "Mozilla/5.0 research_toolkit/0.1" \
+                    -A "Mozilla/5.0 research_toolkit/2.0" \
                     -I "$url" 2>/dev/null || echo "000")
       echo "$status $url"
     done < "$chunk" > "$chunk.results"
@@ -47,7 +49,7 @@ while IFS= read -r line; do
   url="${line#* }"
   if [[ "$status" =~ ^4 ]]; then
     retry=$(curl -s -o /dev/null -w "%{http_code}" -L -m 15 \
-                 -A "Mozilla/5.0 research_toolkit/0.1" \
+                 -A "Mozilla/5.0 research_toolkit/2.0" \
                  -H "Range: bytes=0-1024" \
                  "$url" 2>/dev/null || echo "000")
     echo "$retry $url"  # use retry status; if still 4xx → real broken
@@ -76,7 +78,7 @@ Maintain this allowlist in the skill body. Add new entries as they're discovered
 
 ## Output report format
 
-The skill writes a report to `<target>/url_check_report.md` (or a user-specified path):
+The skill writes a report to `<target>/../url_check_report.md` by default (or a user-specified path). Keeping the report outside the target folder prevents it from being counted as a synthesis artifact:
 
 ```markdown
 # URL Freshness Report

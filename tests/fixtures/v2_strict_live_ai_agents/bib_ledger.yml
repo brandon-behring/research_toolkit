@@ -1,0 +1,27 @@
+schema_version: 2
+topic: ai_agent_security
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+entries:
+- bibkey: example2026agentsecurity
+  primary_url: https://example.com/agent-security-benchmark
+  title: Agent Security Benchmark
+  status: verified
+  claim_family: benchmark
+  authors: Example Research Lab (2026)
+  venue: Official benchmark page
+  retrieved_at: 2026-05-19
+  verified_at: 2026-05-19
+  verification_method: webfetch
+  verified_fields:
+  - title
+  - primary_url
+  - benchmark_scope
+  freshness_tier: volatile
+  stale_after_days: 30
+  evidence_ids:
+  - ev_ai_agent_security_0001
+  cache_ids:
+  - cache_agent_security_html

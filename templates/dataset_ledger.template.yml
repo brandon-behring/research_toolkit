@@ -39,6 +39,12 @@
 #                           registration / signed agreement.
 #   citation       (str) — recommended citation form (e.g., "Smith et al. (2020), NeurIPS").
 
+schema_version: 2
+topic: example_topic
+generated_at: <YYYY-MM-DD>
+current_as_of: <YYYY-MM-DD>
+freshness_policy: strict_live
+
 entries:
 - bibkey: example2024foodataset
   primary_url: https://huggingface.co/datasets/example-org/foo
@@ -55,6 +61,18 @@ entries:
   access_method: hf datasets
   auth_required: false
   citation: 'Smith et al. (2024), arXiv:2401.12345'
+  retrieved_at: <YYYY-MM-DD>
+  verified_at:
+  verification_method: webfetch
+  verified_fields:
+  - primary_url
+  - name
+  freshness_tier: volatile
+  stale_after_days: 30
+  evidence_ids:
+  - ev_example_dataset_0001
+  cache_ids:
+  - cache_example_dataset_0001
 
 - bibkey: anothere2025bardataset
   primary_url: https://zenodo.org/records/1234567
@@ -67,3 +85,17 @@ entries:
   access_method: direct
   auth_required: false
   citation: 'Bar et al. (2025), Zenodo DOI 10.5281/zenodo.1234567'
+  retrieved_at: <YYYY-MM-DD>
+  verified_at: <YYYY-MM-DD>
+  verification_method: webfetch
+  verified_fields:
+  - primary_url
+  - name
+  - license
+  - access_method
+  freshness_tier: stable
+  stale_after_days: 365
+  evidence_ids:
+  - ev_example_dataset_0002
+  cache_ids:
+  - cache_example_dataset_0002

@@ -60,7 +60,7 @@ For 5-bullet entries (display name line):
 - `Verified` — title, authors, year all cross-checked against primary source.
 - `Unverified` — bibkey resolves locally but no primary-source check yet.
 - `(vendor blog)` — sourced from a vendor blog or press release; treat numbers with skepticism.
-- `(post-2025; recheck)` — claim is from after the toolkit's coverage cutoff and may have drifted.
+- `(recheck after YYYY-MM-DD)` — time-sensitive claim should be refreshed after the listed strict-live date.
 - `(unverified body claim)` — quantitative claim is from paper body, not abstract; reader should re-verify.
 
 ## Verbatim title rendering

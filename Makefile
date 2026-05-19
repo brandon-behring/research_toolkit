@@ -1,4 +1,4 @@
-.PHONY: install test smoke dataset-smoke audit burn-in metrics lint clean help
+.PHONY: install symlinks test smoke dataset-smoke v2-smoke audit audit-strict burn-in metrics lint clean help
 
 PYTHON ?= python3
 VENV   ?= .venv
@@ -7,14 +7,18 @@ PY     := $(VENV)/bin/python
 # Real-world projects under ~/Claude/research_<topic>/ that exist on this machine.
 # `make audit` runs cross_stage --strict against any that exist.
 REAL_TOPICS := eval_methodology peft calibration rlhf
+SKILLS := research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export
 
 help:
 	@echo "Targets:"
 	@echo "  install         create .venv and install package + dev deps"
+	@echo "  symlinks        symlink all skill bodies into ~/.claude/skills/"
 	@echo "  test            run pytest against tests/"
 	@echo "  smoke           run a single validator against the mini fixture"
 	@echo "  dataset-smoke   run dataset_ledger validator against the dataset smoke fixture (v1.6)"
+	@echo "  v2-smoke        run strict-live v2 validators against the v2 fixture"
 	@echo "  audit           run cross_stage --strict against all real-world projects"
+	@echo "  audit-strict    strict audit target that fails on validator failures"
 	@echo "                  (mini, medium, prompt-injection real/recreated, $(REAL_TOPICS))"
 	@echo "  burn-in         show unresolved high-severity BURN_IN items"
 	@echo "  metrics         show dogfood_metrics.csv contents"
@@ -24,6 +28,13 @@ install:
 	$(PYTHON) -m venv $(VENV)
 	$(VENV)/bin/pip install --upgrade pip
 	$(VENV)/bin/pip install -e ".[dev]"
+
+symlinks:
+	@mkdir -p $$HOME/.claude/skills
+	@for skill in $(SKILLS); do \
+		ln -sf $$PWD/.claude/skills/$$skill.md $$HOME/.claude/skills/$$skill.md; \
+		echo "linked $$skill"; \
+	done
 
 test:
 	$(PY) -m pytest
@@ -39,6 +50,15 @@ dataset-smoke:
 		echo "=== _handcrafted_dataset_smoke (Phase A handcrafted) ==="; \
 		$(PY) validators/dataset_ledger.py tests/fixtures/_handcrafted_dataset_smoke/dataset_ledger.yml; \
 	fi
+
+v2-smoke:
+	$(PY) validators/bib_ledger.py tests/fixtures/v2_strict_live_ai_agents/bib_ledger.yml
+	$(PY) validators/dataset_ledger.py tests/fixtures/v2_strict_live_ai_agents/dataset_ledger.yml
+	$(PY) validators/evidence_ledger.py tests/fixtures/v2_strict_live_ai_agents/evidence_ledger.yml
+	$(PY) validators/cache_manifest.py tests/fixtures/v2_strict_live_ai_agents/cache_manifest.yml
+	$(PY) validators/claim_graph.py tests/fixtures/v2_strict_live_ai_agents/claim_graph.jsonl
+	$(PY) validators/research_kb_export.py tests/fixtures/v2_strict_live_ai_agents/research_kb_export.jsonl
+	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v2_strict_live_ai_agents
 
 audit:
 	@echo "=== mini fixture ==="
@@ -59,6 +79,12 @@ audit:
 			echo "=== $$topic === (not present locally; skipped)"; \
 		fi; \
 	done
+
+audit-strict:
+	$(PY) -m validators.cross_stage --strict tests/fixtures/mini_topic_timeseries_anomaly
+	$(PY) -m validators.cross_stage --strict tests/fixtures/medium_topic_calibration_subset
+	$(PY) -m validators.cross_stage --strict tests/fixtures/prompt_injection_snapshot/recreated
+	$(PY) -m validators.freshness --strict --today 2026-05-19 tests/fixtures/v2_strict_live_ai_agents
 
 burn-in:
 	@$(PY) scripts/burn_in_query.py --severity high --status surfaced

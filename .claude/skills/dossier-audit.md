@@ -1,7 +1,7 @@
 ---
 name: dossier-audit
 description: Run one round of complementary-scope independent audit on an indexed folder. Spawns a fresh general-purpose sub-agent with WebSearch + WebFetch to verify entries against primary sources; receives a DROP/CORRECT/FLAG/SPOT-CHECK report; applies fixes inline; appends round-N audit-trail note. Single-round — user re-invokes per round. v1.6: also runs against /dataset-index outputs — use focus areas like "license risks + access stability" for dataset dossiers.
-allowed-tools: Read, Edit, Bash
+allowed-tools: Read, Edit, Write, Bash, WebSearch, WebFetch
 ---
 
 # /dossier-audit — One round of independent audit
@@ -35,6 +35,11 @@ allowed-tools: Read, Edit, Bash
 ### Phase 1: load reference
 
 Read `~/Claude/research_toolkit/references/audit_protocol.md` — covers the complementary-scope rule, the DROP/CORRECT/FLAG report shape, regression checks, audit-trail format, and the stopping rule.
+
+For strict-live v2 projects, also read
+`~/Claude/research_toolkit/references/strict_live_v2.md`. Audit findings must
+update `evidence_ledger.yml`, `cache_manifest.yml`, and `claim_graph.jsonl`
+alongside Markdown edits; otherwise `/freshness-audit --strict` will fail.
 
 ### Phase 2: detect prior rounds
 

@@ -1,0 +1,4 @@
+Agent Security Benchmark
+
+Agent Security Benchmark is a primary benchmark for evaluating browser-agent prompt-injection defenses.
+The benchmark includes 120 tasks and was last updated on 2026-05-01.

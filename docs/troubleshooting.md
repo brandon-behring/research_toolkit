@@ -296,6 +296,40 @@ python -m validators.cross_stage <project> --strict
 
 Use `--strict` pre-publish; default warnings during in-progress runs.
 
+## strict-live v2 freshness fails on a stale entry
+
+**Symptom:** `python validators/freshness.py --strict <project>` reports
+`stale as of <date>`.
+
+**Cause:** v2 treats freshness as a blocker. The entry's `verified_at` (or
+`retrieved_at`) plus `stale_after_days` is older than today's strict-live
+window.
+
+**Fix:** run:
+
+```bash
+/freshness-audit <project> --strict
+```
+
+Re-fetch the primary/official source, cache the artifact, update
+`cache_manifest.yml`, add or update field-level evidence in `evidence_ledger.yml`,
+and then update the ledger entry's `verified_at`, `evidence_ids`, and
+`cache_ids`.
+
+## research-kb export fails validation
+
+**Symptom:** `validators/research_kb_export.py` rejects a JSONL export.
+
+**Cause:** every export record must have `export_schema_version: 2`,
+`record_type`, `id`, `source_project`, `exported_at`, and a non-empty `payload`.
+
+**Fix:** generate with the bundled exporter after freshness passes:
+
+```bash
+python scripts/research_kb_export.py <project>
+python validators/research_kb_export.py ~/Claude/research-kb/inbox/research_toolkit/<project>.jsonl
+```
+
 ## Test suite has 2 xfailed cases — is that normal?
 
 **Symptom:** `make test` reports `2 xfailed`.

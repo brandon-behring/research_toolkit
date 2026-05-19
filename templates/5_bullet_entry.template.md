@@ -12,7 +12,8 @@ deterministically.
   - **Code:** <code repo URL or "—" for none>
   - **Mechanism:** <factual one-liner: what does the paper actually do?>
   - **Result:** <distinct contribution / key claim / canonical reference status>
-  - **Status:** Verified | Unverified | (vendor blog) | (post-2025; recheck) | ...
+  - **Status:** Verified | Unverified | (vendor blog) | (recheck after <YYYY-MM-DD>) | ...
+  - **Evidence:** ev_<topic>_0001
 ```
 
 **Order matters** for paper synthesis entries — the validator enforces the canonical
@@ -55,3 +56,10 @@ use a content-appropriate bullet schema. Common variants:
 The validator accepts these heterogeneous bullet schemas as long as Source is present
 with a URL/bibkey. Only paper-synthesis entries (those including a `Result` bullet)
 are subject to canonical-order enforcement.
+
+## Strict-live v2 evidence markers
+
+For v2 outputs, every substantive row/block must include compact evidence IDs
+from `evidence_ledger.yml`. Use a visible `Evidence` bullet for maximum
+traceability, or a compact suffix such as `[ev_topic_0001]` when the file would
+otherwise become too noisy.

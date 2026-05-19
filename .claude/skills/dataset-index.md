@@ -48,6 +48,11 @@ canonical forms + status flags.
 Read `~/Claude/research_toolkit/templates/dataset_5_bullet_entry.template.md`
 for the canonical 5-bullet shape.
 
+For strict-live v2 projects, read
+`~/Claude/research_toolkit/references/strict_live_v2.md`. Preserve compact
+evidence IDs per dataset block so every access/license/size/schema/task claim
+can be traced to `evidence_ledger.yml`.
+
 **Worked example:** see
 `~/Claude/research_toolkit/tests/fixtures/medium_dataset_subset/agent_index/`
 (populated after v1.6 dogfood). Mirror its file structure + per-file
@@ -82,6 +87,7 @@ For each ledger entry, render as:
   - **Size+License:** <size>; <license shorthand>
   - **Tasks:** <prose about what this dataset is used for + benchmarks built on it>
   - **Status:** <Verified | Unverified | (uncertain X) Verified>
+  - **Evidence:** <evidence IDs from dataset_ledger.evidence_ids>
 ```
 
 **HARD RULES (carry up from skill body conventions):**
@@ -99,6 +105,8 @@ For each ledger entry, render as:
 - **Tasks**: short prose. Cite known benchmark papers where the dataset is
   used; don't fabricate.
 - **Status**: append `(uncertain X)` when a field is honest-unknown.
+- **Evidence**: v2 outputs include evidence IDs from the ledger. If a dataset
+  block contains claims from multiple sources, include all relevant IDs.
 
 ### Phase 5: write README + 00_overview
 
