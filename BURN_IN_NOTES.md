@@ -75,6 +75,102 @@ before the dogfood would have hit the failure.
 
 ---
 
+## v2.2.0 dogfood — Phase 2: AI eval drift fresh-topic dogfood — 2026-05-20
+
+**Theme**: first fresh-topic v2.2 pipeline pass. Targeted mechanism:
+stress gather_trace's IsSup=partial / IsSup=none path (the rubber-stamp
+failure mode the user flagged as a top concern).
+
+**Project**: `~/Claude/research_eval_drift/` (personal, not committed).
+Seed for future expansion into a full eval-reliability dossier.
+
+**End-state metrics**:
+- 4 primary sources cached + verified (urllib only; no Playwright
+  needed for these arxiv pages)
+- 6 fetches in gather_trace (4 accept + 1 escalate_to_manual + 1 reject)
+- 4 atomic claims (1 atom per source — same retroactive limitation as
+  Phase 1's migration)
+- 4/4 verbatim_match substring pass (100%)
+- 0/4 corroborated (single-source-per-atom at this scale — by design,
+  4 sources is too few for natural cross-source synthesis)
+- 4/4 atoms fully supported
+- Dashboard Discovery Rigor: 4/6 accept rate (67%), 1 rejected, 1
+  escalated for manual review
+- 20-line research-kb export, validator clean
+
+### Friction items (4 surfaced, 0 applied, 4 deferred)
+
+**1. The IsSup=partial / IsSup=none path IS exercisable AND DOES feel
+   useful (status: surfaced — positive result confirming design intent)**
+- I deliberately fetched a borderline-scope paper (Rubrics as Attack
+  Surface, arXiv 2602.13576) and a vendor marketing blog
+  (lxt.ai/blog/llm-benchmarks/). The first got
+  IsSup=partial → decision=escalate_to_manual; the second got
+  IsSup=none → decision=reject.
+- **The escalate_to_manual record is genuinely useful**: the rubrics
+  paper IS relevant to harness reliability but introduces an
+  attack-model framing that may belong in a separate dossier.
+  Without gather_trace's IsSup gradation, this would either be silently
+  accepted (and dilute the dossier) or silently rejected (and lose the
+  signal). The escalation makes it explicit.
+- **Validation of v2.2.0 Phase A**: Self-RAG-style reflection
+  earns its keep at small scales (4-source dogfood) too. The user's
+  rubber-stamp concern is mitigated when the author deliberately
+  searches BEYOND accept-able results.
+
+**2. Fresh atomic decomposition still produced 1 atom per source
+   (status: surfaced — confirms Phase 1 finding)**
+- Same limitation as Phase 1 migration: each evidence's existing
+  excerpt anchors a SINGLE atomic claim_id. Phase 2 doesn't fix this
+  because the gather step naturally captures one excerpt per source.
+- **The fix is /agent-index Phase 2c generation**: real per-bullet
+  multi-atom decomposition happens when an LLM writes prose
+  conditioned on the pre_selection_manifest's atoms. With 4 sources
+  and brief 5-bullet entries, atomic decomposition felt
+  proportionately appropriate — not over-engineered, but also not
+  yielding the dramatic 5-atoms-per-bullet pattern the schema
+  supports.
+- **v2.3 candidate**: a "decompose this excerpt into 2-3 atoms"
+  helper that scans an evidence entry and emits suggested atom
+  splits would lower the cognitive cost when authors DO want
+  multi-atom decomposition.
+
+**3. Corroboration metric reports 0% at small N — not a defect but
+   a visibility issue (status: surfaced — UX note)**
+- 4 sources, 4 distinct atomic claims, no cross-source synthesis →
+  dashboard reports `corroborated (≥2 independent sources): 0/4 (0%)`.
+- That's accurate but misleading on first read: a healthy small-N
+  dossier WILL show 0% corroboration because there aren't enough
+  sources to cross-validate yet.
+- **v2.3 candidate**: dashboard could note when corroboration is 0%
+  on small-N corpora ("expected — corpus too small for cross-source
+  synthesis"). Or suppress the metric below a 6-source threshold.
+
+**4. cache_source.py worked first-try on all 4 arxiv URLs without
+   Playwright (status: surfaced — Phase 1.5 isn't always needed)**
+- All 4 sources are arxiv abstract pages — urllib renders them fine.
+  No HTTP 403/429, no JS-required markers. Phase 1.5's escalation
+  path stayed dormant.
+- **Implication**: Phase 1.5 was preventive (good), not curative
+  (yet). The real test will be Phase 3 (causal inference) and
+  Phase 4 (agent capabilities) where vendor blogs and benchmark
+  dashboards may surface.
+
+### Phase 2 conclusion
+
+The v2.2 pipeline runs cleanly end-to-end on a fresh topic. **The
+deliberately-diverse gather_trace was the key validation**: it
+demonstrated that the Self-RAG reflection mechanism does add signal
+when the author intentionally searches beyond accept-able results.
+The user's rubber-stamp concern is real BUT addressable by author
+discipline (deliberately recording non-accept fetches), not requiring
+a v2.2 design fix.
+
+Next: Phase 3 (causal inference, slow-moving subject — tests whether
+v2.2 feels over-engineered when freshness pressure is low).
+
+---
+
 ## v2.2.0 dogfood — Phase 1: migrate research_toolkit_design to v2.2 — 2026-05-20
 
 **Theme**: first real-world contact with v2.2's atomic + Attribute-First +
