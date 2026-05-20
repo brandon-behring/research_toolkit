@@ -185,7 +185,73 @@ sooner.
 - **Priority**: Tier-2 (refines existing v2.1 mechanism rather than
   adding a new one).
 
+### Item 4b: Lookback Lens attention-divergence detection (Tier-3, exploratory)
+
+- **Evidence**: `ev_lookback_lens_attention` (Chuang et al. 2024, EMNLP —
+  arXiv 2407.07071).
+- **v2.1 gap**: v2.1 has no signal from the model's own attention. All
+  v2.1 anti-hallucination is downstream of generation (substring check,
+  CoVE, source_quality). Chuang et al. 2024: "When asked to summarize
+  articles or answer questions given a passage, large language models
+  (LLMs) can hallucinate details and respond with unsubstantiated answers
+  that are inaccurate" — they use the ratio of attention weights on
+  context vs newly-generated tokens as a per-head signal, achieve 9.6%
+  hallucination reduction on XSum without retraining the LM.
+- **Proposed mechanism**: too invasive for v2.2. Documented as a Tier-3
+  research direction — would require access to per-token attention maps
+  from the generating model (Claude API doesn't expose these). Defer
+  until either (a) Claude exposes attention via the API, or (b) v3.0
+  pivots to using a local model where attention is accessible.
+- **Effort**: L (depends on API access).
+- **Priority**: Tier-3 (exploratory, low near-term impact).
+
+### Item 5d: Tool-MAD adaptive-retrieval multi-agent debate (Tier-2)
+
+- **Evidence**: `ev_toolmad_multi_agent_debate` (Jeong et al. 2026 —
+  arXiv 2601.04742, fresh).
+- **v2.1 gap**: v2.1's CoVE-factored verification (Tier-1 #3) uses ONE
+  verifier sub-agent per question, in a decoupled context. Tool-MAD
+  proposes COLLABORATIVE multi-agent debate where "each agent [is
+  assigned] a distinct external tool, such as a search API or RAG module"
+  — diverse tool access surfaces evidence one agent would miss. Jeong et
+  al. 2026: "Large Language Models (LLMs) suffer from hallucinations and
+  factual inaccuracies, especially in complex reasoning and fact
+  verification tasks. Multi-Agent Debate (MAD) systems aim to improve
+  answer accuracy by enabling multiple LLM agents to engage in dialogue."
+- **Proposed mechanism**: extend `/dossier-audit` Phase 3 with a second
+  spawn pattern: instead of (or in addition to) CoVE-factored
+  verification, spawn N=2-3 agents each with a DIFFERENT search tool
+  (one with WebFetch only, one with arXiv API, one with Semantic
+  Scholar API), have them debate the finding. Surfacing disagreement
+  becomes a FLAG signal. Compounds with v2.1 CoVE-factored.
+- **Effort**: M-L (requires tool-diverse setup; current /dossier-audit
+  has only WebSearch + WebFetch).
+- **Priority**: Tier-2 (refinement, not core).
+
 ## A5. judge_calibration
+
+### Item 6b: MAD-Fact long-form factuality eval via multi-agent debate (Tier-2)
+
+- **Evidence**: `ev_madfact_longform_evaluation` (Ning et al. 2025 —
+  arXiv 2510.22967).
+- **v2.1 gap**: v2.1's /citation-audit produces single-judge mechanical
+  metrics (substring pass rate). No way to evaluate the JUDGE itself, or
+  combine multiple judges for robustness. Ning et al. 2025: "The
+  widespread adoption of Large Language Models (LLMs) raises critical
+  concerns about the factual accuracy of their outputs, especially in
+  high-risk domains" — they propose multi-agent debate with role-
+  separation (Clerk / Jury / Judge) to improve long-form factuality
+  evaluation. MAD-Fact "consistently outperforms strong baselines on
+  multiple long-form factuality benchmarks."
+- **Proposed mechanism**: when /citation-audit reports a project's
+  Claim Health, optionally trigger a MAD-Fact-style multi-judge
+  evaluation on a sampled subset of claims. Three sub-agents (Clerk
+  summarizes evidence, Jury votes per-claim, Judge breaks ties) produce
+  a calibrated faithfulness score that complements the mechanical
+  substring metric. Surface as a "calibrated_claim_health" score in
+  dashboard.md.
+- **Effort**: L (multi-agent orchestration + sampling protocol).
+- **Priority**: Tier-2 (refinement, compounds with Item 6 fusion).
 
 ### Item 6: Faithfulness-metric fusion in dashboard Claim Health (Tier-2)
 
