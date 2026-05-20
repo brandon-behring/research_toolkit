@@ -88,6 +88,28 @@ For v1.x projects (no evidence_ledger.yml), skip the evidence bullet / inline
 suffix entirely — the Status flag (`Verified`, `Unverified`, etc.) carries the
 trust signal.
 
+### v2.2 atomic claim IDs (`/agent-index` Attribute-First output)
+
+For v2.2+ projects, individual claim_ids inside `evidence_ledger.yml`
+follow the atomic-decomposition pattern:
+
+```
+claim_<topic_slug>_b<bullet>_a<atom>_<descriptor>
+```
+
+Each 5-bullet block emits 2–5 such claim_ids — one per atomic fact —
+instead of one bullet-level claim_id. Atom_ids appear in inline suffixes
+exactly like evidence_ids do; the bracket-grep convention extends:
+
+```markdown
+- **Result:** 91.2% accuracy [claim_atomic_demo_b1_a1_accuracy], 42ms latency [claim_atomic_demo_b1_a2_latency]
+```
+
+The Attribute-First contract (Phase 2 of `/agent-index`) requires that
+every cited claim_id has a matching atom selection in
+`pre_selection_manifest.yml`. Validators reject bullets that cite
+spans outside the pre-selection commitment.
+
 ## Verbatim title rendering
 
 In dossier tables, render titles **exactly as they appear in the primary source**, including:

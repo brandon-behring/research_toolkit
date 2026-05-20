@@ -10,6 +10,99 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.2.0: atomic decomposition + Attribute-First + adaptive retrieval — shipped 2026-05-20
+
+**Theme**: ship the three Tier-1 items from the Phase 8 design backlog
+as a single v2.2.0 release. Closes the structural-anti-hallucination
+loop opened in v2.1.0 (substring-anchored evidence). Where v2.1 ensures
+the *cited link* is real, v2.2 ensures the *generation step* never
+chose the citation post-hoc.
+
+**Phase A (commit d4ac214) — Item 5: Self-RAG adaptive retrieval.**
+- Added `gather_trace.yml` artifact, template, validator
+- /research-gather Phase 2 documents per-fetch reflection
+  (IsRel/IsSup/IsUse + decision); /freshness-audit Phase 4 reads it
+- build_dashboard.py adds a conditional Discovery Rigor section
+- Extended `v2_strict_live_ai_agents` fixture with a 3-fetch trace
+  (accept/reject/escalate)
+- 8 new tests; v2-smoke + audit-strict wired
+
+**Phase B (commit 177e4c4) — Items 1+3: atomic + Attribute-First.**
+- New `pre_selection_manifest.yml` artifact written in /agent-index
+  Phase 2b BEFORE prose; validator rejects evidence_ids that don't
+  trace to a pre-selected span (post-hoc rationalization → structural
+  failure)
+- /agent-index emits 2–5 free-text atomic claim_ids per 5-bullet block;
+  build_claim_graph.py needed no schema change (many-to-many already
+  supported); build_dashboard adds two v3 Claim Health rows
+  (corroborated, atoms fully supported)
+- New `v2_strict_live_atomic` fixture: 3 atoms per bullet, all
+  100% verbatim-anchored
+- 8 new tests; v2-smoke + audit-strict wired
+
+**Phase C (commit ?) — Docs + version bump.**
+- references/strict_live_v2.md gets a v2.2 additive-extensions section
+  covering gather_trace, pre_selection_manifest, atomic claim_ids, and
+  the two new dashboard metrics
+- references/dual_audience_design.md documents the atomic claim_id
+  rendering convention (b<N>_a<M>_<descriptor> naming + inline-suffix
+  preferred)
+- references/citation_rules.md adds the atomic claim_id inline syntax
+- references/audit_protocol.md extends the v2 update contract to cover
+  atomic claims + pre_selection_manifest propagation
+- docs/troubleshooting.md adds gather_trace + pre_selection_manifest
+  troubleshooting entries
+- pyproject.toml: 2.1.0 → 2.2.0
+
+**End-state metrics**: 232 tests + 2 xfailed pass; make v2-smoke green;
+make audit-strict green. The atomic fixture exercises the full v2.2
+pipeline (1 source → 3 atomic claims → 100% verbatim-anchored
+evidence). All four design decisions per the locked-in scope:
+sequence (Items 1+3 bundled, 5 separate), schema (stay v3 additive),
+atom shape (free-text, SROM deferred to v2.3), release shape (single
+v2.2.0).
+
+**v2.2 settles into USE posture.** v2.3 candidates from the saturated
+23-source backlog include SROM 4-tuple atom upgrade, multi-agent debate
+harness (Items 5d/5e), semantic-entropy citation audit (Item 4), and
+the cache://sha256/<digest> locator scheme. None are planned until
+specific friction surfaces.
+
+### Friction items (3 surfaced, 0 applied, 3 deferred)
+
+**1. Existing v3 fixture dashboard had to be regenerated (status:
+   applied)**
+- v2.2's new Claim Health rows (corroborated, atoms fully supported)
+  appear on v3 evidence_ledgers. The `v3_strict_live_demo` and
+  `v2_strict_live_ai_agents` fixture dashboards had to be regenerated.
+  Tracked, no real impact: the regenerated dashboards stay byte-stable
+  going forward. v2 fixtures unaffected.
+
+**2. pre_selection_manifest cross-ref requires claim_graph to exist
+   first (status: surfaced — workflow ordering)**
+- The validator cross-refs atom_ids against
+  sibling `claim_graph.jsonl`. If claim_graph hasn't been built yet,
+  atom_ids appear "missing." Workflow: write evidence_ledger first →
+  build claim_graph → THEN write pre_selection_manifest. The
+  /agent-index skill body Phase 2 documents this ordering (2a span-select
+  → 2b plan/manifest → 2c generate), but the validator could be more
+  helpful by suggesting "run `build_claim_graph.py` first."
+- **Deferred to v2.3**: validator could detect the absence of
+  claim_graph.jsonl and emit a clarifying hint.
+
+**3. Dogfood project (~/Claude/research_toolkit_design/) not migrated
+   to v2.2 (status: deferred — open for next session)**
+- The Phase 8 dogfood project has 23 sources at v3 schema. Migrating
+  it to v2.2 (atomic decomposition + pre_selection_manifest) would
+  validate the new pipeline at scale and demonstrate the corroboration
+  metric (4 synthesis claims with 3 sources each → 100% corroborated
+  by definition).
+- **Deferred**: not blocking v2.2.0 ship; valuable as a v2.2.1 dogfood
+  pass if user wants. Mechanical effort (no new research, just adapt
+  existing entries to atom-level granularity).
+
+---
+
 ## Phase 3.5: prompt-injection full-mode recreation
 
 **Date started:** 2026-05-07

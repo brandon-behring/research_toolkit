@@ -144,6 +144,32 @@ After applying v2 propagation, the Phase 7 regression checks include
 markdown-only checks. Failure means the v2 ledgers and the markdown are now
 out of sync; fix and re-run.
 
+### v2.2 atomic + pre_selection propagation
+
+For v2.2+ projects, the audit-update contract extends to atomic claims
+and the pre-selection manifest:
+
+- **DROP** (a bullet's atomic claim removed):
+  - Remove every `evidence_ledger.yml` entry whose `supports[*].claim_id`
+    is the dropped atom_id.
+  - Remove the matching selection from
+    `pre_selection_manifest.yml.selections[]` (selection_id is your
+    grep key — `sel_b<N>_a<M>` matches `claim_..._b<N>_a<M>_...`).
+  - Remove the orphaned claim record from `claim_graph.jsonl`.
+- **CORRECT** (an atom's text changed):
+  - The atom_id itself stays stable (renaming is a DROP + ADD).
+  - Update the supporting evidence_ledger entry's `excerpt` and
+    `excerpt_anchor.text_path_offset` + `sha256_of_span` to the new
+    span. Re-run the validator: substring + sha256 must verify.
+  - Mirror the change in the pre_selection_manifest's `span`.
+- **FLAG**: per-atom confidence cap follows the same pattern as v2.1
+  — lower the evidence entry's `link_confidence`.
+
+Validator gate adds:
+`python validators/pre_selection_manifest.py <project_root>/pre_selection_manifest.yml`
+to Phase 7 regression. Selection records must still cross-resolve into
+the (potentially edited) claim_graph + cache_manifest.
+
 ## Audit-trail note format
 
 ```markdown

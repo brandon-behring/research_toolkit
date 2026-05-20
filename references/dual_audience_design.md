@@ -66,6 +66,32 @@ The invariant: **every evidence ID rendered in markdown must exist in
 entries to keep this invariant intact when the agent-index introduces new
 cross-cutting claims that weren't covered by `/research-gather`.
 
+### v2.2 atomic claim IDs
+
+For v2.2+ strict-live projects, the rendering convention extends to
+**atomic claim IDs** — each bullet decomposes into 2–5 distinct
+claim_ids, one per atomic fact in the bullet's prose. Naming pattern:
+
+```
+claim_<topic_slug>_b<bullet_number>_a<atom_number>_<descriptor>
+```
+
+Example (atomic_demo fixture, bullet B1, three atoms):
+- `claim_atomic_demo_b1_a1_accuracy`
+- `claim_atomic_demo_b1_a2_latency`
+- `claim_atomic_demo_b1_a3_training`
+
+Rendering convention: when a bullet's prose mixes multiple atoms,
+inline-suffix form is preferred, with each substring tagged separately:
+
+```markdown
+- **Result:** The system achieves 91.2% accuracy [claim_..._a1_accuracy], inference latency averaged 42ms [claim_..._a2_latency], and training used 1.2B tokens [claim_..._a3_training].
+```
+
+Soft cap: 5 atoms per bullet. The validator emits a warning at >5 to
+flag over-fragmentation. Free-text atoms in v2.2; SROM 4-tuple
+(subject-relation-object-modifier) atomic structure deferred to v2.3.
+
 ## What NOT to put in agent-index
 
 - **LLM-generated specifics**. Quantitative claims (ASR percentages, dataset sizes) MUST appear in primary source abstract or verified body excerpt. Inventing specific numbers is the most common failure mode for synthesis work; never assert a number you can't point to in the linked Source.

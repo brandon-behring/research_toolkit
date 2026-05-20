@@ -383,6 +383,55 @@ python scripts/research_kb_export.py <project>
 python validators/research_kb_export.py ~/Claude/research-kb/inbox/research_toolkit/<project>.jsonl
 ```
 
+## gather_trace fails: bad IsSup / IsUse / decision / bibkey
+
+**Symptom:** `python validators/gather_trace.py gather_trace.yml` reports
+errors like:
+- `fetches[N].is_supported: 'kinda' not in ['full', 'none', 'partial']`
+- `fetches[N].is_useful: must be integer in [1, 5]`
+- `fetches[N].decision: 'maybe' not in ['accept', 'escalate_to_manual', 'reject']`
+- `fetches[N]: decision 'accept' requires an assigned_bibkey`
+- `fetches[N].assigned_bibkey: 'foo' not found in bib_ledger (closest match: ['fooatall'])`
+
+**Cause:** /research-gather Phase 2 reflection emitted an out-of-enum
+value, an out-of-range IsUse score, or an inconsistent (decision,
+assigned_bibkey) pair. The accept↔assigned_bibkey invariant is
+strict: accept requires the key; reject and escalate_to_manual must
+omit it.
+
+**Fix:** edit the gather_trace.yml fetch in question. IsSup must be one
+of `full | partial | none`; IsUse must be integer 1–5; decision must be
+`accept | reject | escalate_to_manual`. For unknown bibkey errors,
+check the closest-match hint — usually a typo in the bibkey or a
+missing bib_ledger entry that should be added first.
+
+## pre_selection_manifest fails: span/excerpt/atom_id mismatch
+
+**Symptom:** `python validators/pre_selection_manifest.py
+pre_selection_manifest.yml` reports errors like:
+- `selections[N].span.excerpt does not match span at offset [start:end]`
+- `selections[N].span.sha256_of_span: expected X, actual Y for bytes [start:end]`
+- `selections[N].atom_id: 'claim_foo' not found among claim records in sibling claim_graph.jsonl`
+- `selections[N].cache_id: 'cache_x' not found in cache_manifest`
+
+**Cause:** /agent-index Phase 2b committed to a span that doesn't match
+the cached text, OR a span that supports an atom_id that doesn't exist
+in claim_graph (synthesis bug), OR a cache_id outside the manifest.
+
+**Fix:**
+- Excerpt mismatch: re-pick the span by opening the cache `text_path`
+  and copying the exact byte range. Recompute sha256 over those bytes.
+- Atom_id missing from claim_graph: this means the atom wasn't created
+  in evidence_ledger. Add the matching `supports[].claim_id` entry to
+  evidence_ledger first, then rebuild claim_graph, then re-validate.
+- Cache_id missing: add the entry to cache_manifest (cache the source
+  first via `scripts/cache_source.py`).
+
+The pre_selection_manifest contract is intentionally rigid — it's the
+structural anti-hallucination guarantee. Errors here are almost always
+"the manifest got written before the supporting artifacts caught up;
+rebuild bottom-up."
+
 ## Test suite has 2 xfailed cases — is that normal?
 
 **Symptom:** `make test` reports `2 xfailed`.

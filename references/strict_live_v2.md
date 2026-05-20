@@ -123,3 +123,83 @@ payload schemas and `scripts/research_kb_export.py` for the implementation
 parse-inbox / DB-schema / index pipeline lives in the `research-kb` repo.
 The toolkit's responsibility ends at producing a validated export jsonl in
 `~/Claude/research-kb/inbox/research_toolkit/<slug>.jsonl`.
+
+## v2.2 additive extensions (within `schema_version: 3`)
+
+v2.2 layers three additive artifacts onto the v2.1 anti-hallucination
+regime. The schema version stays at 3 — new fields are required when
+present but pre-v2.2 projects (no manifest files) remain valid.
+
+### `gather_trace.yml` (Item 5: Self-RAG adaptive retrieval)
+
+Written by `/research-gather` Phase 2. Every WebSearch+WebFetch emits a
+structured reflection record with `is_relevant` / `is_supported` /
+`is_useful` and a `decision` (`accept` / `reject` / `escalate_to_manual`).
+Backed by Self-RAG (Asai 2023 ICLR) + FAIR-RAG (Asl 2025 — confirming
+2023-2025 convergence on adaptive iterative refinement).
+
+The trace makes the discovery step auditable after the fact: every
+search that *didn't* yield a source stays in the trace as evidence the
+search was performed deliberately. `/freshness-audit` Phase 4 reads it
+for discovery-rigor metrics; `build_dashboard.py` surfaces fetches-
+reviewed / accept-rate / escalations as a "Discovery Rigor" section.
+
+Schema template: `templates/gather_trace.template.yml`.
+Validator: `validators/gather_trace.py`.
+
+### `pre_selection_manifest.yml` (Item 3: Attribute-First refactor)
+
+Written by `/agent-index` Phase 2b. Commits to evidence spans BEFORE any
+bullet prose is generated. Validator rejects any evidence_id whose
+anchor isn't in the manifest — post-hoc rationalization becomes
+mechanically impossible.
+
+Phase 2 sub-phases:
+- **2a — span-select**: open `cache_manifest` text_paths and pick spans
+  per atomic claim. Record byte offsets + sha256 + excerpt.
+- **2b — plan**: emit `pre_selection_manifest.yml` with one selection
+  per (bullet, atom) pair.
+- **2c — generate**: write bullets conditioned ONLY on selected spans.
+
+Backed by Attribute-First (Slobodkin 2024 ACL) + C²-Cite (Yu 2026
+WSDM) + Gen-vs-Posthoc (Saxena 2025; G-Cite > P-Cite empirical
+justification).
+
+Schema template: `templates/pre_selection_manifest.template.yml`.
+Validator: `validators/pre_selection_manifest.py` (reuses v3
+`verify_excerpt_anchor` for substring + sha256 + bytes-equality).
+
+### Atomic claim IDs (Item 1: atomic decomposition)
+
+`/agent-index` Phase 2 emits 2–5 atomic claim_ids per 5-bullet block
+(naming: `claim_<topic>_b<N>_a<M>_<descriptor>`) instead of one
+bullet-level claim_id. Each atom binds to ONE pre-selected span.
+`build_claim_graph.py` needs no schema change — the existing
+many-to-many evidence→claim mapping already supports atom granularity.
+
+Backed by FActScore (Min 2023 EMNLP) + RAGTruth (Niu 2024) + VISTA
+(Lewis 2025) + AtomEval (Cen 2026) + VeriFact (Liu 2025).
+
+v2.2 ships **free-text atoms** (string per atom). SROM 4-tuple
+(subject-relation-object-modifier) atomic structure deferred to v2.3
+once free-text usage surfaces friction.
+
+### Dashboard additions (v3 evidence ledgers)
+
+`build_dashboard.py` surfaces two new Claim Health rows when
+`schema_version: 3`:
+
+- **corroborated (≥2 independent sources)**: % of claims supported by
+  evidence from ≥2 distinct `source_url`s. Implements Item 2's scoring
+  half (aggregation half was already in v2.1's builder).
+- **atoms fully supported**: % of claims where all supporting evidence
+  has `evidence_role_strength: full`.
+
+Both gate on v3 schema; v2 fixtures emit only the v2.1 rows.
+
+### Cross-cutting note
+
+v2.2 settles into "use" posture after shipping. v2.3 candidates from
+the saturated backlog include SROM atom upgrade, multi-agent debate
+harness, and semantic-entropy citation audit — not planned until
+specific friction surfaces.
