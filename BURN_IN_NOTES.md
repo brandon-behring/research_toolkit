@@ -804,6 +804,103 @@ No breaking changes to ledger schema or skill workflows; just three small alignm
 
 ---
 
+## Phase 8: meta-research dogfood + v2.2 backlog — applied 2026-05-19
+
+**Theme**: apply the toolkit's own v2.1.0 chain to research v2.2 design
+candidates. The project's primary deliverable is the v2.2 design backlog
+markdown (`references/v2_2_design_backlog.md`), with every backlog item
+byte-anchored to a v3 strict-live evidence record.
+
+**Project**: `~/Claude/research_toolkit_design/` (not committed to this
+repo). **6 entries** spanning 5 sub-areas of anti-hallucination
+methodology:
+- FActScore (Min 2023 EMNLP) — atomic-fact decomposition
+- VISTA (Lewis 2025) — dialogue-history-aware atomic verification
+- Slobodkin Attribute-First (2024 ACL) — span-conditioned generation
+- Farquhar Semantic Entropy (Nature 2024) — confabulation detection
+- Self-RAG (Asai 2023 ICLR) — adaptive retrieval + reflection tokens
+- Faithfulness metric fusion (Malin 2025 arXiv 2512.05700) — multi-metric
+  ensemble for LLM-as-judge
+
+All 6 sources fetched live via `cache_source.py` (real arxiv + PMC HTML,
+real SHA-256s). v3 evidence ledger built with `extraction_method:
+verbatim_match` on all 6 entries, substring + SHA-256 anchors computed
+for each cited excerpt. Citation audit: **6/6 substring checks pass
+(100%), 100% verbatim-anchored, avg link_confidence 0.967.**
+
+**v3 chain end-to-end pass at multi-source scale.** Dashboard correctly
+shows: 6/6 evidence coverage, 6/6 cache completeness, 0 conflicts, 0
+weak claims, Claim Health 6/6 strongly grounded. research_kb_export
+produces 30-record JSONL (6 entities + 6 sources + 6 claims + 6
+evidences + 6 cache_blobs) — all validators clean.
+
+**Deliverable**: `references/v2_2_design_backlog.md` committed to this
+repo. 6 backlog items, 3 Tier-1, each with v3 evidence cross-reference,
+v2.1-gap-closed analysis, proposed mechanism, effort estimate. Top 3
+Tier-1 picks for v2.2.0 next-session implementation:
+1. Item 3 — Attribute-First refactor of /agent-index (L effort)
+2. Item 1 — Atomic-claim decomposition in /agent-index (M effort)
+3. Item 5 — Self-RAG adaptive retrieval in /research-gather (M effort)
+
+### Friction items (5 surfaced, 0 applied, 5 deferred)
+
+**1. `/dossier-build` and `/agent-index` skipped during Phase 8 dogfood
+   (status: surfaced — known from Phase 4)**
+- Per the established pattern (Phase 4 + Phase 5 also skipped these),
+  the markdown-rendering steps weren't run in this session. The v3 trust
+  chain doesn't depend on them; project artifacts are the ledgers +
+  claim_graph + dashboard + export.
+- **Implication for v2.2**: this confirms friction item #7 from Phase 5
+  BURN_IN — `/dossier-build` and `/agent-index` aren't on the v3 trust
+  chain critical path; the docs / skill descriptions should explicitly
+  state this split.
+
+**2. Real WebSearch / WebFetch effort scales linearly with source count
+   (status: surfaced — confirmed at scale)**
+- 6 sources × ~10 tool calls per source (search + fetch + cache +
+  excerpt extraction + offset computation + yaml entry) = ~60 tool calls
+  for the gather phase alone.
+- **Implication for v2.2**: Item 5 (Self-RAG adaptive retrieval) is the
+  v2.2 fix — `gather_trace.yml` records IsRel/IsSup/IsUse per fetch so
+  the per-source cost is reviewable + auditable.
+
+**3. excerpt + offset computation is unguided LLM work (status:
+   surfaced — Phase 4 friction #5 confirmed at v3 scale)**
+- For each evidence entry: open cached text_path, find a quotable span
+  (~200 chars), compute byte offset via `text_bytes.find()`, hash with
+  hashlib. Tedious; per-source overhead grows with source count.
+- **v2.2 candidate fix**: new `scripts/locate_excerpt.py` helper that,
+  given (cache_id, target_substring), returns (text_path_offset, sha256)
+  ready to paste into evidence_ledger. Could be invoked from
+  /research-gather skill body.
+
+**4. arxiv `citation_abstract` meta tag is reliable; PMC pages lack it
+   (status: surfaced — NEW)**
+- Farquhar et al. 2024 (PMC URL) has NO `citation_abstract` meta. Had
+  to scan the cached text for a quotable methodology sentence by keyword
+  search ("semantic entropy" + "confabulation"). Worked but ad-hoc.
+- **v2.2 candidate**: per-source-type excerpt extraction protocols
+  documented in `references/excerpt_extraction_cheatsheet.md` (arxiv:
+  citation_abstract; PMC: first paragraph of abstract section; vendor
+  blog: first paragraph after H1; etc.).
+
+**5. Cross-source synthesis claims need editorial work the builder can't
+   provide (status: surfaced — confirms v2.0 backlog #3)**
+- Each of the 6 claims in this project is single-source — supported by
+  exactly one evidence entry. A real research synthesis would aggregate
+  multi-source evidence into cross-cutting claims (e.g., "atomic
+  decomposition is necessary for fine-grained factuality eval, per both
+  FActScore and VISTA"). v2.1's builder produces single-evidence claims;
+  multi-evidence aggregation works (per Phase 5 dogfood) but the
+  cross-source synthesis claim TEXT is still editorial.
+- **v2.2 candidate**: when 3+ evidences support the same claim_id,
+  /agent-index Phase 2 rewrites the claim text into a cross-source
+  synthesis sentence. This is editorial work an LLM does in the
+  /agent-index step. Documented in the backlog (Item 2 — cross-source
+  corroboration).
+
+---
+
 ## v2.1.0: anti-hallucination strict-live (Phase 7) — shipped 2026-05-19
 
 **Theme**: 6 of 7 Tier-1 items from the external-research synthesis (3 batches,
