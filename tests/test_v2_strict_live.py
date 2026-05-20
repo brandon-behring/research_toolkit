@@ -18,6 +18,7 @@ from validators import cache_manifest, claim_graph, evidence_ledger, freshness, 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_ai_agents"
 MULTI_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_multi_entry"
+V3_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v3_strict_live_demo"
 
 
 def test_v2_fixture_passes_all_validators() -> None:
@@ -544,6 +545,108 @@ def test_claim_graph_rejects_duplicate_record_id(tmp_path: Path) -> None:
     _write_jsonl(path, records)
     errors = claim_graph.validate(path)
     assert any("duplicate id" in e for e in errors), errors
+
+
+# ----- v3 strict-live tests (schema_version: 3, span-anchored evidence) -----
+
+
+def test_v3_fixture_passes_all_validators() -> None:
+    assert bib_ledger.validate(V3_FIXTURE / "bib_ledger.yml") == []
+    assert cache_manifest.validate(V3_FIXTURE / "cache_manifest.yml") == []
+    assert evidence_ledger.validate(V3_FIXTURE / "evidence_ledger.yml") == []
+    assert claim_graph.validate(V3_FIXTURE / "claim_graph.jsonl") == []
+    errors = freshness.validate(V3_FIXTURE, strict=True, today=date(2026, 5, 19))
+    assert errors == [], errors
+
+
+def test_v3_rejects_missing_extraction_method(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    del data["entries"][0]["supports"][0]["extraction_method"]
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("extraction_method" in e for e in errors), errors
+
+
+def test_v3_rejects_missing_link_confidence(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    del data["entries"][0]["supports"][0]["link_confidence"]
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("link_confidence" in e for e in errors), errors
+
+
+def test_v3_rejects_link_confidence_above_cap(tmp_path: Path) -> None:
+    """paraphrase caps at 0.85; assigning 0.95 must fail."""
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"][0]["supports"][0]["extraction_method"] = "paraphrase"
+    data["entries"][0]["supports"][0]["link_confidence"] = 0.95
+    # paraphrase doesn't require excerpt_anchor; remove it so the test isolates
+    # the cap-violation error rather than substring failures
+    del data["entries"][0]["supports"][0]["excerpt_anchor"]
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("exceeds cap" in e for e in errors), errors
+
+
+def test_v3_substring_check_catches_mismatched_excerpt(tmp_path: Path) -> None:
+    """If the excerpt doesn't match the bytes at text_path_offset, validation fails."""
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"][0]["excerpt"] = "completely different text not in the cache"
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("excerpt does not match span" in e for e in errors), errors
+
+
+def test_v3_substring_check_catches_wrong_sha(tmp_path: Path) -> None:
+    """If sha256_of_span doesn't match actual span bytes, validation fails."""
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"][0]["supports"][0]["excerpt_anchor"]["sha256_of_span"] = "0" * 64
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("sha256_of_span" in e for e in errors), errors
+
+
+def test_v3_llm_inferred_requires_inference_chain(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    support = data["entries"][0]["supports"][0]
+    support["extraction_method"] = "llm_inferred"
+    support["link_confidence"] = 0.50
+    del support["excerpt_anchor"]
+    # no inference_chain → should fail
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("inference_chain" in e for e in errors), errors
+
+
+def test_v3_manual_override_requires_user_note_source(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"][0]["supports"][0]["extraction_method"] = "manual_override"
+    del data["entries"][0]["supports"][0]["excerpt_anchor"]
+    # source_quality remains "primary", not "user_note" → should fail
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("manual_override" in e and "user_note" in e for e in errors), errors
 
 
 def test_v2_skills_codify_strict_live_cache_and_export_rules() -> None:

@@ -1,0 +1,24 @@
+schema_version: 3
+topic: v3_demo
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+entries:
+- bibkey: demo2026v3paper
+  primary_url: https://example.com/papers/v3-demo
+  title: V3 Demo Paper
+  status: verified
+  claim_family: paper
+  retrieved_at: 2026-05-19
+  verified_at: 2026-05-19
+  verification_method: webfetch
+  verified_fields:
+  - title
+  - primary_url
+  freshness_tier: active
+  stale_after_days: 90
+  evidence_ids:
+  - ev_v3_accuracy_quote
+  cache_ids:
+  - cache_v3_demo_paper

@@ -1,11 +1,17 @@
-"""Shared strict-live v2 validation helpers."""
+"""Shared strict-live v2/v3 validation helpers."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+import hashlib
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+ALLOWED_SCHEMA_VERSIONS = (2, 3)
+# v2 = legacy strictness (no per-link verification required)
+# v3 = v2.1 anti-hallucination regime: span-anchored extraction_method,
+#      link_confidence caps, substring validation for verbatim_match
 
 STRICT_LIVE_TOP_FIELDS = (
     "schema_version",
@@ -65,7 +71,91 @@ def load_yaml_mapping(path: Path) -> tuple[dict[str, Any] | None, list[str]]:
 
 
 def is_v2_mapping(data: dict[str, Any]) -> bool:
-    return data.get("schema_version") == 2
+    """True for any strict-live mapping (schema_version 2 or 3)."""
+    return data.get("schema_version") in ALLOWED_SCHEMA_VERSIONS
+
+
+def is_v3_mapping(data: dict[str, Any]) -> bool:
+    """True only for v3-strict mappings (per-link verification required)."""
+    return data.get("schema_version") == 3
+
+
+def verify_excerpt_anchor(
+    *,
+    excerpt: str,
+    cache_id: str,
+    text_path_offset: list[int],
+    sha256_of_span: str,
+    cache_entries_by_id: dict[str, dict[str, Any]],
+    manifest_path: Path,
+    loc: str,
+) -> list[str]:
+    """Verify a v3 excerpt_anchor against the cached text_path.
+
+    Substring + hash + slice-bytes-equality. Closes the hallucination gap:
+    "source is real" (cache_manifest) vs "the link between source and claim
+    is real" (this check). Returns list of error strings (empty = OK).
+    """
+    errors: list[str] = []
+
+    cache_entry = cache_entries_by_id.get(cache_id)
+    if cache_entry is None:
+        return [
+            f"{loc}.excerpt_anchor.cache_id: {cache_id!r} not found in cache_manifest. "
+            f"Known cache_ids: {sorted(cache_entries_by_id)[:5]}{'...' if len(cache_entries_by_id) > 5 else ''}"
+        ]
+
+    text_path_value = cache_entry.get("text_path")
+    if not isinstance(text_path_value, str):
+        return [f"{loc}.excerpt_anchor: cache_manifest entry has no text_path"]
+
+    text_path = Path(text_path_value).expanduser()
+    if not text_path.is_absolute():
+        text_path = (manifest_path.parent / text_path).resolve()
+
+    if not text_path.exists():
+        return [f"{loc}.excerpt_anchor: text_path file does not exist: {text_path}"]
+
+    if not isinstance(text_path_offset, list) or len(text_path_offset) != 2:
+        return [
+            f"{loc}.excerpt_anchor.text_path_offset: must be [start, end] integers"
+        ]
+    start, end = text_path_offset
+    if not isinstance(start, int) or not isinstance(end, int):
+        return [f"{loc}.excerpt_anchor.text_path_offset: must be [int, int]"]
+    if start < 0 or end <= start:
+        return [
+            f"{loc}.excerpt_anchor.text_path_offset: must be [0 <= start < end], got [{start}, {end}]"
+        ]
+
+    text_bytes = text_path.read_bytes()
+    if end > len(text_bytes):
+        return [
+            f"{loc}.excerpt_anchor.text_path_offset: end {end} exceeds text length {len(text_bytes)}"
+        ]
+
+    span_bytes = text_bytes[start:end]
+    actual_hash = hashlib.sha256(span_bytes).hexdigest()
+    if actual_hash != sha256_of_span:
+        errors.append(
+            f"{loc}.excerpt_anchor.sha256_of_span: expected {sha256_of_span}, "
+            f"actual {actual_hash} for bytes [{start}:{end}] of {text_path.name}"
+        )
+
+    # Excerpt-equality check (whitespace-normalized)
+    span_text = span_bytes.decode("utf-8", errors="replace")
+    if _normalize_ws(span_text) != _normalize_ws(excerpt):
+        errors.append(
+            f"{loc}.excerpt_anchor: excerpt does not match span at offset [{start}:{end}]. "
+            f"Span starts: {span_text[:80]!r}..."
+        )
+
+    return errors
+
+
+def _normalize_ws(s: str) -> str:
+    """Collapse runs of whitespace to a single space; strip ends."""
+    return " ".join(s.split())
 
 
 def parse_iso_date(value: Any, loc: str) -> tuple[date | None, str | None]:
@@ -110,8 +200,10 @@ def validate_strict_live_top(data: dict[str, Any], *, loc: str = "top-level") ->
         if field not in data:
             errors.append(f"{loc}: missing required v2 field '{field}'")
 
-    if data.get("schema_version") != 2:
-        errors.append(f"{loc}.schema_version: must be 2 for strict-live artifacts")
+    if data.get("schema_version") not in ALLOWED_SCHEMA_VERSIONS:
+        errors.append(
+            f"{loc}.schema_version: must be one of {list(ALLOWED_SCHEMA_VERSIONS)} for strict-live artifacts"
+        )
 
     for field in ("topic", "freshness_policy"):
         if field in data:

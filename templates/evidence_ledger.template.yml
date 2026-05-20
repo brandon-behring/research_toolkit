@@ -1,9 +1,23 @@
-# Evidence ledger template (strict-live v2)
+# Evidence ledger template (strict-live v2/v3)
 # Maintained by /research-gather, /dataset-gather, /freshness-audit.
 #
 # Every substantive Markdown claim should map to an evidence_id here.
+#
+# schema_version: 2 = legacy strictness (no per-link verification required)
+# schema_version: 3 = v2.1 strict-live anti-hallucination regime
+#   - REQUIRED on every supports[] entry: extraction_method, link_confidence
+#   - REQUIRED when extraction_method=verbatim_match: excerpt_anchor with substring check
+#   - REQUIRED when extraction_method=llm_inferred: inference_chain (≥1 evidence_ids)
+#
+# v3 link_confidence caps by extraction_method:
+#   verbatim_match    → max 1.0   (substring check enforces truth)
+#   paraphrase        → max 0.85  (cache_id resolves but no exact match required)
+#   user_asserted     → max 0.95  (user takes responsibility)
+#   llm_inferred      → max 0.60  (inference chain to grounded leaves required)
+#   propagated_from_child → max 0.50
+#   manual_override   → user-controlled, requires source_quality: user_note
 
-schema_version: 2
+schema_version: 3
 topic: '<topic slug>'
 generated_at: <YYYY-MM-DD>
 current_as_of: <YYYY-MM-DD>
@@ -21,7 +35,16 @@ entries:
   supports:
   - claim_id: claim_<topic>_0001
     field_path: bib_ledger.entries[0].title
-    evidence_role: supports   # supports | contradicts | qualifies | defines | dates | identifies
+    evidence_role: identifies       # supports | contradicts | qualifies | defines | dates | identifies | mentions
+    evidence_role_strength: full    # v3 NEW: full | partial | none (graded support per Self-RAG IsSup)
+    extraction_method: verbatim_match  # v3 NEW: verbatim_match | paraphrase | llm_inferred | propagated_from_child | user_asserted | manual_override
+    link_confidence: 0.98           # v3 NEW: per-link confidence, capped by extraction_method
+    excerpt_anchor:                 # v3 NEW: REQUIRED when extraction_method=verbatim_match
+      cache_id: cache_<sha-prefix>  # which cache blob's text_path to verify against
+      text_path_offset: [4821, 4862]  # [start, end] byte offsets in text_path UTF-8 bytes
+      sha256_of_span: <64 lowercase hex chars>  # sha256 of bytes at that offset
+    # inference_chain:              # v3 NEW: REQUIRED when extraction_method=llm_inferred (list of evidence_ids)
+    # - ev_topic_0002
   excerpt: '<short claim-supporting excerpt or extracted metadata summary>'
   rights_status: private_use  # public | private_use | restricted | unknown | cache_only
   confidence:
@@ -29,3 +52,8 @@ entries:
     factors:
     - primary source
     - cached raw snapshot
+    domains:                  # v3 NEW (optional): GRADE-style multi-domain confidence
+      source_quality: high    # high | moderate | low
+      recency: high
+      consistency: moderate   # how many independent evidence_ids support the same claim
+      directness: high        # how directly the cited span addresses the claim

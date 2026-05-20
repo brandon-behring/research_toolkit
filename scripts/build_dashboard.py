@@ -21,6 +21,7 @@ if __package__ in (None, ""):
 
 from validators.jsonl_common import load_jsonl
 from validators.v2_common import (
+    is_v3_mapping,
     load_yaml_mapping,
     parse_iso_date,
     stale_error_for_entry,
@@ -182,6 +183,47 @@ def build(project_dir: Path, today: date) -> str:
     if not action_lines:
         action_lines.append("- (no action needed)")
 
+    # v3-only: Claim Health (FACT framework) metrics
+    claim_health_lines: list[str] = []
+    if is_v3_mapping(evidence_data):
+        total_links = 0
+        verbatim_match_count = 0
+        strong_count = 0
+        partial_count = 0
+        weak_count = 0
+        strong_methods = {"verbatim_match", "user_asserted"}
+        partial_methods = {"paraphrase", "manual_override"}
+        weak_methods = {"llm_inferred", "propagated_from_child"}
+        for entry in evidence_entries:
+            if not isinstance(entry, dict):
+                continue
+            for support in (entry.get("supports") or []):
+                if not isinstance(support, dict):
+                    continue
+                total_links += 1
+                method = support.get("extraction_method")
+                if method == "verbatim_match":
+                    verbatim_match_count += 1
+                if method in strong_methods:
+                    strong_count += 1
+                elif method in partial_methods:
+                    partial_count += 1
+                elif method in weak_methods:
+                    weak_count += 1
+        if total_links:
+            vm_pct = round(100 * verbatim_match_count / total_links)
+            strong_pct = round(100 * strong_count / total_links)
+            claim_health_lines = [
+                "",
+                "## Claim Health (FACT framework)",
+                "",
+                f"- total support links: {total_links}",
+                f"- verbatim-anchored: {verbatim_match_count}/{total_links} ({vm_pct}%)",
+                f"- strongly grounded: {strong_count}/{total_links} ({strong_pct}%)",
+                f"- partially grounded: {partial_count}/{total_links}",
+                f"- weakly grounded (inferred/propagated): {weak_count}/{total_links}",
+            ]
+
     title = _title_case(topic) if isinstance(topic, str) else "Research"
     lines = [
         f"# {title} — Trust Dashboard",
@@ -200,6 +242,7 @@ def build(project_dir: Path, today: date) -> str:
         "## Action Queue",
         "",
         *action_lines,
+        *claim_health_lines,
         "",
     ]
     return "\n".join(lines)

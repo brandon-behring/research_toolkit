@@ -13,11 +13,13 @@ from validators._common import URL_RE
 from validators.v2_common import (
     ALLOWED_RIGHTS_STATUS,
     ALLOWED_VERIFICATION_METHODS,
+    is_v3_mapping,
     load_yaml_mapping,
     parse_iso_date,
     validate_nonempty_string,
     validate_strict_live_top,
     validate_string_list,
+    verify_excerpt_anchor,
 )
 
 URL_PATTERN = re.compile(rf"^{URL_RE}$")
@@ -42,6 +44,25 @@ ALLOWED_EVIDENCE_ROLES = {
     "defines",
     "dates",
     "identifies",
+    "mentions",  # v3: weak link, weaker than supports (Scite-style)
+}
+ALLOWED_EVIDENCE_ROLE_STRENGTHS = {"full", "partial", "none"}  # v3 only
+ALLOWED_EXTRACTION_METHODS = {
+    "verbatim_match",       # exact span in cache; substring + sha256 validated
+    "paraphrase",           # claim derived from cache content but not verbatim
+    "llm_inferred",         # synthesis; requires non-empty inference_chain
+    "propagated_from_child",  # inherited from another evidence record
+    "user_asserted",        # user takes responsibility
+    "manual_override",      # requires source_quality: user_note
+}
+ALLOWED_CONFIDENCE_DOMAIN_LEVELS = {"high", "moderate", "low"}
+EXTRACTION_METHOD_CAPS = {
+    "verbatim_match": 1.0,
+    "paraphrase": 0.85,
+    "user_asserted": 0.95,
+    "llm_inferred": 0.60,
+    "propagated_from_child": 0.50,
+    "manual_override": 1.0,  # user-controlled, but source_quality must be user_note
 }
 REQUIRED_ENTRY_FIELDS = (
     "evidence_id",
@@ -57,7 +78,16 @@ REQUIRED_ENTRY_FIELDS = (
 )
 
 
-def _validate_support(support: Any, *, loc: str) -> list[str]:
+def _validate_support(
+    support: Any,
+    *,
+    loc: str,
+    is_v3: bool = False,
+    entry_source_quality: str | None = None,
+    entry_excerpt: str | None = None,
+    cache_entries_by_id: dict[str, Any] | None = None,
+    manifest_path: Path | None = None,
+) -> list[str]:
     errors: list[str] = []
     if not isinstance(support, dict):
         return [f"{loc}: must be a mapping"]
@@ -71,10 +101,98 @@ def _validate_support(support: Any, *, loc: str) -> list[str]:
     role = support.get("evidence_role")
     if isinstance(role, str) and role not in ALLOWED_EVIDENCE_ROLES:
         errors.append(f"{loc}.evidence_role: {role!r} not in {sorted(ALLOWED_EVIDENCE_ROLES)}")
+
+    if not is_v3:
+        return errors
+
+    # v3-only: per-link verification fields are required
+    method = support.get("extraction_method")
+    if method is None:
+        errors.append(f"{loc}: missing required v3 field 'extraction_method'")
+    elif method not in ALLOWED_EXTRACTION_METHODS:
+        errors.append(
+            f"{loc}.extraction_method: {method!r} not in {sorted(ALLOWED_EXTRACTION_METHODS)}"
+        )
+
+    link_conf = support.get("link_confidence")
+    if link_conf is None:
+        errors.append(f"{loc}: missing required v3 field 'link_confidence'")
+    elif not isinstance(link_conf, (int, float)) or not 0 <= float(link_conf) <= 1:
+        errors.append(f"{loc}.link_confidence: must be a number from 0 to 1")
+    elif isinstance(method, str) and method in EXTRACTION_METHOD_CAPS:
+        cap = EXTRACTION_METHOD_CAPS[method]
+        if float(link_conf) > cap:
+            errors.append(
+                f"{loc}.link_confidence: {link_conf} exceeds cap {cap} for "
+                f"extraction_method={method!r}"
+            )
+
+    strength = support.get("evidence_role_strength")
+    if strength is None:
+        errors.append(f"{loc}: missing required v3 field 'evidence_role_strength'")
+    elif strength not in ALLOWED_EVIDENCE_ROLE_STRENGTHS:
+        errors.append(
+            f"{loc}.evidence_role_strength: {strength!r} not in {sorted(ALLOWED_EVIDENCE_ROLE_STRENGTHS)}"
+        )
+
+    # extraction_method-specific requirements
+    if method == "verbatim_match":
+        anchor = support.get("excerpt_anchor")
+        if not isinstance(anchor, dict):
+            errors.append(
+                f"{loc}: extraction_method=verbatim_match requires excerpt_anchor mapping "
+                f"(cache_id + text_path_offset + sha256_of_span)"
+            )
+        elif cache_entries_by_id is not None and entry_excerpt is not None and manifest_path is not None:
+            for field in ("cache_id", "text_path_offset", "sha256_of_span"):
+                if field not in anchor:
+                    errors.append(f"{loc}.excerpt_anchor: missing required field {field!r}")
+            if all(f in anchor for f in ("cache_id", "text_path_offset", "sha256_of_span")):
+                errors.extend(
+                    verify_excerpt_anchor(
+                        excerpt=entry_excerpt,
+                        cache_id=anchor["cache_id"],
+                        text_path_offset=anchor["text_path_offset"],
+                        sha256_of_span=anchor["sha256_of_span"],
+                        cache_entries_by_id=cache_entries_by_id,
+                        manifest_path=manifest_path,
+                        loc=loc,
+                    )
+                )
+
+    elif method == "llm_inferred":
+        chain = support.get("inference_chain")
+        if not isinstance(chain, list) or not chain:
+            errors.append(
+                f"{loc}: extraction_method=llm_inferred requires non-empty inference_chain "
+                f"(list of evidence_ids that ground this inference)"
+            )
+
+    elif method == "propagated_from_child":
+        chain = support.get("inference_chain")
+        if not isinstance(chain, list) or not chain:
+            errors.append(
+                f"{loc}: extraction_method=propagated_from_child requires non-empty inference_chain"
+            )
+
+    elif method == "manual_override":
+        if entry_source_quality != "user_note":
+            errors.append(
+                f"{loc}: extraction_method=manual_override requires source_quality=user_note "
+                f"(entry has source_quality={entry_source_quality!r})"
+            )
+
     return errors
 
 
-def _validate_entry(entry: dict[str, Any], *, loc: str) -> list[str]:
+def _validate_entry(
+    entry: dict[str, Any],
+    *,
+    loc: str,
+    is_v3: bool = False,
+    cache_entries_by_id: dict[str, Any] | None = None,
+    manifest_path: Path | None = None,
+) -> list[str]:
     errors: list[str] = []
     for field in REQUIRED_ENTRY_FIELDS:
         if field not in entry:
@@ -121,8 +239,22 @@ def _validate_entry(entry: dict[str, Any], *, loc: str) -> list[str]:
     if not isinstance(supports, list) or not supports:
         errors.append(f"{loc}.supports: must be a non-empty list")
     elif isinstance(supports, list):
+        entry_excerpt = entry.get("excerpt") if isinstance(entry.get("excerpt"), str) else None
+        entry_source_quality = (
+            entry.get("source_quality") if isinstance(entry.get("source_quality"), str) else None
+        )
         for idx, support in enumerate(supports):
-            errors.extend(_validate_support(support, loc=f"{loc}.supports[{idx}]"))
+            errors.extend(
+                _validate_support(
+                    support,
+                    loc=f"{loc}.supports[{idx}]",
+                    is_v3=is_v3,
+                    entry_source_quality=entry_source_quality,
+                    entry_excerpt=entry_excerpt,
+                    cache_entries_by_id=cache_entries_by_id,
+                    manifest_path=manifest_path,
+                )
+            )
 
     if "confidence" in entry:
         confidence = entry["confidence"]
@@ -134,6 +266,19 @@ def _validate_entry(entry: dict[str, Any], *, loc: str) -> list[str]:
                 isinstance(score, (int, float)) and 0 <= float(score) <= 1
             ):
                 errors.append(f"{loc}.confidence.score: must be a number from 0 to 1")
+
+            # v3 optional: confidence.domains{} multi-domain GRADE-style
+            domains = confidence.get("domains")
+            if domains is not None:
+                if not isinstance(domains, dict):
+                    errors.append(f"{loc}.confidence.domains: must be a mapping when present")
+                else:
+                    for dkey, dval in domains.items():
+                        if dval not in ALLOWED_CONFIDENCE_DOMAIN_LEVELS:
+                            errors.append(
+                                f"{loc}.confidence.domains.{dkey}: {dval!r} not in "
+                                f"{sorted(ALLOWED_CONFIDENCE_DOMAIN_LEVELS)}"
+                            )
 
     return errors
 
@@ -150,6 +295,26 @@ def validate(path: Path) -> list[str]:
         errors.append("'entries' must be a non-empty list")
         return errors
 
+    is_v3 = is_v3_mapping(data)
+    # For v3, attempt to load the sibling cache_manifest.yml so excerpt_anchor
+    # substring validation can run. If not present, v3 is still validated for
+    # field shape but substring checks are skipped (with a warning).
+    cache_entries_by_id: dict[str, Any] | None = None
+    manifest_path: Path | None = None
+    if is_v3:
+        manifest_candidate = path.parent / "cache_manifest.yml"
+        if manifest_candidate.exists():
+            manifest_path = manifest_candidate
+            mdata, _ = load_yaml_mapping(manifest_candidate)
+            if mdata is not None:
+                cache_entries_by_id = {
+                    e.get("cache_id"): e
+                    for e in (mdata.get("entries") or [])
+                    if isinstance(e, dict) and isinstance(e.get("cache_id"), str)
+                }
+        # If manifest is missing, the per-link verbatim_match checks will
+        # skip substring validation (only field-shape errors will surface).
+
     seen: set[str] = set()
     for idx, entry in enumerate(entries):
         loc = f"entries[{idx}]"
@@ -161,7 +326,15 @@ def validate(path: Path) -> list[str]:
             if evidence_id in seen:
                 errors.append(f"{loc}: duplicate evidence_id {evidence_id!r}")
             seen.add(evidence_id)
-        errors.extend(_validate_entry(entry, loc=loc))
+        errors.extend(
+            _validate_entry(
+                entry,
+                loc=loc,
+                is_v3=is_v3,
+                cache_entries_by_id=cache_entries_by_id,
+                manifest_path=manifest_path,
+            )
+        )
     return errors
 
 

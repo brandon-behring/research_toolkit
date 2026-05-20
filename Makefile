@@ -7,7 +7,7 @@ PY     := $(VENV)/bin/python
 # Real-world projects under ~/Claude/research_<topic>/ that exist on this machine.
 # `make audit` runs cross_stage --strict against any that exist.
 REAL_TOPICS := eval_methodology peft calibration rlhf
-SKILLS := research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export
+SKILLS := research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export citation-audit
 
 help:
 	@echo "Targets:"
@@ -67,6 +67,13 @@ v2-smoke:
 	$(PY) validators/cache_manifest.py tests/fixtures/v2_strict_live_multi_entry/cache_manifest.yml
 	$(PY) validators/claim_graph.py tests/fixtures/v2_strict_live_multi_entry/claim_graph.jsonl
 	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v2_strict_live_multi_entry
+	@echo "--- v3 strict-live fixture (span-anchored evidence) ---"
+	$(PY) validators/bib_ledger.py tests/fixtures/v3_strict_live_demo/bib_ledger.yml
+	$(PY) validators/evidence_ledger.py tests/fixtures/v3_strict_live_demo/evidence_ledger.yml
+	$(PY) validators/cache_manifest.py tests/fixtures/v3_strict_live_demo/cache_manifest.yml
+	$(PY) validators/claim_graph.py tests/fixtures/v3_strict_live_demo/claim_graph.jsonl
+	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v3_strict_live_demo
+	$(PY) scripts/verify_citations.py tests/fixtures/v3_strict_live_demo --today 2026-05-19
 
 builders-smoke:
 	$(PY) scripts/build_claim_graph.py tests/fixtures/v2_strict_live_ai_agents --output /tmp/built_claim_graph.jsonl

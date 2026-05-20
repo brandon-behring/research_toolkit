@@ -1,0 +1,5 @@
+{"canonical_name":"V3 Demo Paper","entity_type":"paper","id":"ent_demo2026v3paper","record_type":"entity","topic":"v3_demo"}
+{"cache_ids":["cache_v3_demo_paper"],"id":"src_https_example_com_papers_v3_demo","record_type":"source","source_url":"https://example.com/papers/v3-demo","topic":"v3_demo"}
+{"claim_type":"fact","confidence":{"factors":["source: primary","verified: webfetch"],"score":0.95},"entity_ids":["ent_demo2026v3paper"],"evidence_ids":["ev_v3_accuracy_quote"],"id":"claim_v3_demo_accuracy","record_type":"claim","status":"active","text":"91.2% accuracy","topic":"v3_demo"}
+{"cache_ids":["cache_v3_demo_paper"],"claim_ids":["claim_v3_demo_accuracy"],"evidence_id":"ev_v3_accuracy_quote","id":"graph_ev_v3_accuracy_quote","record_type":"evidence","topic":"v3_demo"}
+{"cache_id":"cache_v3_demo_paper","id":"graph_cache_v3_demo_paper","record_type":"cache_blob","sha256":"dce3321f731a306d2c8ce56e919a7286666b9aa8182ece804c33cefff718ef0b","topic":"v3_demo"}
