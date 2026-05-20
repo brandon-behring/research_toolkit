@@ -15,10 +15,29 @@ sys.path.insert(0, str(REPO_ROOT))
 from scripts import cache_source  # noqa: E402
 
 
-class _FakeResponse:
-    def __init__(self, body: bytes, content_type: str) -> None:
-        self._body = body
+class _FakeHeaders:
+    def __init__(self, content_type: str, extras: dict[str, str] | None = None) -> None:
         self._content_type = content_type
+        self._extras = extras or {}
+
+    def get_content_type(self) -> str:
+        return self._content_type
+
+    def get(self, key: str, default=None):
+        return self._extras.get(key, default)
+
+
+class _FakeResponse:
+    def __init__(
+        self,
+        body: bytes,
+        content_type: str,
+        status: int = 200,
+        extras: dict[str, str] | None = None,
+    ) -> None:
+        self._body = body
+        self.status = status
+        self.headers = _FakeHeaders(content_type, extras)
 
     def __enter__(self) -> "_FakeResponse":
         return self
@@ -29,17 +48,20 @@ class _FakeResponse:
     def read(self) -> bytes:
         return self._body
 
-    @property
-    def headers(self) -> "_FakeResponse":  # quack: get_content_type lives on headers
-        return self
-
-    def get_content_type(self) -> str:
-        return self._content_type
+    def getcode(self) -> int:
+        return self.status
 
 
-def _patch_fetch(monkeypatch: pytest.MonkeyPatch, body: bytes, content_type: str) -> None:
+def _patch_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+    body: bytes,
+    content_type: str,
+    *,
+    status: int = 200,
+    extras: dict[str, str] | None = None,
+) -> None:
     def fake_urlopen(req, timeout=30):
-        return _FakeResponse(body, content_type)
+        return _FakeResponse(body, content_type, status=status, extras=extras)
     monkeypatch.setattr(cache_source, "urlopen", fake_urlopen)
 
 
@@ -150,3 +172,95 @@ def test_main_prints_manifest_yaml(
     assert "source_url: https://example.com/yaml" in captured.out
     assert "content_type: text/html" in captured.out
     assert "restricted: false" in captured.out
+
+
+def test_cache_one_emits_etag_and_last_modified_on_capture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When the response carries ETag/Last-Modified, capture record records them."""
+    _patch_fetch(
+        monkeypatch,
+        b"<html>etag-test</html>",
+        "text/html",
+        extras={"ETag": 'W/"abc123"', "Last-Modified": "Wed, 21 Oct 2026 07:28:00 GMT"},
+    )
+    entry = cache_source.cache_one(
+        "https://example.com/etag-test",
+        cache_root=tmp_path,
+        fetched_at="2026-05-19",
+        topic="t",
+    )
+    assert entry["record_type"] == "capture"
+    assert entry["http_etag"] == 'W/"abc123"'
+    assert entry["http_last_modified"] == "Wed, 21 Oct 2026 07:28:00 GMT"
+
+
+def test_cache_one_304_emits_revisit_server_not_modified(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """304 response with prior_cache_id emits a server-not-modified revisit."""
+    def fake_urlopen(req, timeout=30):
+        from urllib.error import HTTPError
+        from email.message import EmailMessage
+        headers = EmailMessage()
+        headers["Content-Type"] = "text/html"
+        headers["ETag"] = 'W/"abc123"'
+        raise HTTPError(req.full_url, 304, "Not Modified", headers, None)
+    monkeypatch.setattr(cache_source, "urlopen", fake_urlopen)
+
+    entry = cache_source.cache_one(
+        "https://example.com/x",
+        cache_root=tmp_path,
+        fetched_at="2026-05-19",
+        topic="t",
+        if_etag='W/"abc123"',
+        prior_cache_id="cache_abc123",
+    )
+    assert entry["record_type"] == "revisit"
+    assert entry["revisit_profile"] == "server-not-modified"
+    assert entry["refers_to_cache_id"] == "cache_abc123"
+    assert entry["http_status"] == 304
+    # No raw bytes written for revisit
+    assert "raw_path" not in entry
+    assert "sha256" not in entry
+
+
+def test_cache_one_identical_payload_digest_revisit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """200 with the same hash as prior_sha256 emits an identical-payload-digest revisit."""
+    body = b"<html>same content</html>"
+    _patch_fetch(monkeypatch, body, "text/html")
+    import hashlib
+    digest = hashlib.sha256(body).hexdigest()
+
+    entry = cache_source.cache_one(
+        "https://example.com/same",
+        cache_root=tmp_path,
+        fetched_at="2026-05-19",
+        topic="t",
+        prior_cache_id=f"cache_{digest[:16]}",
+        prior_sha256=digest,
+    )
+    assert entry["record_type"] == "revisit"
+    assert entry["revisit_profile"] == "identical-payload-digest"
+    assert entry["http_status"] == 200
+    assert entry["refers_to_cache_id"] == f"cache_{digest[:16]}"
+
+
+def test_cache_one_new_content_emits_capture_linked_to_prior(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """200 with new hash emits a fresh capture but records refers_to_cache_id."""
+    _patch_fetch(monkeypatch, b"<html>different content</html>", "text/html")
+    entry = cache_source.cache_one(
+        "https://example.com/changed",
+        cache_root=tmp_path,
+        fetched_at="2026-05-19",
+        topic="t",
+        prior_cache_id="cache_oldhash_v1",
+        prior_sha256="0" * 64,  # deliberately different from new content
+    )
+    assert entry["record_type"] == "capture"
+    assert "raw_path" in entry  # bytes were written
+    assert entry["refers_to_cache_id"] == "cache_oldhash_v1"  # back-link recorded

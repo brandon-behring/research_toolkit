@@ -23,7 +23,13 @@ import re
 
 URL_PATTERN = re.compile(rf"^{URL_RE}$")
 ALLOWED_EXTRACTION_STATUS = {"ok", "partial", "raw_only", "failed"}
-REQUIRED_ENTRY_FIELDS = (
+ALLOWED_RECORD_TYPES = {"capture", "revisit", "metadata", "conversion"}
+ALLOWED_REVISIT_PROFILES = {"server-not-modified", "identical-payload-digest"}
+# v2.1: WARC-inspired revisit records save storage on re-fetch when the
+# remote content hasn't changed. A revisit record stores only the pointer
+# back to the original capture (refers_to_cache_id) plus the http response
+# metadata that justifies the revisit decision.
+REQUIRED_ENTRY_FIELDS_CAPTURE = (
     "cache_id",
     "source_url",
     "fetched_at",
@@ -37,6 +43,16 @@ REQUIRED_ENTRY_FIELDS = (
     "rights_status",
     "extraction_status",
 )
+REQUIRED_ENTRY_FIELDS_REVISIT = (
+    "cache_id",
+    "source_url",
+    "fetched_at",
+    "record_type",
+    "refers_to_cache_id",
+    "revisit_profile",
+)
+# Kept for backward compat — defaults to capture record fields
+REQUIRED_ENTRY_FIELDS = REQUIRED_ENTRY_FIELDS_CAPTURE
 
 
 def _resolve(path: Path, value: str) -> Path:
@@ -54,11 +70,45 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _validate_entry(entry: dict[str, Any], *, loc: str, manifest_path: Path) -> list[str]:
+def _validate_entry(
+    entry: dict[str, Any],
+    *,
+    loc: str,
+    manifest_path: Path,
+    capture_ids: set[str] | None = None,
+) -> list[str]:
     errors: list[str] = []
-    for field in REQUIRED_ENTRY_FIELDS:
+    record_type = entry.get("record_type", "capture")
+    if record_type not in ALLOWED_RECORD_TYPES:
+        errors.append(
+            f"{loc}.record_type: {record_type!r} not in {sorted(ALLOWED_RECORD_TYPES)}"
+        )
+
+    is_revisit = record_type == "revisit"
+
+    required_fields = REQUIRED_ENTRY_FIELDS_REVISIT if is_revisit else REQUIRED_ENTRY_FIELDS_CAPTURE
+    for field in required_fields:
         if field not in entry:
             errors.append(f"{loc}: missing required field '{field}'")
+
+    if is_revisit:
+        profile = entry.get("revisit_profile")
+        if profile is not None and profile not in ALLOWED_REVISIT_PROFILES:
+            errors.append(
+                f"{loc}.revisit_profile: {profile!r} not in {sorted(ALLOWED_REVISIT_PROFILES)}"
+            )
+        refers_to = entry.get("refers_to_cache_id")
+        if isinstance(refers_to, str) and capture_ids is not None:
+            if refers_to not in capture_ids:
+                import difflib
+                close = difflib.get_close_matches(refers_to, capture_ids, n=2, cutoff=0.6)
+                hint = f" (closest match: {close})" if close else ""
+                errors.append(
+                    f"{loc}.refers_to_cache_id: {refers_to!r} not found among "
+                    f"capture entries in this manifest{hint}"
+                )
+        # Revisit records skip the SHA-256/file existence checks below
+        return errors
 
     for field in ("cache_id", "source_url", "content_type", "sha256", "raw_path", "text_path", "metadata_path"):
         if field in entry:
@@ -142,6 +192,16 @@ def validate(path: Path) -> list[str]:
         errors.append("'entries' must be a non-empty list")
         return errors
 
+    # First pass: collect capture cache_ids for revisit cross-reference
+    capture_ids: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("record_type", "capture") == "capture":
+            cid = entry.get("cache_id")
+            if isinstance(cid, str):
+                capture_ids.add(cid)
+
     seen: set[str] = set()
     for idx, entry in enumerate(entries):
         loc = f"entries[{idx}]"
@@ -153,7 +213,9 @@ def validate(path: Path) -> list[str]:
             if cache_id in seen:
                 errors.append(f"{loc}: duplicate cache_id {cache_id!r}")
             seen.add(cache_id)
-        errors.extend(_validate_entry(entry, loc=loc, manifest_path=path))
+        errors.extend(
+            _validate_entry(entry, loc=loc, manifest_path=path, capture_ids=capture_ids)
+        )
     return errors
 
 

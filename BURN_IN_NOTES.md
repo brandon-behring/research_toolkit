@@ -837,11 +837,19 @@ fields on `evidence_ledger.supports[*]`. v2 entries are grandfathered.
 - #6 (`48639e2`): "Use when X" descriptions + paths globs across 6 v2/v3
   skills. Combats undertriggering when many skills compete.
 
-**Deferred to v2.1.1**:
-- #7 WARC revisit records + 304-first conditional GET in cache_source.py.
-  L effort; freshness improvement (not anti-hallucination), so safe to
-  defer past v2.1.0 ship. When implemented, will reduce storage on
-  rescans and add proactive freshness via HTTP ETag/If-None-Match.
+**Tier-1 #7 shipped** (post-initial-v2.1.0 ship, before tagging release):
+- #7 (commit `<v2.1.0d>`): WARC revisit records + 304-first conditional GET
+  in `scripts/cache_source.py` + `validators/cache_manifest.py`. New
+  `record_type` enum on cache_manifest entries (`capture` | `revisit` |
+  `metadata` | `conversion`). Revisit records carry `refers_to_cache_id`,
+  `refers_to_fetched_at`, `revisit_profile`
+  (`server-not-modified` | `identical-payload-digest`), `http_status`,
+  `http_etag`, `http_last_modified` — zero new bytes when the remote
+  content hasn't changed. cache_source.py accepts `--if-etag`,
+  `--if-last-modified`, `--prior-cache-id`, `--prior-sha256` to drive the
+  conditional GET. 7 new tests cover the three response paths (304
+  Not-Modified → revisit; 200 with identical hash → revisit; 200 with new
+  content → capture linked to prior). All 7 of 7 Tier-1 items now shipped.
 
 **Tests**: 201 passed + 2 xfailed. New v3 fixture
 (`tests/fixtures/v3_strict_live_demo/`) with 1-entry verbatim_match anchor

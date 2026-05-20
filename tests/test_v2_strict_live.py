@@ -649,6 +649,72 @@ def test_v3_manual_override_requires_user_note_source(tmp_path: Path) -> None:
     assert any("manual_override" in e and "user_note" in e for e in errors), errors
 
 
+# ----- Cache manifest revisit-record tests (v2.1.0 Tier-1 #7) -----
+
+
+def test_cache_manifest_accepts_revisit_record(tmp_path: Path) -> None:
+    """A revisit record referring to a real capture entry validates."""
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "cache_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    original = data["entries"][0]
+    data["entries"].append({
+        "cache_id": f"{original['cache_id']}_r20260620",
+        "source_url": original["source_url"],
+        "fetched_at": "2026-06-20",
+        "record_type": "revisit",
+        "refers_to_cache_id": original["cache_id"],
+        "refers_to_fetched_at": original["fetched_at"],
+        "revisit_profile": "server-not-modified",
+    })
+    _write_yaml(path, data)
+    errors = cache_manifest.validate(path)
+    assert errors == [], errors
+
+
+def test_cache_manifest_rejects_revisit_pointing_at_unknown_capture(tmp_path: Path) -> None:
+    """A revisit record with refers_to_cache_id not in the manifest must fail
+    with a closest-match suggestion."""
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "cache_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    real_capture_id = data["entries"][0]["cache_id"]
+    data["entries"].append({
+        "cache_id": "cache_revisit_bogus",
+        "source_url": "https://example.com/x",
+        "fetched_at": "2026-06-20",
+        "record_type": "revisit",
+        # Typo in refers_to_cache_id — should trigger closest-match hint
+        "refers_to_cache_id": real_capture_id + "_TYPO",
+        "revisit_profile": "server-not-modified",
+    })
+    _write_yaml(path, data)
+    errors = cache_manifest.validate(path)
+    assert any("refers_to_cache_id" in e and "not found" in e for e in errors), errors
+    assert any("closest match" in e for e in errors), errors
+
+
+def test_cache_manifest_rejects_bad_revisit_profile(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "cache_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    real_capture_id = data["entries"][0]["cache_id"]
+    data["entries"].append({
+        "cache_id": "cache_revisit_x",
+        "source_url": "https://example.com/x",
+        "fetched_at": "2026-06-20",
+        "record_type": "revisit",
+        "refers_to_cache_id": real_capture_id,
+        "revisit_profile": "not_a_real_profile",
+    })
+    _write_yaml(path, data)
+    errors = cache_manifest.validate(path)
+    assert any("revisit_profile" in e for e in errors), errors
+
+
 def test_v2_skills_codify_strict_live_cache_and_export_rules() -> None:
     skills = REPO_ROOT / ".claude" / "skills"
     gather = (skills / "research-gather.md").read_text(encoding="utf-8")
