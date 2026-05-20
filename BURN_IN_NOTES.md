@@ -10,6 +10,107 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.2.0 dogfood — Phase 1: migrate research_toolkit_design to v2.2 — 2026-05-20
+
+**Theme**: first real-world contact with v2.2's atomic + Attribute-First +
+adaptive-retrieval flow. Migrated the Phase 8 dogfood project (23 sources,
+v3 schema, ledger-only) into a full v2.2 layout by backfilling
+gather_trace.yml, renaming claim_ids to atomic naming, writing
+pre_selection_manifest.yml, and rendering agent_index/.
+
+**End-state metrics** (~/Claude/research_toolkit_design/):
+- 23 bib entries (unchanged from iter 10)
+- 23 fetches in gather_trace.yml (synthetic backfill, all accept)
+- 27 claims in claim_graph.jsonl (23 atomic + 4 cross-source synthesis)
+- 35 support links, 35/35 verbatim_match substring pass (100%)
+- 35 selections in pre_selection_manifest.yml
+- 4/27 corroborated (≥2 independent sources) — the synthesis claims
+- 24/27 atoms fully supported (3 synthesis claims have at least one
+  evidence_role_strength: partial binding)
+- 6 agent_index files (README + 5 topic files)
+- 119-line research-kb export, validator clean
+
+### Friction items (4 surfaced, 1 applied, 3 deferred to Phase 5)
+
+**1. Retroactive atomic decomposition is structurally limited (status:
+   surfaced — deferred to Phase 5 design discussion)**
+- The migration could only produce 1 atom per existing source — every
+  primary atom is `claim_toolkit_design_<bibkey>_a1`. Real
+  per-bullet decomposition (2–5 atoms per bullet via /agent-index
+  Phase 2c generation) requires the LLM to generate prose conditioned
+  on pre-selected spans, which is fresh-research work, not migration.
+- **Implication**: v2.2's "atomic decomposition" benefit shows up only
+  when /agent-index runs against fresh sources. Migrating existing
+  ledger-only projects yields the structural manifests but not the
+  atom granularity. Document this expectation in
+  references/strict_live_v2.md if not already clear.
+- The agent_index/ markdown DOES cite atomic claim_ids inline
+  ([claim_toolkit_design_<bibkey>_a1]), so the structural contract
+  holds — it just doesn't show off the multi-atom-per-bullet pattern.
+
+**2. Synthesis claims naturally produce the corroboration signal
+   (status: applied — confirms design intent)**
+- 4 synthesis claims × 3 sources each = 12 supports across the
+  synthesis namespace. Dashboard reports 4/27 corroborated, which IS
+  the design intent. The corroboration metric is meaningful on this
+  corpus even without multi-source atomic decomposition.
+- **No fix needed**: this is what the v2.2.0 backlog Item 2 (scoring
+  half) was supposed to deliver. Validated.
+
+**3. gather_trace.yml synthetic backfill validates clean but feels
+   noisy (status: surfaced — deferred)**
+- The 23 backfilled fetches all read `decision: accept, IsRel: true,
+  IsSup: full, IsUse: 5, reason: "primary peer-reviewed source aligned
+  with sub_area; retroactive backfill from iter 1-10"`. Honest about
+  the synthetic origin (the reason field flags it), but the resulting
+  trace doesn't exercise the reflection-mechanism's discrimination —
+  every entry rubber-stamps. The dashboard's Discovery Rigor section
+  reports 100% accept rate, which is structurally true but
+  uninformative.
+- **v2.3 candidate**: the validator could accept a top-level
+  `synthetic_backfill: true` flag that surfaces in the dashboard's
+  Discovery Rigor section as "(synthetic backfill — not actionable)"
+  to distinguish real reflection traces from backfills. Low-priority
+  unless other dogfoods produce backfilled traces too.
+
+**4. pre_selection_manifest mechanical writing was cheap — at this
+   scale (status: deferred / informational)**
+- 35 selections written programmatically from existing evidence_ledger
+  excerpts in ~30 lines of Python. No new byte-offset computation
+  needed (existing v3 evidence anchors already had offsets + sha256).
+- **Caveat**: this only worked because the project was already at v3
+  schema. Migrating a v2 (non-v3) project would need fresh substring
+  computation per excerpt. Document the v2→v3 path is a prerequisite
+  for the v2→v2.2 migration.
+
+### Notable validation moments
+
+- All v2.2 validators clean on the migrated project — the
+  pre_selection_manifest's `verify_excerpt_anchor` call re-verifies
+  each span via substring + sha256 + bytes-equality. 35/35 pass.
+- v2-smoke on the toolkit itself still 224 tests + 2 xfailed pass.
+- The atomic_grounding agent_index file (`01_atomic_grounding.md`)
+  ended up most demonstrative — 5 sources (FActScore + VISTA +
+  RAGTruth + AtomEval + VeriFact) all citing atomic IDs inline. This
+  is what a fully-realized atomic-decomposition agent_index would
+  look like.
+
+### Phase 1 conclusion
+
+v2.2 migration of an existing v3 project is **mechanical and cheap
+when the byte-anchored evidence already exists**. The benefit is
+structural (additive manifests, atomic naming, agent_index
+rendering), not semantic (atom-per-bullet decomposition needs fresh
+generation). The corroboration metric correctly identifies the 4
+cross-source synthesis claims as the multi-source backbone of the
+corpus.
+
+Migration didn't surface any v2.2 design bugs. Next: Phase 1.5
+(Playwright in cache_source.py) and Phases 2–4 (fresh-topic
+end-to-end runs) will be the more rigorous QA passes.
+
+---
+
 ## v2.2.0: atomic decomposition + Attribute-First + adaptive retrieval — shipped 2026-05-20
 
 **Theme**: ship the three Tier-1 items from the Phase 8 design backlog
