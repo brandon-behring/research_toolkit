@@ -141,6 +141,13 @@ Reuses paper-pipeline's `/dossier-audit` (focus area: "license risks + access st
 
 v2 projects add `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, and `research_kb_export.jsonl`. Full source snapshots are cached locally under `~/Claude/research_cache/` for private research use and later ingestion.
 
+Two helper scripts mechanize the artifacts the skills used to populate by hand:
+
+- `scripts/build_claim_graph.py <project_dir>` — emits `claim_graph.jsonl` from the project's ledgers + evidence_ledger + cache_manifest. Called from `/research-gather` Phase 4.
+- `scripts/build_dashboard.py <project_dir> --today <YYYY-MM-DD>` — emits `dashboard.md` with Trust State metrics + per-tier Action Queue. Called from `/freshness-audit` Phase 5.
+
+Both validate output before writing and accept `--no-overwrite` to refuse if the target file already exists.
+
 ## Defensive layer (v1.2+)
 
 Three guardrails the toolkit added after dogfood runs surfaced failure modes:
@@ -206,7 +213,8 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 | `make symlinks` | symlink all skill bodies into `~/.claude/skills/` |
 | `make test` | full pytest suite |
 | `make smoke` | single validator against the mini fixture |
-| `make v2-smoke` | strict-live v2 validator chain against the v2 fixture |
+| `make v2-smoke` | strict-live v2 validator chain against the v2 fixtures (`ai_agents` + `multi_entry`) |
+| `make builders-smoke` | run `scripts/build_claim_graph.py` + `scripts/build_dashboard.py` against the v2 fixture (outputs to `/tmp`, validates) |
 | `make audit` | run `cross_stage --strict` against all real-world projects |
 | `make audit-strict` | CI-style strict audit target that fails on validator failures |
 | `make burn-in` | show unresolved high-severity BURN_IN items |

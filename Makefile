@@ -101,6 +101,7 @@ audit-strict:
 	$(PY) -m validators.cross_stage --strict tests/fixtures/medium_topic_calibration_subset
 	$(PY) -m validators.cross_stage --strict tests/fixtures/prompt_injection_snapshot/recreated
 	$(PY) -m validators.freshness --strict --today 2026-05-19 tests/fixtures/v2_strict_live_ai_agents
+	$(PY) -m validators.freshness --strict --today 2026-05-19 tests/fixtures/v2_strict_live_multi_entry
 
 burn-in:
 	@$(PY) scripts/burn_in_query.py --severity high --status surfaced

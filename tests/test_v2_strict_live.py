@@ -160,6 +160,58 @@ def test_build_claim_graph_smoke(tmp_path: Path) -> None:
     assert {"entity", "source", "claim", "evidence", "cache_blob"}.issubset(record_types)
 
 
+def test_build_dashboard_matches_fixture_byte_for_byte(tmp_path: Path) -> None:
+    """Regression guard: build_dashboard.py output against the ai_agents fixture
+    must match the canonical dashboard.md byte-for-byte. If this breaks, either
+    the builder logic drifted or the fixture was edited in a way that diverges
+    from what the builder produces."""
+    out = tmp_path / "dashboard_built.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(FIXTURE),
+            "--output",
+            str(out),
+            "--today",
+            "2026-05-19",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    expected = (FIXTURE / "dashboard.md").read_text(encoding="utf-8")
+    actual = out.read_text(encoding="utf-8")
+    assert actual == expected, (
+        f"Dashboard builder output diverged from fixture. Diff:\n"
+        f"--- expected (fixture)\n{expected!r}\n"
+        f"--- actual (builder)\n{actual!r}"
+    )
+
+
+def test_build_dashboard_refuses_overwrite(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    existing = project / "dashboard.md"
+    assert existing.exists()
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(project),
+            "--no-overwrite",
+            "--today",
+            "2026-05-19",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode != 0
+    assert "refusing to overwrite" in result.stderr
+
+
 def test_build_claim_graph_refuses_overwrite(tmp_path: Path) -> None:
     project = tmp_path / "project"
     shutil.copytree(FIXTURE, project)

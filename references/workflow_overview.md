@@ -53,8 +53,17 @@ strict-live research OS layer for evidence, cache, freshness, dashboards, and
 - **`/agent-index`**: after the dossier is content-complete. Synthesizes the dossier into a dual-audience indexed folder optimized for downstream agent + human consumption. Run once; re-run only after material dossier edits.
 - **`/dossier-audit`**: after `/agent-index` produces the synthesis. Each invocation is one round of complementary-scope verification. Stop iterating when a round returns "clean."
 - **`/url-freshness-check`**: any time. Useful before publishing the synthesis externally or after long gaps where blog posts may have drifted to 404.
-- **`/freshness-audit`**: v2 strict-live trust pass. Refreshes stale entries, checks evidence/cache IDs, validates cache hashes, and updates the trust dashboard.
+- **`/freshness-audit`**: v2 strict-live trust pass. Refreshes stale entries, checks evidence/cache IDs, validates cache hashes, and updates the trust dashboard. Phase 5 of this skill invokes `scripts/build_dashboard.py` to mechanically generate `dashboard.md`.
 - **`/research-kb-export`**: after strict freshness passes. Emits normalized JSONL records for `~/Claude/research-kb`.
+
+## Mechanized v2 artifacts
+
+Two helper scripts produce v2 artifacts deterministically rather than relying on LLM hand-construction:
+
+- `scripts/build_claim_graph.py` — invoked from `/research-gather` Phase 4 after `evidence_ledger.yml` + `cache_manifest.yml` are written. Reads all ledgers, emits a complete `claim_graph.jsonl` with entity / source / claim / evidence / cache_blob records. Claim text comes from the highest-quality supporting evidence's `excerpt` field.
+- `scripts/build_dashboard.py` — invoked from `/freshness-audit` Phase 5. Reads all v2 artifacts, emits `dashboard.md` with 5 Trust State metrics + per-tier Action Queue.
+
+Both validate output before writing. `--no-overwrite` refuses if the target exists (safety for hand-curated fixtures).
 
 ## Pipeline correctness
 

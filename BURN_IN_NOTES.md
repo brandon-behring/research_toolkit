@@ -804,6 +804,30 @@ No breaking changes to ledger schema or skill workflows; just three small alignm
 
 ---
 
+## v2.0 backlog (seeded 2026-05-19, pending dogfood)
+
+Items the v2.0 audit + completion plan repeatedly punted on. Status will be revisited during Phase 4 dogfood and consolidated into the v2.1 design cycle.
+
+1. **Proactive freshness mechanisms** — `/freshness-audit` Phase 4 is currently LLM-driven (lists rescan categories: arXiv / HF / GitHub / leaderboards / vendor blogs / policy). Sufficiency depends on the LLM's discovery rigor. v2.1 candidates: scheduled rescans via `/loop`, change-detection diffs on cached sources, content-hash polling for volatile-tier entries.
+   - **Status:** `deferred` — verdict pending Phase 4 dogfood.
+
+2. **`/dossier-build` evidence-ID preservation in rendered tables** — Phase 1 decision (2026-05-19): dropped the "preserves strict-live verification status" claim from the description because the skill is rendering-only. If Phase 4 dogfood shows dossier tables would benefit from evidence-ID cells (e.g., reviewer wants to trace claims from dossier rows), revisit as v2.1 feature.
+   - **Status:** `deferred` — pending dogfood signal.
+
+3. **Builder claim_type inference** — `scripts/build_claim_graph.py` emits all claims as `claim_type: fact`. The validator allows `fact / comparison / trend / risk / recommendation / contradiction / open_question / user_judgment`. Inferring from evidence content (e.g., contradictory excerpts → `contradiction`) would require either evidence_role propagation or LLM judgment. Current handling: any non-fact claim_type must be hand-curated in `claim_graph.jsonl` or added by `/agent-index` Phase 4b.
+   - **Status:** `deferred` — current "always fact" is mechanical-honest; LLM/skill orchestration handles richer cases.
+
+4. **Entity-merging across bib + dataset by primary_url** — builder design choice: one entity per bibkey (so bib + dataset entries sharing a primary_url produce 2 entities). The hand-curated v2_strict_live_ai_agents fixture merges them into 1 entity (`ent_benchmark_agent_security` with alias "ASB"). Both are valid; builder chose deterministic-simple, fixture chose editorial-clean. If Phase 4 dogfood produces noisy claim_graphs with redundant entities, revisit as v2.1 (e.g., `merge_with:` field on ledger entries).
+   - **Status:** `deferred` — design choice, not a bug.
+
+5. **`/freshness-audit` Phase 4 sufficiency verdict** — does the LLM-driven volatile-area rescan catch recent changes the initial gather missed? Only first-contact dogfood will tell. If yes: close as adequate, document in Phase 4 BURN_IN. If no: open as v2.1 design item (likely overlaps with #1).
+   - **Status:** `deferred` — pending Phase 4.
+
+6. **research-kb ingestion pipeline** — explicitly out of scope for v2.0 (separate repo, not local). The toolkit ships a lossless verbatim-wrap export contract; future ingestion can parse `payload.*` directly. When the user brings research-kb code local, add a contract verification step.
+   - **Status:** `wontfix` (in this repo) — belongs in research-kb.
+
+---
+
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")
