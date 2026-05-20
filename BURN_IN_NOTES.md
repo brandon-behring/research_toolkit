@@ -938,6 +938,167 @@ mechanisms per [[project-research-toolkit]] backlog item #1).
 
 ---
 
+## Phase 7: v2 strict-live multi-source dogfood — applied 2026-05-19
+
+**Theme**: Phase 4's dogfood was single-source (AgentDojo only). Phase 5's
+job is multi-source mixed-tier coverage: 5+ entries, multiple freshness
+tiers, multi-evidence per claim, restricted source, hand-injected
+contradiction. Surfaces friction the v2.1 Tier-1 design needs to address.
+
+**Topic** (extended from Phase 4): browser-agent prompt-injection benchmarks.
+Project at `~/Claude/research_browser_agent_pi_bench/`. **5 entries**:
+- `debenedetti2024agentdojo` — active, primary paper (AgentDojo, real cache)
+- `owasp2025llm01` — stable, official standard (OWASP LLM01:2025, real cache)
+- `anthropic2026computeruse` — volatile, official vendor (real cache)
+- `browserbench2025adversarial` — volatile, primary benchmark (synthetic
+  cache, example.com URL)
+- `restricted2025threatreport` — stable, secondary, **restricted** distribution
+  (synthetic cache, rights_status=restricted, restricted=true)
+
+**Chain executed** (only the v2 trust chain — skipped /dossier-build and
+/agent-index as in Phase 4 since they're rendering-only):
+1. Cache 3 real sources via `scripts/cache_source.py` (AgentDojo carryover +
+   OWASP LLM01 + Anthropic computer-use docs).
+2. Create 2 synthetic cache blobs for benchmark + restricted scenarios.
+3. Hand-write `bib_ledger.yml` (5 entries with mixed freshness_tiers),
+   `cache_manifest.yml` (5 cache entries, mixed global + project-local
+   paths), `evidence_ledger.yml` (6 evidence entries; one multi-supporting
+   claim `claim_browser_pi_real_threat` with 4 evidence_ids spanning all
+   source qualities).
+4. Run `scripts/build_claim_graph.py` — auto-generated 5 entities + 5
+   sources + 4 claims (multi-evidence tiebreak picks primary's excerpt as
+   text; entity_ids aggregate from all contributing ledger entries) + 6
+   evidences + 5 cache_blob records.
+5. **Hand-inject contradiction claim**: python one-liner edited
+   `claim_defense_efficacy_disputed` to `claim_type: contradiction`,
+   `status: conflicted`, `confidence.score: 0.70`, added second evidence_id.
+6. Run `scripts/build_dashboard.py` — dashboard reflects: 4/4 coverage,
+   5/5 cache, **1 conflict** (the injected), **1 weak claim** (the same
+   one at 0.70), 3-tier Action Queue (volatile + active + stable lines).
+7. `validators/freshness.py --strict` ✅, `validators/research_kb_export.py` ✅.
+
+**Verdict**: v2 chain passes at multi-source scale. Builder's multi-evidence
+aggregation works correctly: claim_browser_pi_real_threat correctly took
+the primary evidence's excerpt as canonical text, aggregated entity_ids
+from all 4 contributing ledger entries, and listed all 4 evidence_ids.
+Confidence factors aggregate across source_quality and verification_method
+values seen.
+
+### Friction items (9 surfaced, 1 applied, 8 deferred to v2.1.0)
+
+**1. Manual bib_ledger entries scale linearly with source count (status: surfaced — already #4 in Phase 4)**
+- Phase 4 had 1 entry. Phase 5 had 5 entries. Friction is linear in source
+  count: every entry needs hand-extracted title/authors/venue/code_url +
+  v2 fields populated.
+- **v2.1.0 fix**: skeleton builders + per-source-type cheatsheet (Tier-2
+  R1 Idea 6 + new `templates/excerpt_extraction_cheatsheet.md`).
+
+**2. Excerpt extraction from large pages is unguided (status: surfaced — confirmed at scale)**
+- OWASP page = 305 KB; Anthropic computer-use docs = 1.6 MB. The text_path
+  derivative contains all HTML noise (menus, footer, JS comments). Finding
+  the quotable substring is manual grep.
+- **v2.1.0 fix (linked to Tier-1 #1 span-anchored extraction_method)**: with
+  byte-offset anchoring required for verbatim_match, the friction shifts
+  from "find the right span" to "find AND record its offset" — making it
+  more rigorous but more work per evidence. Possibly mitigates with a
+  `scripts/locate_excerpt.py` helper.
+
+**3. Hand-injecting contradiction claim required ad-hoc Python (NEW friction)**
+- No skill or template documents "how to add a `claim_type: contradiction`
+  record to `claim_graph.jsonl`." The builder produces `fact` by default;
+  upgrading requires direct jsonl edit.
+- **v2.1.0 fix**: new `references/synthesis_claims_protocol.md` documents
+  the pattern: rebuild claim_graph from ledgers, then append synthesis-only
+  claims (contradiction / open_question / user_judgment) via a separate
+  `scripts/append_synthesis_claim.py` or direct jsonl edit.
+
+**4. Action Queue falls back to generic "entries" when tier has mixed entity_types (status: surfaced — design choice working as intended)**
+- Volatile tier had `vendor_eval` + `benchmark` → noun fallback "entries."
+- Stable tier had `attack_taxonomy` + `vendor_eval` → also "entries."
+- Active tier had only `benchmark` → specific "benchmark pages."
+- Working as designed (Phase 3 polish item 10b); just noting it for the
+  multi-source case.
+
+**5. Restricted source's evidence still aggregates into multi-evidence claim confidence (status: surfaced — NEW, important)**
+- `ev_restricted_finding` (secondary, restricted) contributed to
+  `claim_browser_pi_real_threat`'s confidence factors and entity_ids,
+  alongside primary/official evidence.
+- The primary evidence's excerpt wins tiebreak (correct) and the score
+  doesn't drop, BUT the claim's entity_ids now include
+  `ent_restricted2025threatreport`. If this claim is exported via
+  research_kb_export.jsonl, the restricted entity is exported too.
+- **v2.1.0 fix (via Tier-1 #1)**: span-anchored extraction_method + per-link
+  `link_confidence` would let the validator exclude restricted-source
+  contributions from confidence aggregation, OR flag them explicitly. Pair
+  with restricted-export-filter (one of the surfaced anti-patterns in the
+  research synthesis).
+
+**6. Mixed global + project-local cache paths in one manifest (status: surfaced — Phase 4 friction #1 confirmed at scale)**
+- 3 entries with absolute paths (`/Users/brandonbehring/Claude/research_cache/blobs/sha256/...`)
+  from cache_source.py default.
+- 2 entries with relative paths (`cache/raw/browserbench.html`) from project-local cache.
+- Validator handles both via `_resolve()`; visually confusing in the YAML.
+- **v2.1.0 fix**: Tier-2 R1 Idea 4 (cache_locator URI scheme like
+  `cache://sha256/<digest>` + `cache_root_resolution:` mapping). Not in
+  Tier-1 because doesn't directly address hallucination.
+
+**7. Real-world cached pages contain non-content noise (status: surfaced — NEW)**
+- Anthropic docs at 1.6 MB extracted to a text file with ~95% non-content
+  (navigation, sidebars, JS, "Try it" widgets). Grep needed `prompt
+  injection` keyword to find the relevant span.
+- text_path derivative is "everything decoded as UTF-8" — no semantic
+  filtering.
+- **v2.1.0 deferred**: content-aware extraction (boilerpipe / Readability /
+  trafilatura) is a separate concern. Defer to v2.2; v2.1 will surface it
+  via Tier-1 #1's substring check (which doesn't care about noise — it
+  just verifies the cited substring exists).
+
+**8. No /research-gather guidance for restricted sources (status: surfaced — NEW)**
+- The skill says "cache every reachable source" but doesn't say "for
+  restricted sources, set rights_status: restricted + restricted: true on
+  cache_manifest entry AND make sure not to export the cache_id downstream
+  if the source can't be shared." The dogfood produced a restricted entry
+  but the chain doesn't enforce restricted-aware exports.
+- **v2.1.0 fix**: explicit restricted-handling section in
+  `/research-gather` skill body + an export-time filter (`scripts/research_kb_export.py`
+  drops cache_ids where the manifest entry has `rights_status: restricted`
+  or `cache_only`).
+
+**9. Cross-source claims need editorial judgment that builders can't supply (status: surfaced — confirms v2.0 backlog #3 "claim_type inference")**
+- `claim_browser_pi_real_threat` aggregates 4 evidence entries from 4
+  different sources. The builder uses the primary's excerpt as claim text
+  but that excerpt is AgentDojo-specific ("AgentDojo poses a challenge...").
+  A better synthesis would unify the evidence into a single cross-source
+  statement ("Prompt injection in browser agents is recognized as a top
+  risk by both academic [Debenedetti 2024] and standards [OWASP 2025]
+  sources, with vendors [Anthropic 2026] adding defensive layers.").
+- **v2.1.0 fix**: this is editorial / synthesis work. The skill body can
+  guide it but the builder shouldn't synthesize. Possible v2.2 item:
+  /research-gather Phase 4b synthesis pass that LLM-rewrites claim text
+  when 3+ evidences support it.
+
+### Applied during this dogfood
+- Hand-injected contradiction claim into claim_graph.jsonl (cannot become
+  a Tier-1 fix because it's editorial; documented as friction #3 above).
+
+### Updates to v2.1.0 Tier-1 priorities based on Phase 5
+
+**Confirms Tier-1 #1 (span-anchored extraction_method) as TOP priority.**
+The multi-source friction items #5 (restricted-source confidence
+contamination), #8 (no restricted-aware export filter), and #7 (text_path
+noise) are all addressed by mechanical substring validation: once every
+verbatim_match excerpt is validated against `text_path[start:end]`, the
+restricted source either passes (it has a real quoted span) or fails (no
+match, fall through to manual_override which caps confidence at 0.5 and
+flags for filtering). Pair with #2 (citation-audit skill running every
+build).
+
+**No re-ordering required.** The 7 Tier-1 items stand. The multi-source
+scale validates that builders + dashboard work correctly; the missing
+piece is per-link evidence verification, which is exactly #1.
+
+---
+
 ## v2.0 backlog (seeded 2026-05-19, pending dogfood)
 
 Items the v2.0 audit + completion plan repeatedly punted on. Status will be revisited during Phase 4 dogfood and consolidated into the v2.1 design cycle.
