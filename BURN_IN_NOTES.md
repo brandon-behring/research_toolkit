@@ -75,6 +75,99 @@ before the dogfood would have hit the failure.
 
 ---
 
+## v2.2.0 dogfood — Phase 3: causal inference for observational ML — 2026-05-20
+
+**Theme**: stable-subject fresh-topic v2.2 pipeline pass. Targeted
+mechanism: assess whether v2.2's overhead (atomic + pre_selection_manifest
++ gather_trace) is justified when freshness pressure is low. Counter to
+Phase 2's fast-moving subject — does the toolkit's machinery still earn
+its keep?
+
+**Project**: `~/Claude/research_causal_inference_ml/` (personal, not
+committed). Seed for future expansion into a full causal-inference dossier.
+
+**End-state metrics**:
+- 3 primary sources cached + verified (urllib only — arxiv pages render
+  cleanly; Playwright never triggered)
+- 4 fetches in gather_trace (3 accept + 1 escalate_to_manual)
+- 3 atomic claims (1 atom per source — same retroactive limitation)
+- 3/3 verbatim_match substring pass (100%)
+- 0/3 corroborated (single-source-per-atom at small N)
+- 3/3 atoms fully supported
+- Dashboard Action Queue: stable-tier-dominated; earliest refresh
+  due 2027-05-20 (one full year out — exactly what the plan predicted)
+- 15-line research-kb export, validator clean
+
+### Friction items (4 surfaced, 0 applied, 4 deferred)
+
+**1. v2.2 overhead feels PROPORTIONATELY APPROPRIATE on slow subjects,
+   not over-engineered (status: surfaced — positive result)**
+- Worry going in: v2.2's machinery (pre_selection_manifest with byte
+  offsets + sha256, atomic decomposition, gather_trace reflection)
+  would feel heavyweight on stable foundational papers.
+- Actual experience: writing pre_selection_manifest for 3 sources was
+  ~5 minutes of mechanical Python (same script as Phase 2). gather_trace
+  was honest (3 accepts + 1 escalation is genuine, not box-ticking).
+  Atomic decomposition stayed at 1 atom per source — the same
+  fundamental limitation as Phase 1+2, not a new problem.
+- **Conclusion**: the structural overhead is amortized across all corpus
+  sizes and velocities. It's not v2.2 that's heavy for slow subjects;
+  it's that small-N corpora don't get to USE all of v2.2's signals
+  (corroboration metric stays at 0/3, multi-atom synthesis doesn't
+  emerge naturally at 3 sources).
+
+**2. Action Queue genuinely useful on slow subjects (status: surfaced —
+   positive result)**
+- Dashboard reports "Refresh stable entries by 2027-05-20" — a year
+  out. That's NOT over-engineered: it's a calendar reminder that even
+  foundational papers eventually need re-verification. Without
+  freshness_tier, a stable-subject dossier would silently drift past
+  the "should re-check" threshold.
+- For slow subjects, gather_trace contains less signal (most fetches
+  rubber-stamp accept) but Action Queue contains MORE signal (it's
+  the only mechanism that catches "this 2-year-old paper is still
+  the canonical reference, but you should re-verify by date X").
+
+**3. Cross-source synthesis is gated on corpus size (status: surfaced —
+   v2.2 design observation)**
+- 3 sources, 3 distinct sub-areas, 3 distinct claim_families → no
+  natural cross-source claims. Corroboration metric reports 0/3 (0%).
+- This is correct behavior but visibility-degraded on small corpora.
+  Same observation as Phase 2 (4 sources, 0/4 corroboration).
+- **Threshold heuristic**: cross-source synthesis emerges naturally
+  around 6+ sources with overlapping claim_families. The Phase 8
+  dogfood project (23 sources, 4 synthesis claims) is the right shape;
+  Phase 2/3's small dogfoods aren't.
+- **v2.3 candidate**: dashboard could suppress or annotate the
+  corroboration metric when total atoms <6 (informational only at
+  small N).
+
+**4. The "survey paper" escalation pattern repeats (status: surfaced —
+   notable signal)**
+- Phase 2 escalated a paper with partial scope (Rubrics as Attack
+  Surface — borderline harness_drift). Phase 3 escalated a survey
+  paper (2209.00869 "A Survey of Causal Inference Frameworks") as
+  redundant with wang2025threeframeworks.
+- **Pattern**: "this paper exists in the search results AND touches
+  the sub-area BUT we already have better coverage" is the most
+  common escalate_to_manual reason. Worth documenting in
+  references/citation_rules.md as a v2.3 candidate.
+
+### Phase 3 conclusion
+
+v2.2 is NOT over-engineered for slow subjects — the structural overhead
+is proportionate. What DOES change between fast and slow subjects:
+- Fast (Phase 2): gather_trace IsSup distribution is the main signal
+- Slow (Phase 3): Action Queue refresh dates are the main signal
+- Cross-source synthesis (Phase 1's 23-source corpus) is the natural
+  payoff at corpus scale, not small-N proof-of-concept
+
+Next: Phase 4 (agent capabilities) — mid-velocity + multi-family
+decomposition. Will test whether v2.2's cross-family binding emerges
+naturally with intentional multi-family source selection.
+
+---
+
 ## v2.2.0 dogfood — Phase 2: AI eval drift fresh-topic dogfood — 2026-05-20
 
 **Theme**: first fresh-topic v2.2 pipeline pass. Targeted mechanism:
