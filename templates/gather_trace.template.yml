@@ -1,0 +1,28 @@
+# gather_trace template (strict-live v2.2)
+# Written by /research-gather Phase 2 (Self-RAG-style adaptive retrieval).
+# Read by /freshness-audit Phase 4 for discovery-rigor metrics.
+#
+# Each fetch records a structured reflection (IsRel/IsSup/IsUse) so the
+# discovery step is auditable AFTER the fact, not just trusted in the
+# moment. assigned_bibkey cross-references bib_ledger.yml when the fetch
+# was accepted into the corpus.
+
+schema_version: 3
+topic: '<topic slug>'
+generated_at: <YYYY-MM-DD>
+current_as_of: <YYYY-MM-DD>
+freshness_policy: strict_live
+
+fetches:
+- fetch_id: fetch_<short-slug>
+  sub_area: '<sub-area name from research_plan.md>'
+  query: '<search query as issued>'
+  source_url: https://arxiv.org/abs/2501.00001
+  fetched_at: <YYYY-MM-DD>
+  reflection:
+    is_relevant: true             # IsRel: does the result match the sub-area question?
+    is_supported: full            # IsSup: full | partial | none — coverage of the sub-area's claim
+    is_useful: 5                  # IsUse: 1-5 integer quality score
+  decision: accept                # accept | reject | escalate_to_manual
+  reason: '<one-line rationale for decision>'
+  assigned_bibkey: '<bibkey from bib_ledger.yml if decision == accept; omit otherwise>'

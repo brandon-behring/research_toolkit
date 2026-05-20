@@ -1,0 +1,41 @@
+schema_version: 3
+topic: ai_agent_security
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+fetches:
+- fetch_id: fetch_agent_benchmark
+  sub_area: benchmark_landscape
+  query: ai agent security benchmark 2026
+  source_url: https://example.com/agent-security-benchmark
+  fetched_at: 2026-05-19
+  reflection:
+    is_relevant: true
+    is_supported: full
+    is_useful: 5
+  decision: accept
+  reason: primary benchmark, current, aligned with sub_area
+  assigned_bibkey: example2026agentsecurity
+- fetch_id: fetch_offtopic_blog
+  sub_area: benchmark_landscape
+  query: ai agent security 2026
+  source_url: https://example.com/agent-marketing-blog
+  fetched_at: 2026-05-19
+  reflection:
+    is_relevant: false
+    is_supported: none
+    is_useful: 1
+  decision: reject
+  reason: vendor marketing blog with no methodology
+- fetch_id: fetch_partial_preprint
+  sub_area: defense_techniques
+  query: ai agent defense prompt injection 2026
+  source_url: https://example.com/agent-defense-preprint
+  fetched_at: 2026-05-19
+  reflection:
+    is_relevant: true
+    is_supported: partial
+    is_useful: 3
+  decision: escalate_to_manual
+  reason: preprint covers only one of the sub-area's three claims; manual review needed

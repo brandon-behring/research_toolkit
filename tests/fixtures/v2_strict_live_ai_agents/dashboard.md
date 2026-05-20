@@ -14,3 +14,11 @@ Current as of: 2026-05-19
 ## Action Queue
 
 - Refresh volatile benchmark pages by 2026-06-18.
+
+## Discovery Rigor
+
+- fetches reviewed: 3
+- accept rate: 1/3 (33%)
+- rejected: 1
+- escalations needing manual review: 1
+- sub-areas with no accepted source: defense_techniques

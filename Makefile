@@ -58,6 +58,7 @@ v2-smoke:
 	$(PY) validators/evidence_ledger.py tests/fixtures/v2_strict_live_ai_agents/evidence_ledger.yml
 	$(PY) validators/cache_manifest.py tests/fixtures/v2_strict_live_ai_agents/cache_manifest.yml
 	$(PY) validators/claim_graph.py tests/fixtures/v2_strict_live_ai_agents/claim_graph.jsonl
+	$(PY) validators/gather_trace.py tests/fixtures/v2_strict_live_ai_agents/gather_trace.yml
 	$(PY) validators/research_kb_export.py tests/fixtures/v2_strict_live_ai_agents/research_kb_export.jsonl
 	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v2_strict_live_ai_agents
 	@echo "--- multi-entry fixture ---"

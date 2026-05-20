@@ -75,6 +75,20 @@ For AI/ML topics, strict-live refresh includes a current scan of:
 
 Use current-date-aware search windows, not fixed years. Secondary sources are discovery aids only; final claims cite primary or official sources.
 
+#### Discovery rigor metrics (v2.2+; reads gather_trace.yml when present)
+
+If `<project_dir>/gather_trace.yml` exists, surface these audit metrics
+in the dashboard's Trust State block:
+
+- **fetches reviewed**: total `fetches` count (full sample size of the discovery step)
+- **accept rate**: count of `decision: accept` / total fetches
+- **escalations needing manual review**: count of `decision: escalate_to_manual` (each is a known gap a human should re-decide)
+- **sub-areas with no accepted source**: list of `sub_area` values where every fetch was rejected or escalated (these are coverage gaps)
+
+The build_dashboard.py script emits this section automatically when
+gather_trace.yml is present; absent the file, the section is omitted
+(grandfathers pre-v2.2 projects).
+
 ### Phase 5: write trust dashboard
 
 Generate the dashboard mechanically:

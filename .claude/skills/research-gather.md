@@ -69,6 +69,25 @@ Known landmark papers still require live verification in strict-live v2. Do not
 trust memory or a plan annotation for title, first author, year, venue, code, or
 current status.
 
+#### Self-RAG reflection (v2.2; strict-live projects only)
+
+For strict-live projects, every WebSearch + WebFetch becomes a row in
+`<output_dir>/gather_trace.yml`. After each fetch, emit a structured
+reflection record with `is_relevant` / `is_supported` / `is_useful` and a
+decision (`accept` / `reject` / `escalate_to_manual`). This makes the
+discovery step auditable after the fact instead of relying on author memory.
+
+See `templates/gather_trace.template.yml` for the canonical schema.
+
+Reflection rules:
+- `is_relevant`: true if the fetched source matches the sub-area scope.
+- `is_supported`: `full` if the source covers all the sub-area's claims; `partial` if some; `none` if it's orthogonal or unrelated.
+- `is_useful`: integer 1–5 (1 = vendor marketing / no methodology; 5 = primary peer-reviewed paper with quantitative results).
+- `decision`: `accept` (assign bibkey + write evidence entry below); `reject` (don't add to bib_ledger; record the reason); `escalate_to_manual` (sub-area partially covered and user judgment is needed).
+- `accept` requires `assigned_bibkey`; `reject` / `escalate_to_manual` must omit it.
+
+The trace is one row per (search, fetch) pair, not one row per accepted source. Rejected and escalated fetches stay in the trace as audit evidence that the search was performed and the decision was deliberate.
+
 ### Phase 3: assign bibkey + claim_family + (optional) populate downstream fields
 
 For each accepted source:
@@ -189,6 +208,14 @@ python ~/Claude/research_toolkit/validators/bib_ledger.py <output_dir>/bib_ledge
 
 Validator checks: required fields present, types valid, bibkeys unique, status enum valid (`unverified | verified | mismatched`), primary_url is well-formed.
 
+For strict-live v2.2+ projects, also run:
+
+```bash
+python ~/Claude/research_toolkit/validators/gather_trace.py <output_dir>/gather_trace.yml
+```
+
+Validator checks: schema_version present, fetches list non-empty, every fetch has IsRel/IsSup/IsUse + decision + reason, IsSup ∈ {full, partial, none}, IsUse integer 1–5, decision ∈ {accept, reject, escalate_to_manual}, assigned_bibkey present iff decision==accept, assigned_bibkey cross-resolves into bib_ledger when both files are present.
+
 ## Output / handoff
 
 **Produces:**
@@ -196,6 +223,7 @@ Validator checks: required fields present, types valid, bibkeys unique, status e
 - `<output_dir>/evidence_ledger.yml` (v2 strict-live only) — field-level evidence entries linking claims to primary/official sources
 - `<output_dir>/cache_manifest.yml` (v2 strict-live only) — SHA-256-keyed manifest of cached source artifacts
 - `<output_dir>/claim_graph.jsonl` (v2 strict-live only) — JSONL records (entity / source / claim / evidence / cache_blob) consumed by `/research-kb-export`
+- `<output_dir>/gather_trace.yml` (v2.2+ strict-live only) — per-fetch Self-RAG reflection records (IsRel/IsSup/IsUse + decision); audit trail for discovery rigor
 - `~/Claude/research_cache/` (v2 strict-live only) — raw + text + metadata blobs written by `scripts/cache_source.py` (gitignored)
 - `<output_dir>/papers/` — cached PDFs (only with `--cache-pdfs`)
 - `<output_dir>/cache/bib_primary_source_cache.yml` — PDF metadata (only with `--cache-pdfs`)

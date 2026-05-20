@@ -224,6 +224,50 @@ def build(project_dir: Path, today: date) -> str:
                 f"- weakly grounded (inferred/propagated): {weak_count}/{total_links}",
             ]
 
+    # v2.2: Discovery Rigor metrics (reads gather_trace.yml if present)
+    discovery_rigor_lines: list[str] = []
+    gt_data = _load_optional(project_dir / "gather_trace.yml")
+    gt_fetches = gt_data.get("fetches") if isinstance(gt_data, dict) else None
+    if isinstance(gt_fetches, list) and gt_fetches:
+        total_fetches = len(gt_fetches)
+        accepts = 0
+        rejects = 0
+        escalations = 0
+        by_subarea_decisions: dict[str, set[str]] = {}
+        for fetch in gt_fetches:
+            if not isinstance(fetch, dict):
+                continue
+            decision = fetch.get("decision")
+            if decision == "accept":
+                accepts += 1
+            elif decision == "reject":
+                rejects += 1
+            elif decision == "escalate_to_manual":
+                escalations += 1
+            sub_area = fetch.get("sub_area")
+            if isinstance(sub_area, str):
+                by_subarea_decisions.setdefault(sub_area, set()).add(
+                    str(decision) if decision is not None else "unknown"
+                )
+        accept_pct = round(100 * accepts / total_fetches) if total_fetches else 0
+        coverage_gaps = sorted(
+            sub_area for sub_area, decisions in by_subarea_decisions.items()
+            if "accept" not in decisions
+        )
+        discovery_rigor_lines = [
+            "",
+            "## Discovery Rigor",
+            "",
+            f"- fetches reviewed: {total_fetches}",
+            f"- accept rate: {accepts}/{total_fetches} ({accept_pct}%)",
+            f"- rejected: {rejects}",
+            f"- escalations needing manual review: {escalations}",
+        ]
+        if coverage_gaps:
+            discovery_rigor_lines.append(
+                f"- sub-areas with no accepted source: {', '.join(coverage_gaps)}"
+            )
+
     title = _title_case(topic) if isinstance(topic, str) else "Research"
     lines = [
         f"# {title} — Trust Dashboard",
@@ -243,6 +287,7 @@ def build(project_dir: Path, today: date) -> str:
         "",
         *action_lines,
         *claim_health_lines,
+        *discovery_rigor_lines,
         "",
     ]
     return "\n".join(lines)

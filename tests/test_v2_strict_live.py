@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 from validators import bib_ledger, dataset_ledger
-from validators import cache_manifest, claim_graph, evidence_ledger, freshness, research_kb_export
+from validators import cache_manifest, claim_graph, evidence_ledger, freshness, gather_trace, research_kb_export
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_ai_agents"
@@ -728,3 +728,91 @@ def test_v2_skills_codify_strict_live_cache_and_export_rules() -> None:
         assert "evidence" in text.lower()
     assert "research-kb" in export_skill
     assert "research_kb_export.py" in export_skill
+
+
+# ----- v2.2 Phase A: gather_trace.yml (Self-RAG adaptive retrieval) -----
+
+
+def _load_gather_trace() -> dict:
+    return yaml.safe_load(
+        (FIXTURE / "gather_trace.yml").read_text(encoding="utf-8")
+    )
+
+
+def test_v22_gather_trace_fixture_validates() -> None:
+    assert gather_trace.validate(FIXTURE / "gather_trace.yml") == []
+
+
+@pytest.mark.parametrize(
+    "field,bad_value,error_marker",
+    [
+        ("decision", "maybe", "decision"),
+    ],
+)
+def test_v22_gather_trace_rejects_bad_decision_enum(
+    tmp_path: Path, field: str, bad_value: str, error_marker: str
+) -> None:
+    data = _load_gather_trace()
+    data["fetches"][0][field] = bad_value
+    path = tmp_path / "gather_trace.yml"
+    _write_yaml(path, data)
+    errors = gather_trace.validate(path)
+    assert any(error_marker in e for e in errors), errors
+
+
+def test_v22_gather_trace_rejects_bad_is_supported(tmp_path: Path) -> None:
+    data = _load_gather_trace()
+    data["fetches"][0]["reflection"]["is_supported"] = "kinda"
+    path = tmp_path / "gather_trace.yml"
+    _write_yaml(path, data)
+    errors = gather_trace.validate(path)
+    assert any("is_supported" in e for e in errors), errors
+
+
+def test_v22_gather_trace_rejects_is_useful_out_of_range(tmp_path: Path) -> None:
+    data = _load_gather_trace()
+    data["fetches"][0]["reflection"]["is_useful"] = 9
+    path = tmp_path / "gather_trace.yml"
+    _write_yaml(path, data)
+    errors = gather_trace.validate(path)
+    assert any("is_useful" in e for e in errors), errors
+
+
+def test_v22_gather_trace_rejects_accept_without_bibkey(tmp_path: Path) -> None:
+    data = _load_gather_trace()
+    # first fixture entry is an accept with a bibkey; remove the bibkey
+    del data["fetches"][0]["assigned_bibkey"]
+    path = tmp_path / "gather_trace.yml"
+    _write_yaml(path, data)
+    errors = gather_trace.validate(path)
+    assert any("accept" in e and "assigned_bibkey" in e for e in errors), errors
+
+
+def test_v22_gather_trace_rejects_reject_with_bibkey(tmp_path: Path) -> None:
+    data = _load_gather_trace()
+    # second fixture entry is a reject; add a stray bibkey
+    data["fetches"][1]["assigned_bibkey"] = "example2026agentsecurity"
+    path = tmp_path / "gather_trace.yml"
+    _write_yaml(path, data)
+    errors = gather_trace.validate(path)
+    assert any("reject" in e and "assigned_bibkey" in e for e in errors), errors
+
+
+def test_v22_gather_trace_rejects_unknown_bibkey_cross_ref(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "gather_trace.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["fetches"][0]["assigned_bibkey"] = "nonexistent2099bibkey"
+    _write_yaml(path, data)
+    errors = gather_trace.validate(path)
+    assert any("not found in bib_ledger" in e for e in errors), errors
+
+
+def test_v22_gather_trace_rejects_duplicate_fetch_id(tmp_path: Path) -> None:
+    data = _load_gather_trace()
+    data["fetches"].append(copy.deepcopy(data["fetches"][0]))
+    path = tmp_path / "gather_trace.yml"
+    _write_yaml(path, data)
+    errors = gather_trace.validate(path)
+    assert any("duplicate fetch_id" in e for e in errors), errors
