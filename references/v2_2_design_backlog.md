@@ -52,6 +52,22 @@ sooner.
   section as "X% of atomic claims have ≥2 independent sources."
 - **Effort**: M-L.
 - **Priority**: Tier-2.
+- **Demonstration status (2026-05-20, iter 5)**: the *aggregation half* of
+  this item is already working in `scripts/build_claim_graph.py`.
+  Demonstrated end-to-end in `~/Claude/research_toolkit_design/` by
+  introducing three cross-source synthesis claims — each bound to 3
+  evidence records spanning 3 different primary sources, across three
+  distinct sub-areas:
+  - `claim_synthesis_atomic_grounding_pattern`: FActScore + RAGTruth + VISTA
+  - `claim_synthesis_sample_based_pattern`: Semantic Entropy + SelfCheckGPT + Lookback Lens
+  - `claim_synthesis_multi_agent_pattern`: Tool-MAD + MAD-Fact + GSAR
+
+  All 24 verbatim_match substring checks pass; the builder correctly merged
+  3 evidence_ids and 3 entity_ids per synthesis claim, with highest-quality
+  + longest-excerpt tiebreak for claim text. What Item 2 still needs is the
+  *scoring* half (corroboration metric + dashboard surfacing). Demotes the
+  v2.2 implementation cost from M-L to S (the hard part — multi-evidence
+  binding — is shipped).
 
 ---
 
