@@ -899,6 +899,95 @@ Tier-1 picks for v2.2.0 next-session implementation:
   /agent-index step. Documented in the backlog (Item 2 — cross-source
   corroboration).
 
+### Phase 8 (loop iters 4-10): extended corpus + dogfood at saturation
+
+**Theme**: /loop iterations extending the 6-source dogfood project to
+23 sources (16 added across 7 iters) + 4 cross-source synthesis claims
+demonstrating the builder's multi-evidence aggregation at v3 scale.
+
+**Iter-by-iter source additions:**
+- iter 4 (commit f0cfc6c): typed grounding + process reward + probabilistic factcheck (3 sources)
+- iter 5 (commit a6bc3c2): 3 cross-source synthesis claims (no new sources)
+- iter 6 (commit 3c79a43): AtomEval SROM atoms + Counterfactual Probing (2 sources)
+- iter 7 (commit 70805ed): DoublyCal two-tier calibration + KEA Explain KG-kernel (2 sources)
+- iter 8 (commit dbf1502): C²-Cite + Generation-vs-Posthoc citation paradigms (2 sources)
+- iter 9 (commit 5c39dce): 4th synthesis claim (gen-time) + VeriFact (1 source + synthesis)
+- iter 10 (this iter): FAIR-RAG iterative refinement (1 source)
+
+**End-state metrics**: 23 bib entries, 23 evidence entries, 27 claims
+(23 atomic + 4 cross-source synthesis), **35/35 verbatim_match substring
+checks pass (100%)**, avg link_confidence 0.948, all 23 sources verified
+via real WebSearch + WebFetch + cache_source.py with real SHA-256s.
+
+**Source distribution by claim_family (final):**
+- atomic_grounding (5): FActScore, VISTA, RAGTruth, AtomEval, VeriFact
+- generation_conditioning (3): Attribute-First, C²-Cite, Gen-vs-Posthoc
+- sample_based_detection (4): Semantic Entropy, SelfCheckGPT, Lookback
+  Lens, Counterfactual Probing
+- graded_support (6): Self-RAG, Retromorphic Testing, Tool-MAD, GSAR,
+  KEA Explain, FAIR-RAG
+- judge_calibration (5): Faithfulness Fusion, MAD-Fact, Process Reward,
+  Probabilistic Factcheck, DoublyCal
+
+**Cross-source synthesis claims demonstrated:**
+- `claim_synthesis_atomic_grounding_pattern` (FActScore + RAGTruth + VISTA)
+- `claim_synthesis_sample_based_pattern` (Semantic Entropy + SelfCheckGPT + Lookback Lens)
+- `claim_synthesis_multi_agent_pattern` (Tool-MAD + MAD-Fact + GSAR)
+- `claim_synthesis_gen_time_attribution_pattern` (Attribute-First + C²-Cite + Gen-vs-Posthoc)
+
+All four synthesis claims correctly aggregate 3 evidence_ids + 3
+entity_ids each via `build_claim_graph.py`'s highest-quality +
+longest-excerpt tiebreak. Backlog Item 2 (cross-source corroboration)
+demonstrated working at v3 scale — demoted from M-L effort to S.
+
+### Friction items surfaced (iters 4-10)
+
+**6. MDPI publisher returns 403 to urllib User-Agent (status: surfaced
+   — NEW iter 7)**
+- iter 7 attempted to cache an MDPI 2026 paper (AEVS framework for KG
+  triple grounding). `cache_source.py` got HTTP 403 Forbidden.
+- **v2.2 candidate**: `cache_source.py` should accept `--user-agent`
+  flag (or default to a Mozilla-like UA string) for publishers that
+  filter Python urllib. Pivoted to arxiv-only sources for that iter.
+
+**7. Cache root inconsistency between iter 1-3 sources (global) and
+   iter 4-10 sources (project-local) (status: surfaced — confirms v2.0
+   backlog #2)**
+- iter 1-3 sources point to `/Users/.../research_cache/...` (global
+  cache root). iter 4-10 cached with `--cache-root` flag pointing to
+  `/Users/.../research_toolkit_design/cache/` (project-local). Both
+  work — validator just checks file existence — but mixing paths is
+  ugly.
+- **v2.2 candidate**: confirms backlog #2 + v2.1 design idea 4
+  (cache://sha256/<digest> locator scheme + cache_root_resolution
+  block). Normalize on Tier-1 implementation.
+
+**8. WebSearch occasional unavailability (status: surfaced — iter 5)**
+- iter 5 attempted fresh WebSearch; got "claude-opus-4-7[1m] is
+  temporarily unavailable". Pivoted to synthesis work on existing
+  sources. Worked the next iter.
+- **No fix needed**: external API availability is outside scope. Worth
+  documenting that long-running /loop iterations should be resilient
+  to transient WebSearch outages — synthesis / aggregation / validation
+  work can substitute for fresh discovery.
+
+**9. Saturation point at ~20 sources for solo dogfood (status:
+   surfaced — iter 9-10 observation)**
+- Iter 9 added VeriFact + synthesis claim; iter 10 added FAIR-RAG. New
+  sources increasingly extend existing claim_family entries rather than
+  introducing genuinely new mechanisms. Diminishing returns curve is
+  visible.
+- **Implication for v2.2 Tier-1 implementation**: the backlog is
+  saturated enough to support implementation. Item 1 has 4 evidences
+  (FActScore, VISTA, AtomEval, VeriFact); Item 3 has 3 (Attribute-First,
+  C²-Cite, Gen-vs-Posthoc); Item 5 has 2 (Self-RAG, FAIR-RAG). Adequate.
+
+**10. Iter discipline: 2 sources per iter is a healthy cadence
+   (status: surfaced — methodological observation)**
+- ~10 tool calls per source × 2 sources = 20 tool calls/iter for new
+  discovery, plus validation/audit/export overhead. Iter typically
+  completes in ~5 min of tool-active time. Sustainable for /loop.
+
 ---
 
 ## v2.1.0: anti-hallucination strict-live (Phase 7) — shipped 2026-05-19

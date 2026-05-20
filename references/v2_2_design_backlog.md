@@ -168,7 +168,9 @@ sooner.
 
 ### Item 5: Self-RAG-style adaptive retrieval in `/research-gather` (Tier-1)
 
-- **Evidence**: `ev_selfrag_reflection_tokens` (Asai et al. 2023, ICLR).
+- **Evidence**: `ev_selfrag_reflection_tokens` (Asai et al. 2023, ICLR) +
+  `ev_fairrag_iterative_refinement` (Asl et al. 2025, iter 10 — arXiv
+  2510.22344).
 - **v2.1 gap**: `/research-gather` Phase 2 issues WebSearches according to
   sub-area templates but doesn't adapt the retrieval depth based on what's
   found. Self-RAG fine-tunes an LLM to emit `IsRel` / `IsSup` / `IsUse`
@@ -178,17 +180,29 @@ sooner.
   large language models (LLMs) often produce responses containing factual
   inaccuracies due to their sole reliance on the parametric knowledge they
   encapsulate" — adaptive retrieval addresses this.
+- **Iter 10 reinforcement (FAIR-RAG, Asl 2025)**: 2-year follow-up to
+  Self-RAG. FAIR-RAG introduces "a novel agentic framework that transforms
+  the standard RAG pipeline into a dynamic, evidence-driven reasoning
+  process. At its core is an Iterative Refinement Cycle governed by a"
+  faithfulness-checked reflection step. Confirms the broader research
+  trend: 2023-2025 has converged on iterative refinement loops as the
+  canonical pattern for adaptive retrieval. /research-gather Phase 2
+  should adopt the same shape.
 - **Proposed mechanism**: `/research-gather` Phase 2 explicit reflection
   loop. After each WebSearch + WebFetch, emit a structured `IsRel` /
   `IsSup` / `IsUse` block to a `gather_trace.yml` (a new artifact). When
   `IsSup` is "partial" or "none" for a sub-area, automatically expand
   search queries OR escalate to manual review. `IsUse` < 3 → drop the
   source. Auditor reads gather_trace.yml in a follow-on `/freshness-audit`
-  step.
+  step. **Iter 10 refinement**: borrow FAIR-RAG's "Iterative Refinement
+  Cycle" structure — instead of a single reflection pass per fetch,
+  iterate until evidence-driven faithfulness threshold met OR k-iterations
+  exhausted.
 - **Effort**: M (skill body rewrite + new gather_trace template +
   validator).
 - **Priority**: Tier-1 — addresses the discovery rigor gap surfaced in
-  Phase 4 BURN_IN as a deferred item.
+  Phase 4 BURN_IN as a deferred item. Strengthened by iter 10's FAIR-RAG
+  evidence that the iterative refinement pattern is now standard.
 
 ---
 
