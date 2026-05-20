@@ -52,6 +52,41 @@ Read the corresponding `research_plan.md` (typically `<dossier_dir>/../research_
 - Get the section-anchor scheme (`A1`, `A2`, `B1`, etc.)
 - Cross-reference the claim_family taxonomy
 
+#### v2.2 Attribute-First sub-phases (strict-live projects only)
+
+For strict-live v2.2+ projects, Phase 2 splits into 2a → 2b → 2c BEFORE
+any bullet text is generated. This commits to evidence spans before
+writing prose, making post-hoc rationalization structurally impossible.
+
+**Phase 2a — span-select.** For each entry in the dossier, open its
+cached source(s) (`cache_manifest.yml` → `text_path`) and pick the
+spans that will become evidence for the entry's atomic claims. A
+single entry usually decomposes into 2–5 atomic claims (FActScore /
+AtomEval lesson — bullet-level claims hide mixed support). Each atomic
+claim binds to one span; record byte offsets + sha256 + excerpt.
+
+**Phase 2b — plan.** Emit `<output_dir>/pre_selection_manifest.yml`
+with one `selections[]` entry per (bullet, atom) pair. Schema is in
+`templates/pre_selection_manifest.template.yml`. The manifest is the
+structural contract: only these spans may appear as evidence for the
+declared atom_ids.
+
+Use atom_id naming `claim_<topic>_b<bullet>_a<atom>_<descriptor>`
+(e.g., `claim_atomic_demo_b1_a1_accuracy`). Each atomic claim_id is
+distinct from the others within a bullet; downstream `build_claim_graph`
+emits one claim record per atom, not per bullet.
+
+**Phase 2c — generate.** Now write the bullet prose, conditioned ONLY
+on the spans in pre_selection_manifest. The bullet's evidence_ids in
+evidence_ledger.yml must be a subset of the atom_ids declared in 2b.
+Validator (Phase 7) rejects any evidence_id whose anchor isn't in the
+pre_selection_manifest — this catches post-hoc citation insertion.
+
+Cap atoms at ~5 per bullet. The validator emits a warning (not error)
+at >5 to flag over-fragmentation. Free-text atoms in v2.2; SROM
+4-tuple structure (subject-relation-object-modifier) is a deferred
+v2.3 enhancement.
+
 ### Phase 3: pick topic-file split
 
 The agent-index typically has one synthesis file per dossier file, plus an `00_overview.md` (optional but common) and a `README.md`.
@@ -151,6 +186,16 @@ Build the lookup recipes from typical questions a reader might ask. Cover ~80% o
 
 Apply the verification checklist from `references/dual_audience_design.md` § "Verification checklist". Then run the validator.
 
+For v2.2+ strict-live projects, also verify that every evidence_id cited
+in the rendered bullets has a matching atom_id selection in
+`pre_selection_manifest.yml`. Pre-selection commits drift the evidence
+contract: any bullet citing a span NOT in the manifest is a structural
+post-hoc rationalization and must be rewritten.
+
+```bash
+python ~/Claude/research_toolkit/validators/pre_selection_manifest.py <output_dir>/pre_selection_manifest.yml
+```
+
 ## Templates
 
 - `Read ~/Claude/research_toolkit/templates/agent_index_README.template.md` — README structure.
@@ -184,6 +229,7 @@ This catches **claim_family taxonomy drift** (a bib_ledger entry uses a `claim_f
 - `<output_dir>/00_overview.md` (optional) — extended overview / threat model / glossary
 - `<output_dir>/01_<topic>.md` … `<output_dir>/0K_<topic>.md` — synthesis files with 5-bullet entries
 - (v2 strict-live only) appended entries in `<output_dir>/../evidence_ledger.yml` for synthesis-specific cross-cutting claims (Phase 4b)
+- (v2.2+ strict-live only) `<output_dir>/pre_selection_manifest.yml` — span selections committed in Phase 2b BEFORE any bullet is generated (Attribute-First contract); every bullet's evidence_ids must trace to an atom_id selection here
 
 **Consumed by:**
 - `/dossier-audit <output_dir> --focus <area>` — independent verification round

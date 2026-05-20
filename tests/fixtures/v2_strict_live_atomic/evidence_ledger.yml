@@ -1,0 +1,76 @@
+schema_version: 3
+topic: atomic_demo
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+entries:
+- evidence_id: ev_atomic_accuracy
+  source_url: https://example.com/papers/atomic-demo
+  source_type: paper
+  source_quality: primary
+  retrieved_at: 2026-05-19
+  verification_method: webfetch
+  cache_ids:
+  - cache_atomic_demo
+  supports:
+  - claim_id: claim_atomic_demo_b1_a1_accuracy
+    field_path: bib_ledger.entries[0].title
+    evidence_role: supports
+    evidence_role_strength: full
+    extraction_method: verbatim_match
+    link_confidence: 0.95
+    excerpt_anchor:
+      cache_id: cache_atomic_demo
+      text_path_offset:
+      - 4
+      - 34
+      sha256_of_span: 20d351d47fdd1bf8cc20514a5396339221e39bf9fabf146d3f6df5d5aeec30ee
+  excerpt: system achieves 91.2% accuracy
+  rights_status: private_use
+- evidence_id: ev_atomic_latency
+  source_url: https://example.com/papers/atomic-demo
+  source_type: paper
+  source_quality: primary
+  retrieved_at: 2026-05-19
+  verification_method: webfetch
+  cache_ids:
+  - cache_atomic_demo
+  supports:
+  - claim_id: claim_atomic_demo_b1_a2_latency
+    field_path: bib_ledger.entries[0].title
+    evidence_role: supports
+    evidence_role_strength: full
+    extraction_method: verbatim_match
+    link_confidence: 0.95
+    excerpt_anchor:
+      cache_id: cache_atomic_demo
+      text_path_offset:
+      - 54
+      - 85
+      sha256_of_span: fb97ecff6674851bbb2addfe34f0ec565e4c77cd8efd6bd35023df6ee4cdefc9
+  excerpt: Inference latency averaged 42ms
+  rights_status: private_use
+- evidence_id: ev_atomic_training
+  source_url: https://example.com/papers/atomic-demo
+  source_type: paper
+  source_quality: primary
+  retrieved_at: 2026-05-19
+  verification_method: webfetch
+  cache_ids:
+  - cache_atomic_demo
+  supports:
+  - claim_id: claim_atomic_demo_b1_a3_training
+    field_path: bib_ledger.entries[0].title
+    evidence_role: supports
+    evidence_role_strength: full
+    extraction_method: verbatim_match
+    link_confidence: 0.95
+    excerpt_anchor:
+      cache_id: cache_atomic_demo
+      text_path_offset:
+      - 97
+      - 122
+      sha256_of_span: 87bde8f4550168ba8adf6f737e356756faa6a3fd7c68d64b77a327c8d7fded54
+  excerpt: Training used 1.2B tokens
+  rights_status: private_use

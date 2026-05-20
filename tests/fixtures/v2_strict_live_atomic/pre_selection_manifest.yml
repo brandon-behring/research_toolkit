@@ -1,0 +1,37 @@
+schema_version: 3
+topic: atomic_demo
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+selections:
+- selection_id: sel_b1_a1
+  bullet_id: B1
+  atom_id: claim_atomic_demo_b1_a1_accuracy
+  cache_id: cache_atomic_demo
+  span:
+    text_path_offset:
+    - 4
+    - 34
+    sha256_of_span: 20d351d47fdd1bf8cc20514a5396339221e39bf9fabf146d3f6df5d5aeec30ee
+    excerpt: system achieves 91.2% accuracy
+- selection_id: sel_b1_a2
+  bullet_id: B1
+  atom_id: claim_atomic_demo_b1_a2_latency
+  cache_id: cache_atomic_demo
+  span:
+    text_path_offset:
+    - 54
+    - 85
+    sha256_of_span: fb97ecff6674851bbb2addfe34f0ec565e4c77cd8efd6bd35023df6ee4cdefc9
+    excerpt: Inference latency averaged 42ms
+- selection_id: sel_b1_a3
+  bullet_id: B1
+  atom_id: claim_atomic_demo_b1_a3_training
+  cache_id: cache_atomic_demo
+  span:
+    text_path_offset:
+    - 97
+    - 122
+    sha256_of_span: 87bde8f4550168ba8adf6f737e356756faa6a3fd7c68d64b77a327c8d7fded54
+    excerpt: Training used 1.2B tokens

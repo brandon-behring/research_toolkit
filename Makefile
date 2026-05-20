@@ -75,6 +75,14 @@ v2-smoke:
 	$(PY) validators/claim_graph.py tests/fixtures/v3_strict_live_demo/claim_graph.jsonl
 	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v3_strict_live_demo
 	$(PY) scripts/verify_citations.py tests/fixtures/v3_strict_live_demo --today 2026-05-19
+	@echo "--- v2.2 atomic fixture (atomic decomposition + pre_selection_manifest) ---"
+	$(PY) validators/bib_ledger.py tests/fixtures/v2_strict_live_atomic/bib_ledger.yml
+	$(PY) validators/evidence_ledger.py tests/fixtures/v2_strict_live_atomic/evidence_ledger.yml
+	$(PY) validators/cache_manifest.py tests/fixtures/v2_strict_live_atomic/cache_manifest.yml
+	$(PY) validators/claim_graph.py tests/fixtures/v2_strict_live_atomic/claim_graph.jsonl
+	$(PY) validators/pre_selection_manifest.py tests/fixtures/v2_strict_live_atomic/pre_selection_manifest.yml
+	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v2_strict_live_atomic
+	$(PY) scripts/verify_citations.py tests/fixtures/v2_strict_live_atomic --today 2026-05-19
 
 builders-smoke:
 	$(PY) scripts/build_claim_graph.py tests/fixtures/v2_strict_live_ai_agents --output /tmp/built_claim_graph.jsonl
@@ -110,6 +118,7 @@ audit-strict:
 	$(PY) -m validators.cross_stage --strict tests/fixtures/prompt_injection_snapshot/recreated
 	$(PY) -m validators.freshness --strict --today 2026-05-19 tests/fixtures/v2_strict_live_ai_agents
 	$(PY) -m validators.freshness --strict --today 2026-05-19 tests/fixtures/v2_strict_live_multi_entry
+	$(PY) -m validators.freshness --strict --today 2026-05-19 tests/fixtures/v2_strict_live_atomic
 
 burn-in:
 	@$(PY) scripts/burn_in_query.py --severity high --status surfaced

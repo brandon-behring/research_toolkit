@@ -13,12 +13,13 @@ import pytest
 import yaml
 
 from validators import bib_ledger, dataset_ledger
-from validators import cache_manifest, claim_graph, evidence_ledger, freshness, gather_trace, research_kb_export
+from validators import cache_manifest, claim_graph, evidence_ledger, freshness, gather_trace, pre_selection_manifest, research_kb_export
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_ai_agents"
 MULTI_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_multi_entry"
 V3_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v3_strict_live_demo"
+ATOMIC_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_atomic"
 
 
 def test_v2_fixture_passes_all_validators() -> None:
@@ -816,3 +817,118 @@ def test_v22_gather_trace_rejects_duplicate_fetch_id(tmp_path: Path) -> None:
     _write_yaml(path, data)
     errors = gather_trace.validate(path)
     assert any("duplicate fetch_id" in e for e in errors), errors
+
+
+# ----- v2.2 Phase B: atomic decomposition + pre_selection_manifest -----
+
+
+def test_v22_atomic_fixture_passes_all_validators() -> None:
+    assert bib_ledger.validate(ATOMIC_FIXTURE / "bib_ledger.yml") == []
+    assert evidence_ledger.validate(ATOMIC_FIXTURE / "evidence_ledger.yml") == []
+    assert cache_manifest.validate(ATOMIC_FIXTURE / "cache_manifest.yml") == []
+    assert claim_graph.validate(ATOMIC_FIXTURE / "claim_graph.jsonl") == []
+    assert pre_selection_manifest.validate(
+        ATOMIC_FIXTURE / "pre_selection_manifest.yml"
+    ) == []
+    assert freshness.validate(ATOMIC_FIXTURE, strict=True, today=date(2026, 5, 19)) == []
+
+
+def test_v22_atomic_claim_graph_has_three_atoms() -> None:
+    """Builder produces one claim record per atom_id, not one per bullet."""
+    records = [
+        json.loads(line)
+        for line in (ATOMIC_FIXTURE / "claim_graph.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    atom_claims = [
+        r for r in records
+        if r.get("record_type") == "claim"
+        and isinstance(r.get("id"), str)
+        and r["id"].startswith("claim_atomic_demo_b1_")
+    ]
+    assert len(atom_claims) == 3, [r.get("id") for r in atom_claims]
+    # Each atom binds to exactly one evidence_id at this scale
+    for c in atom_claims:
+        assert len(c.get("evidence_ids", [])) == 1, c
+
+
+def test_v22_pre_selection_manifest_rejects_unknown_atom_id(tmp_path: Path) -> None:
+    """The structural anti-hallucination guarantee: pre-selection can't
+    commit to an atom_id that doesn't exist in claim_graph."""
+    project = tmp_path / "project"
+    shutil.copytree(ATOMIC_FIXTURE, project)
+    path = project / "pre_selection_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["selections"][0]["atom_id"] = "claim_does_not_exist"
+    _write_yaml(path, data)
+    errors = pre_selection_manifest.validate(path)
+    assert any("not found among claim records" in e for e in errors), errors
+
+
+def test_v22_pre_selection_manifest_rejects_bad_sha256(tmp_path: Path) -> None:
+    """Substring + sha256 check: tampering with the recorded hash is rejected."""
+    project = tmp_path / "project"
+    shutil.copytree(ATOMIC_FIXTURE, project)
+    path = project / "pre_selection_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["selections"][0]["span"]["sha256_of_span"] = "0" * 64
+    _write_yaml(path, data)
+    errors = pre_selection_manifest.validate(path)
+    assert any("sha256_of_span" in e for e in errors), errors
+
+
+def test_v22_pre_selection_manifest_rejects_bad_excerpt(tmp_path: Path) -> None:
+    """Excerpt-equality: the manifest's excerpt must match the span bytes."""
+    project = tmp_path / "project"
+    shutil.copytree(ATOMIC_FIXTURE, project)
+    path = project / "pre_selection_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["selections"][0]["span"]["excerpt"] = "system fabricates ZERO accuracy"
+    _write_yaml(path, data)
+    errors = pre_selection_manifest.validate(path)
+    assert any("excerpt does not match" in e for e in errors), errors
+
+
+def test_v22_pre_selection_manifest_rejects_unknown_cache_id(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(ATOMIC_FIXTURE, project)
+    path = project / "pre_selection_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["selections"][0]["cache_id"] = "cache_does_not_exist"
+    _write_yaml(path, data)
+    errors = pre_selection_manifest.validate(path)
+    assert any("not found in cache_manifest" in e for e in errors), errors
+
+
+def test_v22_pre_selection_manifest_rejects_duplicate_selection_id(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(ATOMIC_FIXTURE, project)
+    path = project / "pre_selection_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["selections"].append(copy.deepcopy(data["selections"][0]))
+    _write_yaml(path, data)
+    errors = pre_selection_manifest.validate(path)
+    assert any("duplicate selection_id" in e for e in errors), errors
+
+
+def test_v22_atomic_dashboard_reports_corroboration_and_strength(tmp_path: Path) -> None:
+    """v2.2 dashboard adds corroboration and atom-support-strength metrics
+    on v3 fixtures. Atomic fixture should report 100% atoms fully supported,
+    0% corroborated (since the demo has just one source per atom)."""
+    out = tmp_path / "dashboard.md"
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(ATOMIC_FIXTURE),
+            "--output",
+            str(out),
+            "--today",
+            "2026-05-19",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    text = out.read_text(encoding="utf-8")
+    assert "atoms fully supported: 3/3 (100%)" in text, text
+    assert "corroborated (≥2 independent sources): 0/3 (0%)" in text, text

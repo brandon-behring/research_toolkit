@@ -1,0 +1,20 @@
+schema_version: 3
+topic: atomic_demo
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+cache_root: ./cache
+
+entries:
+- cache_id: cache_atomic_demo
+  source_url: https://example.com/papers/atomic-demo
+  fetched_at: 2026-05-19
+  content_type: text/html
+  bytes: 148
+  sha256: 65a9923ccc51e85bd23049f3fba23481504bdf0063ca61cdc0626c2a35f1cd9a
+  raw_path: cache/raw/paper.html
+  text_path: cache/text/paper.txt
+  metadata_path: cache/metadata/paper.json
+  restricted: false
+  rights_status: private_use
+  extraction_status: ok

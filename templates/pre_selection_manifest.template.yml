@@ -1,0 +1,34 @@
+# pre_selection_manifest template (strict-live v2.2)
+# Written by /agent-index Phase 2b (Attribute-First planning step).
+# Used as the structural anti-hallucination guarantee: every bullet's
+# evidence_ids MUST appear in this manifest before generation runs.
+#
+# /agent-index Phase 2 sub-phases:
+#   2a — span-select: open cache_blobs, pick the spans that will become
+#        evidence for atomic claims. Record byte offsets + sha256.
+#   2b — plan: emit pre_selection_manifest.yml with one selection per
+#        atomic claim. Each selection commits to a (cache_id, span) pair
+#        as the ONLY allowed evidence for that atom.
+#   2c — generate: emit bullets conditioned ONLY on the selected spans.
+#        Generation cannot cite a span that doesn't appear in 2b.
+#
+# After 2b, /agent-index generates bullets that mechanically can't drift
+# from the pre-selected sources. Post-hoc rationalization is structurally
+# impossible: validators reject any evidence_id whose anchor isn't here.
+
+schema_version: 3
+topic: '<topic slug>'
+generated_at: <YYYY-MM-DD>
+current_as_of: <YYYY-MM-DD>
+freshness_policy: strict_live
+
+selections:
+- selection_id: sel_<short-slug>
+  bullet_id: 'B1'                    # bullet identifier within agent_index entry
+  atom_id: 'claim_<topic>_b1_a1_0001'  # atomic claim_id this span supports
+  cache_id: cache_<sha-prefix>       # which cached source contains the span
+  span:
+    text_path_offset: [0, 200]       # [start, end] byte offsets into cache text_path
+    sha256_of_span: <64 hex chars>   # of the bytes at that offset
+    excerpt: |-
+      <whitespace-normalized text of the selected span; identical bytes to text_path[start:end]>

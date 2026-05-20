@@ -194,9 +194,13 @@ def build(project_dir: Path, today: date) -> str:
         strong_methods = {"verbatim_match", "user_asserted"}
         partial_methods = {"paraphrase", "manual_override"}
         weak_methods = {"llm_inferred", "propagated_from_child"}
+        # v2.2: per-claim corroboration + role-strength tracking
+        claim_source_urls: dict[str, set[str]] = {}
+        claim_strengths: dict[str, set[str]] = {}
         for entry in evidence_entries:
             if not isinstance(entry, dict):
                 continue
+            entry_url = entry.get("source_url")
             for support in (entry.get("supports") or []):
                 if not isinstance(support, dict):
                     continue
@@ -210,6 +214,13 @@ def build(project_dir: Path, today: date) -> str:
                     partial_count += 1
                 elif method in weak_methods:
                     weak_count += 1
+                claim_id = support.get("claim_id")
+                if isinstance(claim_id, str):
+                    if isinstance(entry_url, str):
+                        claim_source_urls.setdefault(claim_id, set()).add(entry_url)
+                    strength = support.get("evidence_role_strength")
+                    if isinstance(strength, str):
+                        claim_strengths.setdefault(claim_id, set()).add(strength)
         if total_links:
             vm_pct = round(100 * verbatim_match_count / total_links)
             strong_pct = round(100 * strong_count / total_links)
@@ -223,6 +234,28 @@ def build(project_dir: Path, today: date) -> str:
                 f"- partially grounded: {partial_count}/{total_links}",
                 f"- weakly grounded (inferred/propagated): {weak_count}/{total_links}",
             ]
+            # v2.2: corroboration + atom support strength metrics. Only surface
+            # when there's at least one claim with binding data; otherwise the
+            # ratios are misleading.
+            if claim_source_urls:
+                corroborated = sum(
+                    1 for urls in claim_source_urls.values() if len(urls) >= 2
+                )
+                total_claims_for_corr = len(claim_source_urls)
+                corr_pct = round(100 * corroborated / total_claims_for_corr)
+                claim_health_lines.append(
+                    f"- corroborated (≥2 independent sources): "
+                    f"{corroborated}/{total_claims_for_corr} ({corr_pct}%)"
+                )
+            if claim_strengths:
+                full_only = sum(
+                    1 for s in claim_strengths.values() if s == {"full"}
+                )
+                total_claims_for_strength = len(claim_strengths)
+                full_pct = round(100 * full_only / total_claims_for_strength)
+                claim_health_lines.append(
+                    f"- atoms fully supported: {full_only}/{total_claims_for_strength} ({full_pct}%)"
+                )
 
     # v2.2: Discovery Rigor metrics (reads gather_trace.yml if present)
     discovery_rigor_lines: list[str] = []

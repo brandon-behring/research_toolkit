@@ -22,3 +22,5 @@ Current as of: 2026-05-19
 - strongly grounded: 1/1 (100%)
 - partially grounded: 0/1
 - weakly grounded (inferred/propagated): 0/1
+- corroborated (≥2 independent sources): 0/1 (0%)
+- atoms fully supported: 1/1 (100%)

@@ -1,0 +1,26 @@
+schema_version: 3
+topic: atomic_demo
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+entries:
+- bibkey: demo2026atomic
+  primary_url: https://example.com/papers/atomic-demo
+  title: 'Atomic Demo: Benchmarks, Latency, and Training Scale'
+  status: verified
+  claim_family: paper
+  retrieved_at: 2026-05-19
+  verified_at: 2026-05-19
+  verification_method: webfetch
+  verified_fields:
+  - title
+  - primary_url
+  freshness_tier: stable
+  stale_after_days: 365
+  evidence_ids:
+  - ev_atomic_accuracy
+  - ev_atomic_latency
+  - ev_atomic_training
+  cache_ids:
+  - cache_atomic_demo
