@@ -278,6 +278,67 @@ sooner.
 
 ---
 
+### Item 5e: GSAR-style typed grounding for multi-agent reports (Tier-2)
+
+- **Evidence**: `ev_gsar_typed_grounding` (Kamelhar et al. 2026, fresh —
+  arXiv 2604.23366).
+- **v2.1 gap**: v2.1's `evidence_role` enum is untyped at the *claim
+  category* level — a `supports` link doesn't differentiate "this is a
+  causal claim" vs "this is a definitional claim" vs "this is a
+  quantitative claim." Kamelhar et al. 2026: "Autonomous multi-agent LLM
+  systems are increasingly deployed to investigate operational incidents
+  and produce structured diagnostic reports. Their trustworthiness hinges
+  on whether each claim is groun[ded]" — they introduce TYPED grounding
+  where each claim is tagged with its semantic type and grounded against
+  type-appropriate evidence.
+- **Proposed mechanism**: extend `claim_type` enum (already
+  fact/comparison/trend/risk/recommendation/contradiction/open_question/
+  user_judgment) with finer-grained types for the v3 substring check.
+  Different `claim_type` values get different `evidence_role` requirements
+  — e.g., `claim_type: quantitative` MUST have a `verbatim_match` anchor;
+  `claim_type: definitional` allows `paraphrase`.
+- **Effort**: M (schema additions + validator logic).
+- **Priority**: Tier-2 (refinement of existing typing).
+
+### Item 6c: Process-reward agents for grounded reasoning (Tier-3)
+
+- **Evidence**: `ev_process_reward_agents` (Sohn et al. 2026, fresh —
+  arXiv 2604.09482).
+- **v2.1 gap**: v2.1 evaluates evidence per-claim (post-generation). PRMs
+  evaluate reasoning STEPS, awarding per-step credit for grounded
+  inference. Sohn et al. 2026: "Reasoning in knowledge-intensive domains
+  remains challenging as intermediate steps are often not locally
+  verifiable: unlike math or code, evaluating step correctness may
+  require synthesizing clues acr[oss many sources]."
+- **Proposed mechanism**: too invasive for v2.2. Would require training
+  a process-reward model on the toolkit's own outputs (cost: substantial
+  labeled-data + RL training). Document as v3.0 research direction.
+- **Effort**: L+ (training infrastructure).
+- **Priority**: Tier-3 (research direction, not v2.2 ship target).
+
+### Item 6d: Probabilistic certainty + consistency for /citation-audit (Tier-2)
+
+- **Evidence**: `ev_factcheck_probabilistic_certainty` (Wang et al. 2026
+  — arXiv 2601.02574).
+- **v2.1 gap**: /citation-audit reports binary substring-check pass/fail.
+  Wang et al. 2026 propose combining PROBABILISTIC certainty (the model's
+  reported confidence in its own claim) with CONSISTENCY (across multiple
+  samples) as a fact-checking signal. Wang et al.: "Large language models
+  (LLMs) are increasingly used in applications requiring factual
+  accuracy, yet their outputs often contain hallucinated responses. While
+  fact-checking can mitigate these errors, ex[isting methods don't
+  combine certainty + consistency]."
+- **Proposed mechanism**: when /citation-audit encounters a `paraphrase`
+  evidence link (no substring check applicable), sample k=3 variants of
+  the claim text from the model with its self-reported certainty. High
+  certainty + high consistency → confidence boost; low certainty OR low
+  consistency → confidence cap to 0.5. Annotates per-link
+  `probabilistic_factcheck_score: 0..1` in evidence_ledger.
+- **Effort**: M (samples + certainty prompting + integration with
+  /citation-audit).
+- **Priority**: Tier-2 (complements Item 4 semantic entropy from a
+  different angle).
+
 ## Tier-1 next-session implementation plan
 
 Top 3 items for v2.2.0 (per user 2026-05-19 commitment "build the backlog
