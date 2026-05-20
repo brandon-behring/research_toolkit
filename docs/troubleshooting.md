@@ -432,6 +432,45 @@ structural anti-hallucination guarantee. Errors here are almost always
 "the manifest got written before the supporting artifacts caught up;
 rebuild bottom-up."
 
+## cache_source.py: --escalate-on-failure but Playwright not installed
+
+**Symptom:** running `cache_source.py --escalate-on-failure <url>` against
+a JS-rendered URL raises:
+`RuntimeError: Playwright escalation requested but the 'playwright' package
+is not installed.`
+
+**Cause:** v2.2.1's Playwright escalation is gated behind the optional
+`dev` extras; the bare `pip install -e .` install doesn't pull it in.
+
+**Fix:** install Playwright + Chromium browser:
+```bash
+pip install -e ".[dev]"
+playwright install chromium
+```
+
+Re-run the same command. cache_source.py will lazy-import playwright when
+escalation triggers (urllib 403/429 or suspect content).
+
+## cache_source.py escalated to Playwright but still got empty / garbage
+
+**Symptom:** Playwright-rendered cache has fetch_method: playwright_rendered
+but the extracted text is still empty, garbled, or login-gated.
+
+**Causes:**
+- Site requires authentication (login wall after page load)
+- Captcha / Cloudflare turnstile check
+- Geographic block (IP-based)
+- The page's JS waits for user interaction (click, scroll) before rendering content
+- The URL redirects to a different domain that's still JS-locked
+
+**Fix:** None of these are auto-fixable. Options:
+- Treat as `restricted: true` in the manifest entry; document the access
+  barrier in evidence_ledger's `rights_status: restricted`.
+- Manually paste extracted text into a local file and reference it as
+  `extraction_method: manual_override` in evidence_ledger.
+- Surface as a friction item in BURN_IN; consider v2.3 candidate to add
+  authenticated session support to Playwright invocation.
+
 ## Test suite has 2 xfailed cases — is that normal?
 
 **Symptom:** `make test` reports `2 xfailed`.

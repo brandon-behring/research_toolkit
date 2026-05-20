@@ -46,6 +46,23 @@ Verify Claude Code sees them:
 ls ~/.claude/skills/research-*.md ~/.claude/skills/dossier-*.md ~/.claude/skills/agent-*.md ~/.claude/skills/url-*.md
 ```
 
+### Optional: Playwright for JS-rendered sources (v2.2.1+)
+
+`scripts/cache_source.py` uses urllib by default — fast, dependency-free,
+but blind to JS-rendered SPAs / vendor dashboards. v2.2.1 adds an optional
+Playwright escalation path triggered by `--escalate-on-failure`.
+
+Install once:
+
+```bash
+pip install -e ".[dev]"            # installs playwright Python package
+playwright install chromium        # downloads the Chromium browser
+```
+
+Then `cache_source.py --escalate-on-failure <url>` will retry via headless
+Chromium when urllib returns 403/429 or content that looks like an
+unhydrated SPA (blank text, JS-required markers).
+
 ## A 5-minute end-to-end run
 
 Pick a topic. From any directory:

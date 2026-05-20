@@ -264,3 +264,136 @@ def test_cache_one_new_content_emits_capture_linked_to_prior(
     assert entry["record_type"] == "capture"
     assert "raw_path" in entry  # bytes were written
     assert entry["refers_to_cache_id"] == "cache_oldhash_v1"  # back-link recorded
+
+
+# ----- v2.2.1: Playwright escalation -----
+
+
+def test_v221_urllib_fast_path_no_escalation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When urllib returns substantial content, no Playwright escalation."""
+    raw = b"<html><body>" + (b"real content " * 100) + b"</body></html>"
+    _patch_fetch(monkeypatch, raw, "text/html")
+    entry = cache_source.cache_one(
+        "https://example.com/static",
+        cache_root=tmp_path,
+        fetched_at="2026-05-20",
+        topic="test",
+        escalate_on_failure=True,
+    )
+    # urllib default — fetch_method omitted from entry (backward compat)
+    assert "fetch_method" not in entry
+    assert entry["record_type"] == "capture"
+
+
+def test_v221_escalates_on_http_403(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """403 from urllib with --escalate-on-failure → Playwright fallback."""
+    from urllib.error import HTTPError
+
+    rendered_raw = b"<html><body>" + (b"playwright content " * 100) + b"</body></html>"
+
+    def fake_urllib(*_a, **_kw):
+        raise HTTPError("https://example.com/sso", 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(cache_source, "_fetch", fake_urllib)
+    monkeypatch.setattr(
+        cache_source, "_fetch_via_playwright",
+        lambda _u: (200, rendered_raw, "text/html", None, None),
+    )
+    entry = cache_source.cache_one(
+        "https://example.com/sso",
+        cache_root=tmp_path,
+        fetched_at="2026-05-20",
+        topic="test",
+        escalate_on_failure=True,
+    )
+    assert entry["fetch_method"] == "playwright_rendered"
+    assert entry["bytes"] == len(rendered_raw)
+
+
+def test_v221_does_not_escalate_without_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """403 from urllib WITHOUT --escalate-on-failure → still raises."""
+    from urllib.error import HTTPError
+
+    def fake_urllib(*_a, **_kw):
+        raise HTTPError("https://example.com/sso", 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(cache_source, "_fetch", fake_urllib)
+    with pytest.raises(HTTPError):
+        cache_source.cache_one(
+            "https://example.com/sso",
+            cache_root=tmp_path,
+            fetched_at="2026-05-20",
+            topic="test",
+            escalate_on_failure=False,
+        )
+
+
+def test_v221_escalates_on_suspect_short_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """urllib returns 200 with very short text → Playwright fallback."""
+    short_raw = b"<html><body>Loading</body></html>"  # < 500 chars
+    rendered_raw = b"<html><body>" + (b"hydrated SPA " * 100) + b"</body></html>"
+    _patch_fetch(monkeypatch, short_raw, "text/html")
+    monkeypatch.setattr(
+        cache_source, "_fetch_via_playwright",
+        lambda _u: (200, rendered_raw, "text/html", None, None),
+    )
+    entry = cache_source.cache_one(
+        "https://example.com/spa",
+        cache_root=tmp_path,
+        fetched_at="2026-05-20",
+        topic="test",
+        escalate_on_failure=True,
+    )
+    assert entry["fetch_method"] == "playwright_rendered"
+
+
+def test_v221_escalates_on_js_required_marker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """urllib returns 200 with JS-required marker → Playwright fallback."""
+    js_required = (
+        b"<html><body>" + b"please enable javascript " * 30
+        + b"<noscript>x</noscript></body></html>"
+    )
+    rendered_raw = b"<html><body>" + (b"hydrated content " * 100) + b"</body></html>"
+    _patch_fetch(monkeypatch, js_required, "text/html")
+    monkeypatch.setattr(
+        cache_source, "_fetch_via_playwright",
+        lambda _u: (200, rendered_raw, "text/html", None, None),
+    )
+    entry = cache_source.cache_one(
+        "https://example.com/spa",
+        cache_root=tmp_path,
+        fetched_at="2026-05-20",
+        topic="test",
+        escalate_on_failure=True,
+    )
+    assert entry["fetch_method"] == "playwright_rendered"
+
+
+def test_v221_content_is_suspect_heuristics() -> None:
+    """Unit test the detection heuristics directly."""
+    is_suspect, _ = cache_source._content_is_suspect(b"a" * 1000, "text/html")
+    assert not is_suspect
+
+    is_suspect, reason = cache_source._content_is_suspect(b"short", "text/html")
+    assert is_suspect
+    assert "chars" in reason
+
+    is_suspect, reason = cache_source._content_is_suspect(
+        b"some content " * 50 + b"<noscript>js needed</noscript>",
+        "text/html",
+    )
+    assert is_suspect
+    assert "noscript" in reason.lower()
+
+    is_suspect, _ = cache_source._content_is_suspect(b"", "text/html")
+    assert is_suspect

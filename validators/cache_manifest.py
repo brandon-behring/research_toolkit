@@ -25,6 +25,10 @@ URL_PATTERN = re.compile(rf"^{URL_RE}$")
 ALLOWED_EXTRACTION_STATUS = {"ok", "partial", "raw_only", "failed"}
 ALLOWED_RECORD_TYPES = {"capture", "revisit", "metadata", "conversion"}
 ALLOWED_REVISIT_PROFILES = {"server-not-modified", "identical-payload-digest"}
+# v2.2.1: fetch_method records HOW the cache was acquired. urllib is the
+# default (omitted on disk for backward compat); playwright_rendered is
+# only set when Playwright escalation was used.
+ALLOWED_FETCH_METHODS = {"urllib", "playwright_rendered"}
 # v2.1: WARC-inspired revisit records save storage on re-fetch when the
 # remote content hasn't changed. A revisit record stores only the pointer
 # back to the original capture (refers_to_cache_id) plus the http response
@@ -142,6 +146,12 @@ def _validate_entry(
     if extraction is not None and extraction not in ALLOWED_EXTRACTION_STATUS:
         errors.append(
             f"{loc}.extraction_status: {extraction!r} not in {sorted(ALLOWED_EXTRACTION_STATUS)}"
+        )
+
+    fetch_method = entry.get("fetch_method")
+    if fetch_method is not None and fetch_method not in ALLOWED_FETCH_METHODS:
+        errors.append(
+            f"{loc}.fetch_method: {fetch_method!r} not in {sorted(ALLOWED_FETCH_METHODS)}"
         )
 
     raw_value = entry.get("raw_path")

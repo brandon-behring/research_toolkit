@@ -10,6 +10,71 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.2.1: Playwright escalation in cache_source.py — shipped 2026-05-20
+
+**Theme**: cache_source.py now retries via headless Chromium when urllib
+returns 403/429 OR content that looks like an unhydrated SPA (blank text,
+JS-required markers). Promoted from v2.1 backlog Idea 10 (Tier-3) because
+the user had hit WebFetch failures repeatedly on JS-rendered sites — known
+problem, deferred too long.
+
+### Design
+- urllib stays the default fast path. Playwright is a fallback gated by
+  `--escalate-on-failure`.
+- Detection heuristics: HTTP 403/429 escalates immediately; HTTP 200 with
+  <500 chars OR containing JS-required markers (`<noscript>`, "Please
+  enable JavaScript", empty React/Next.js root divs) escalates after the
+  urllib response is received.
+- Playwright is lazy-imported only when escalation triggers — script stays
+  usable without Playwright installed; helpful RuntimeError when escalation
+  is requested but the dep is missing.
+- New optional `fetch_method: urllib | playwright_rendered` field on
+  cache_manifest entries. urllib default is omitted from disk for
+  backward-compatible byte-stability with existing v3 fixtures.
+
+### Modified surfaces
+- `scripts/cache_source.py`: +~100 LOC for `_content_is_suspect`,
+  `_fetch_via_playwright`, escalation wiring in `cache_one`, and
+  `--escalate-on-failure` CLI flag.
+- `validators/cache_manifest.py`: new `ALLOWED_FETCH_METHODS` enum;
+  validator gates the optional field.
+- `pyproject.toml`: 2.2.0 → 2.2.1; `playwright>=1.40` added to dev extras.
+- `docs/getting_started.md`: Playwright install step (`pip install -e
+  ".[dev]" && playwright install chromium`). Size guard bumped 200 → 250
+  in tests/test_v1_5_artifacts.py.
+- `docs/troubleshooting.md`: two new entries — uninstalled-Playwright
+  RuntimeError, and "Playwright rendered but still empty" (auth /
+  captcha / geographic blocks).
+- `tests/test_cache_source.py`: 6 new tests (urllib fast path; HTTP 403
+  escalation; flag-off no-escalation; short-content escalation;
+  JS-marker escalation; suspect heuristics unit test). All use
+  monkeypatched `_fetch_via_playwright` — no real browser launch in
+  CI.
+
+### End-state metrics
+- 230 tests + 2 xfailed pass (was 224 + 2 before Phase 1.5).
+- v2-smoke green, audit-strict green.
+- All existing v3 fixtures stay byte-stable (fetch_method omitted on
+  urllib captures means no entry changes).
+
+### Friction items (1 surfaced, 0 applied, 1 deferred)
+
+**1. No real-browser smoke test in CI (status: surfaced — deferred)**
+- All Playwright tests use monkeypatched `_fetch_via_playwright`. A real
+  Chromium launch in CI would catch regressions in the actual rendering
+  step but adds dependency weight and CI runtime.
+- **Deferred**: optional `PLAYWRIGHT_REAL_BROWSER=1` env-var-gated test
+  for local dev; CI stays mocked. Not blocking Phases 2–4.
+
+### Phase 1.5 conclusion
+
+Playwright escalation ready. Phases 2–4 (fresh-topic dogfood runs) can
+now reliably cache JS-rendered sources via `--escalate-on-failure`. The
+v2.1 backlog Idea 10 promotion was the right call — preventive fix
+before the dogfood would have hit the failure.
+
+---
+
 ## v2.2.0 dogfood — Phase 1: migrate research_toolkit_design to v2.2 — 2026-05-20
 
 **Theme**: first real-world contact with v2.2's atomic + Attribute-First +

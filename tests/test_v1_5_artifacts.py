@@ -33,7 +33,7 @@ def test_getting_started_exists_and_reasonable_size() -> None:
     p = DOCS / "getting_started.md"
     assert p.exists(), f"missing {p}"
     lines = p.read_text(encoding="utf-8").splitlines()
-    assert 50 <= len(lines) <= 200, f"getting_started.md has {len(lines)} lines; target ~80 (50-200 OK)"
+    assert 50 <= len(lines) <= 250, f"getting_started.md has {len(lines)} lines; target ~80-200 (250 cap accommodates v2.2.1 Playwright install section)"
 
 
 def test_troubleshooting_exists_and_reasonable_size() -> None:
