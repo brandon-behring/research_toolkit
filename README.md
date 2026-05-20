@@ -141,12 +141,19 @@ Reuses paper-pipeline's `/dossier-audit` (focus area: "license risks + access st
 
 v2 projects add `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, and `research_kb_export.jsonl`. Full source snapshots are cached locally under `~/Claude/research_cache/` for private research use and later ingestion.
 
-Two helper scripts mechanize the artifacts the skills used to populate by hand:
+Three helper scripts mechanize the artifacts the skills used to populate by hand:
 
 - `scripts/build_claim_graph.py <project_dir>` — emits `claim_graph.jsonl` from the project's ledgers + evidence_ledger + cache_manifest. Called from `/research-gather` Phase 4.
-- `scripts/build_dashboard.py <project_dir> --today <YYYY-MM-DD>` — emits `dashboard.md` with Trust State metrics + per-tier Action Queue. Called from `/freshness-audit` Phase 5.
+- `scripts/build_dashboard.py <project_dir> --today <YYYY-MM-DD>` — emits `dashboard.md` with Trust State metrics + per-tier Action Queue (and FACT-framework Claim Health metrics for v3 projects). Called from `/freshness-audit` Phase 5.
+- `scripts/verify_citations.py <project_dir>` — mechanical FACT-framework citation auditor for v3 projects. For every `verbatim_match` evidence link, slices the cached `text_path` at the declared byte offset, hashes the slice, and asserts the excerpt matches. Emits `citation_audit_report.md` with per-method breakdown + per-claim grounding strength.
 
-Both validate output before writing and accept `--no-overwrite` to refuse if the target file already exists.
+All three validate output before writing and accept `--no-overwrite` to refuse if the target file already exists.
+
+### v2.1 — anti-hallucination upgrade (schema_version 3)
+
+v2.1 adds `schema_version: 3` to evidence_ledger.yml: every `supports[]` link must declare `extraction_method` (verbatim_match / paraphrase / llm_inferred / propagated_from_child / user_asserted / manual_override) + `link_confidence` (0..1, capped per method). For `verbatim_match`, an `excerpt_anchor: {cache_id, text_path_offset, sha256_of_span}` block is required, and the validator mechanically verifies the substring + hash against the cached text — closing the gap between "source is real" and "the link between source and claim is real." Existing v2 fixtures are grandfathered. See `references/strict_live_v2.md` for the full v3 protocol.
+
+The new `/citation-audit` skill runs this verification as a pre-flight before `/research-kb-export`. The `/dossier-audit` skill's Phase 3 now uses CoVE-factored verification (Dhuliawala et al. arXiv 2309.11495) — verification questions answered in fully decoupled sub-agent contexts to prevent post-rationalization.
 
 ## Defensive layer (v1.2+)
 

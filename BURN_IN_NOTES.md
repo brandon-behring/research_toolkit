@@ -804,6 +804,62 @@ No breaking changes to ledger schema or skill workflows; just three small alignm
 
 ---
 
+## v2.1.0: anti-hallucination strict-live (Phase 7) — shipped 2026-05-19
+
+**Theme**: 6 of 7 Tier-1 items from the external-research synthesis (3 batches,
+8 streams) shipped as a coherent v2.1.0 bundle. Top concern (per user
+2026-05-19): hallucination / over-claiming. v2.1.0 closes the gap between
+"the source is real" (v2.0's cache_manifest) and "the link between source
+and claim is real" (v2.1's span-anchored extraction_method).
+
+**Schema**: `schema_version: 3` introduces required per-link verification
+fields on `evidence_ledger.supports[*]`. v2 entries are grandfathered.
+
+**Tier-1 items shipped** (6 of 7):
+- #1 (commit `dd8beba`): span-anchored extraction_method + link_confidence
+  + excerpt_anchor + substring validation. The load-bearing
+  anti-hallucination mechanism — independent corroboration by GenProve
+  (arXiv 2601.04932) and DataHub FineGrainedLineage.
+- #1b (`dd8beba`): FACT-framework Claim Health section in dashboard.md
+  (v3 only) — verbatim-anchored %, strong/partial/weak grounding counts.
+  Pairs with /citation-audit's mechanical verifier.
+- #2 (`dd8beba`): new `/citation-audit` skill + scripts/verify_citations.py
+  driver. Substring + hash check across all supports[]; per-method
+  breakdown; per-claim grounding strength.
+- #3 (`48639e2`): CoVE factored verification in /dossier-audit Phase 3.
+  Implements Dhuliawala et al. arXiv 2309.11495 — verification questions
+  in fully decoupled contexts prevent post-rationalization.
+- #4 (`dd8beba`): evidence_role_strength {full, partial, none} (Self-RAG
+  IsSup) + multi-domain confidence.domains (GRADE-style) shipped as part
+  of the v3 schema.
+- #5 (`48639e2`): verbose validator error messages with closest-match
+  suggestions in validators/freshness.py (via difflib.get_close_matches).
+- #6 (`48639e2`): "Use when X" descriptions + paths globs across 6 v2/v3
+  skills. Combats undertriggering when many skills compete.
+
+**Deferred to v2.1.1**:
+- #7 WARC revisit records + 304-first conditional GET in cache_source.py.
+  L effort; freshness improvement (not anti-hallucination), so safe to
+  defer past v2.1.0 ship. When implemented, will reduce storage on
+  rescans and add proactive freshness via HTTP ETag/If-None-Match.
+
+**Tests**: 201 passed + 2 xfailed. New v3 fixture
+(`tests/fixtures/v3_strict_live_demo/`) with 1-entry verbatim_match anchor
+demonstrating the substring validation works end-to-end. 8 new v3 tests
+covering: fixture-passes, missing-extraction_method, missing-link_confidence,
+link_confidence-above-cap, substring-mismatch, wrong-sha256,
+llm_inferred-requires-inference_chain, manual_override-requires-user_note.
+
+**Verification**: make v2-smoke clean across all 3 fixtures (v2 ai_agents
+legacy, v2 multi_entry legacy, v3 demo strict). make builders-smoke clean.
+
+**Ships as one-shot stable bundle** (per user 2026-05-19 framing). v2.1.0
+is the active release; further design churn unlikely unless real-world
+dogfood surfaces specific incidents. v2.1.1 backlog: Tier-1 #7 (WARC
+revisit) + cross-project entity canonicalization in research-kb (Phase 8).
+
+---
+
 ## Phase 6: v2 strict-live first-contact dogfood — applied 2026-05-19
 
 **Theme**: first end-to-end run of the v2 chain on a real topic. Phase 0-3.5
