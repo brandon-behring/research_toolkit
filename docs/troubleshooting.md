@@ -316,6 +316,59 @@ Re-fetch the primary/official source, cache the artifact, update
 and then update the ledger entry's `verified_at`, `evidence_ids`, and
 `cache_ids`.
 
+## cache_manifest hash mismatch
+
+**Symptom:** `python validators/cache_manifest.py <manifest>` reports
+`sha256: expected <X>, actual <Y>` on a cache entry.
+
+**Cause:** the raw blob at `raw_path` was modified after the manifest was
+written (manual edit, lost-and-restored from a different revision, line-ending
+normalization on checkout). The manifest's recorded hash no longer matches the
+file on disk.
+
+**Fix:** if the source is still reachable, run `python scripts/cache_source.py
+<url> --topic <topic>` to regenerate the blob + hash + manifest entry, then
+replace the manifest entry. If the source is unreachable, recompute the hash
+inline (`shasum -a 256 <raw_path>`) and update the entry's `sha256` and
+`bytes` fields — but only if you trust the modified content is still
+authoritative.
+
+## cache_manifest references a file that doesn't exist
+
+**Symptom:** `python validators/cache_manifest.py <manifest>` reports
+`raw_path: file does not exist`, `text_path: file does not exist`, or
+`metadata_path: file does not exist`.
+
+**Cause:** the cache directory was not committed (default — `research_cache/`
+is gitignored), the project was restored from a partial backup, or the path
+in the manifest was renamed.
+
+**Fix:** if you have the source URL, re-cache with
+`python scripts/cache_source.py <url> --topic <topic>` and replace the
+manifest entry with the script's printed YAML. If the URL is unreachable
+(403, removed, paywalled), remove the manifest entry AND every reference to
+its `cache_id` from `bib_ledger.yml`, `dataset_ledger.yml`, and
+`evidence_ledger.yml`, then re-run `/freshness-audit --strict` so the project
+is internally consistent.
+
+## Restricted source slipped through to research-kb export
+
+**Symptom:** A `cache_id` for a source you didn't intend to redistribute
+appears in `research_kb_export.jsonl` cache_blob records.
+
+**Cause:** the export script does verbatim wrap of the claim_graph. If the
+ledgers reference a restricted source's `cache_id`, that ID flows through.
+The `rights_status: restricted` flag on the cache entry doesn't block the
+export by itself.
+
+**Fix:** for restricted sources, set both `rights_status: restricted` (or
+`cache_only`) AND `restricted: true` on the cache_manifest entry, then
+remove its `cache_id` from any `evidence_ledger`/`bib_ledger`/`dataset_ledger`
+entry you intend to export. The export only propagates cache_ids that the
+ledgers explicitly list. For paywalled or access-controlled sources, record
+the access notes in `metadata.json` so future readers know what's needed to
+re-fetch.
+
 ## research-kb export fails validation
 
 **Symptom:** `validators/research_kb_export.py` rejects a JSONL export.

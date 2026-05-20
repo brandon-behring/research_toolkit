@@ -65,6 +65,13 @@ def _quality_score(evidence: dict[str, Any]) -> float:
     return SOURCE_QUALITY_SCORE.get(evidence.get("source_quality", ""), 0.0)
 
 
+def _coerce_aliases(value: Any) -> list[str]:
+    """Return a list of non-empty alias strings, or [] if none."""
+    if not isinstance(value, list):
+        return []
+    return [a for a in value if isinstance(a, str) and a.strip()]
+
+
 def _load_optional(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
@@ -102,13 +109,17 @@ def build(project_dir: Path) -> list[dict[str, Any]]:
         if ent_id in seen_entity_ids:
             continue
         seen_entity_ids.add(ent_id)
-        records.append({
+        record: dict[str, Any] = {
             "record_type": "entity",
             "id": ent_id,
             "topic": topic,
             "entity_type": _entity_type_for_bib(entry),
             "canonical_name": entry.get("title", bibkey),
-        })
+        }
+        aliases = _coerce_aliases(entry.get("aliases"))
+        if aliases:
+            record["aliases"] = aliases
+        records.append(record)
     for entry in dataset_entries:
         if not isinstance(entry, dict):
             continue
@@ -119,13 +130,17 @@ def build(project_dir: Path) -> list[dict[str, Any]]:
         if ent_id in seen_entity_ids:
             continue
         seen_entity_ids.add(ent_id)
-        records.append({
+        record = {
             "record_type": "entity",
             "id": ent_id,
             "topic": topic,
             "entity_type": _entity_type_for_dataset(entry),
             "canonical_name": entry.get("name", bibkey),
-        })
+        }
+        aliases = _coerce_aliases(entry.get("aliases"))
+        if aliases:
+            record["aliases"] = aliases
+        records.append(record)
 
     # source records (group by primary_url, union cache_ids)
     sources_by_url: dict[str, set[str]] = defaultdict(set)

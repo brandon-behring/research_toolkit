@@ -1,6 +1,7 @@
 """Strict-live v2 validators and fixtures."""
 from __future__ import annotations
 
+import copy
 from datetime import date
 import json
 from pathlib import Path
@@ -8,11 +9,15 @@ import shutil
 import subprocess
 import sys
 
+import pytest
+import yaml
+
 from validators import bib_ledger, dataset_ledger
 from validators import cache_manifest, claim_graph, evidence_ledger, freshness, research_kb_export
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_ai_agents"
+MULTI_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_multi_entry"
 
 
 def test_v2_fixture_passes_all_validators() -> None:
@@ -196,12 +201,297 @@ def test_build_dashboard_smoke(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert out.exists()
     content = out.read_text(encoding="utf-8")
-    assert "Trust State" in content
+    assert "AI Agent Security" in content  # acronym title-case
     assert "stale blockers:" in content
     assert "evidence coverage:" in content
-    assert "cache completeness:" in content
-    assert "Action Queue" in content
-    assert "Refresh volatile entries by" in content
+    assert "Refresh volatile benchmark pages by" in content  # entity-type-specific
+
+
+# ----- Multi-entry fixture: builder branch tests -----
+
+
+def test_multi_entry_fixture_passes_all_validators() -> None:
+    assert bib_ledger.validate(MULTI_FIXTURE / "bib_ledger.yml") == []
+    assert dataset_ledger.validate(MULTI_FIXTURE / "dataset_ledger.yml") == []
+    assert evidence_ledger.validate(MULTI_FIXTURE / "evidence_ledger.yml") == []
+    assert cache_manifest.validate(MULTI_FIXTURE / "cache_manifest.yml") == []
+    assert claim_graph.validate(MULTI_FIXTURE / "claim_graph.jsonl") == []
+    errors = freshness.validate(MULTI_FIXTURE, strict=True, today=date(2026, 5, 19))
+    assert errors == [], errors
+
+
+def test_build_claim_graph_quality_tiebreak(tmp_path: Path) -> None:
+    """Two evidences support the same claim_id (primary + secondary); the
+    builder must pick the primary evidence's excerpt as claim text and the
+    higher confidence score."""
+    project = tmp_path / "project"
+    shutil.copytree(MULTI_FIXTURE, project)
+    out = tmp_path / "claim_graph_built.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_claim_graph.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    records = [
+        json.loads(line)
+        for line in out.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    by_id = {r["id"]: r for r in records}
+    jb = by_id["claim_gpt5_jailbreak_rate"]
+    assert jb["confidence"]["score"] == 0.95  # primary wins
+    assert "17% jailbreak success rate" in jb["text"]  # primary excerpt
+    assert sorted(jb["evidence_ids"]) == [
+        "ev_jailbreak_corroboration",
+        "ev_jailbreak_rate",
+    ]
+    # Both ledger entries that reference these evidences should become entities
+    assert sorted(jb["entity_ids"]) == [
+        "ent_huang2024gpt5jailbreak",
+        "ent_park2024defenses",
+    ]
+
+
+def test_build_claim_graph_propagates_aliases(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(MULTI_FIXTURE, project)
+    out = tmp_path / "claim_graph_built.jsonl"
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_claim_graph.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        check=True,
+        cwd=str(REPO_ROOT),
+    )
+    records = [
+        json.loads(line)
+        for line in out.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    by_id = {r["id"]: r for r in records if r["record_type"] == "entity"}
+    assert by_id["ent_huang2024gpt5jailbreak"]["aliases"] == [
+        "GJS",
+        "Huang Jailbreak Study",
+    ]
+    assert by_id["ent_harmbench2024"]["aliases"] == ["HB"]
+    # park entry has no aliases → field must be absent
+    assert "aliases" not in by_id["ent_park2024defenses"]
+
+
+def test_build_dashboard_weak_claims_and_multi_tier(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(MULTI_FIXTURE, project)
+    out = tmp_path / "dashboard_built.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(project),
+            "--output",
+            str(out),
+            "--today",
+            "2026-05-19",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    content = out.read_text(encoding="utf-8")
+    assert "weak claims: 1" in content  # claim_alignment_drift, score 0.60
+    assert "evidence coverage: 3/3 claims" in content
+    assert "Refresh volatile papers by" in content  # uniform entity_type → specific noun
+    assert "Refresh active entries by" in content  # mixed paper + benchmark → fallback
+
+
+def test_build_dashboard_counts_contradictions(tmp_path: Path) -> None:
+    """Programmatically inject a contradiction claim into claim_graph.jsonl
+    and verify the dashboard reports conflicts: 1."""
+    project = tmp_path / "project"
+    shutil.copytree(MULTI_FIXTURE, project)
+    cg = project / "claim_graph.jsonl"
+    records = [
+        json.loads(line)
+        for line in cg.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    records.append({
+        "record_type": "claim",
+        "id": "claim_synthesis_conflict",
+        "topic": "ai_safety_eval",
+        "claim_type": "contradiction",
+        "text": "Park's 17% replication conflicts with prior reports of <5% rates.",
+        "status": "conflicted",
+        "evidence_ids": ["ev_jailbreak_rate", "ev_jailbreak_corroboration"],
+        "entity_ids": ["ent_huang2024gpt5jailbreak", "ent_park2024defenses"],
+        "confidence": {"score": 0.70, "factors": ["mixed primary + secondary"]},
+    })
+    cg.write_text(
+        "\n".join(json.dumps(r, sort_keys=True) for r in records) + "\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "dashboard_built.md"
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(project),
+            "--output",
+            str(out),
+            "--today",
+            "2026-05-19",
+        ],
+        check=True,
+        cwd=str(REPO_ROOT),
+    )
+    content = out.read_text(encoding="utf-8")
+    assert "conflicts: 1" in content
+    assert "weak claims: 2" in content  # original + the new conflict claim (0.70)
+
+
+# ----- Enum-rejection tests (parametrized) -----
+
+
+def _write_yaml(path: Path, data: dict) -> None:
+    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def _load_evidence_ledger() -> dict:
+    return yaml.safe_load((FIXTURE / "evidence_ledger.yml").read_text(encoding="utf-8"))
+
+
+def _load_cache_manifest() -> dict:
+    return yaml.safe_load((FIXTURE / "cache_manifest.yml").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    "field,bad_value,error_marker",
+    [
+        ("source_type", "not_a_real_source_type", "source_type"),
+        ("source_quality", "premium", "source_quality"),
+        ("rights_status", "public_domain", "rights_status"),
+        ("verification_method", "telepathy", "verification_method"),
+    ],
+)
+def test_evidence_ledger_rejects_bad_enum(
+    tmp_path: Path, field: str, bad_value: str, error_marker: str
+) -> None:
+    data = _load_evidence_ledger()
+    data["entries"][0][field] = bad_value
+    path = tmp_path / "evidence_ledger.yml"
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any(error_marker in e for e in errors), errors
+
+
+def test_evidence_ledger_rejects_bad_evidence_role(tmp_path: Path) -> None:
+    data = _load_evidence_ledger()
+    data["entries"][0]["supports"][0]["evidence_role"] = "not_a_role"
+    path = tmp_path / "evidence_ledger.yml"
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("evidence_role" in e for e in errors), errors
+
+
+def test_evidence_ledger_rejects_duplicate_evidence_id(tmp_path: Path) -> None:
+    data = _load_evidence_ledger()
+    dup = copy.deepcopy(data["entries"][0])
+    data["entries"].append(dup)
+    path = tmp_path / "evidence_ledger.yml"
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("duplicate evidence_id" in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "field,bad_value,error_marker",
+    [
+        ("rights_status", "public_domain", "rights_status"),
+        ("extraction_status", "kind_of_ok", "extraction_status"),
+    ],
+)
+def test_cache_manifest_rejects_bad_enum(
+    tmp_path: Path, field: str, bad_value: str, error_marker: str
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "cache_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"][0][field] = bad_value
+    _write_yaml(path, data)
+    errors = cache_manifest.validate(path)
+    assert any(error_marker in e for e in errors), errors
+
+
+def test_cache_manifest_rejects_duplicate_cache_id(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "cache_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"].append(copy.deepcopy(data["entries"][0]))
+    _write_yaml(path, data)
+    errors = cache_manifest.validate(path)
+    assert any("duplicate cache_id" in e for e in errors), errors
+
+
+def _load_claim_graph_records() -> list[dict]:
+    return [
+        json.loads(line)
+        for line in (FIXTURE / "claim_graph.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def _write_jsonl(path: Path, records: list[dict]) -> None:
+    path.write_text(
+        "\n".join(json.dumps(r, sort_keys=True) for r in records) + "\n",
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.parametrize(
+    "patch,error_marker",
+    [
+        ({"target_type": "entity", "field": "entity_type", "value": "lifeform"}, "entity_type"),
+        ({"target_type": "claim", "field": "claim_type", "value": "vibes"}, "claim_type"),
+        ({"target_type": "claim", "field": "status", "value": "shipped"}, "status"),
+        ({"target_type": "*", "field": "record_type", "value": "not_a_record"}, "record_type"),
+    ],
+)
+def test_claim_graph_rejects_bad_enum(
+    tmp_path: Path, patch: dict, error_marker: str
+) -> None:
+    records = _load_claim_graph_records()
+    target_type = patch["target_type"]
+    for r in records:
+        if target_type == "*" or r.get("record_type") == target_type:
+            r[patch["field"]] = patch["value"]
+            break
+    path = tmp_path / "claim_graph.jsonl"
+    _write_jsonl(path, records)
+    errors = claim_graph.validate(path)
+    assert any(error_marker in e for e in errors), errors
+
+
+def test_claim_graph_rejects_duplicate_record_id(tmp_path: Path) -> None:
+    records = _load_claim_graph_records()
+    records.append(copy.deepcopy(records[0]))
+    path = tmp_path / "claim_graph.jsonl"
+    _write_jsonl(path, records)
+    errors = claim_graph.validate(path)
+    assert any("duplicate id" in e for e in errors), errors
 
 
 def test_v2_skills_codify_strict_live_cache_and_export_rules() -> None:

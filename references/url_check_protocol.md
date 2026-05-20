@@ -2,6 +2,18 @@
 
 Detailed protocol for `/url-freshness-check`. Deterministic HEAD-checking with GET retry; bot-blocked allowlist; categorized output.
 
+## When to use this vs. `/freshness-audit`
+
+This protocol covers **HTTP liveness** on any markdown folder: 2xx / 3xx / 4xx / 5xx / timeout categorization, with retries and bot-blocked allowlist handling. It works on `docs/`, blog folders, or any place URLs are embedded.
+
+For **strict-live v2 projects** (those with `evidence_ledger.yml`, `cache_manifest.yml`, and `claim_graph.jsonl`), the corresponding tool is `/freshness-audit`. That skill validates *evidence integrity* — stale entries past their `stale_after_days` window, missing evidence_id references, hash mismatches between cache_manifest entries and on-disk blobs, weak claims (confidence < 0.8), and conflicts. It also re-fetches stale primary sources and rebuilds the dashboard.
+
+The two are orthogonal and often run together on v2 projects:
+- `/url-freshness-check` on the rendered agent-index markdown → catches dead URLs in synthesis prose.
+- `/freshness-audit` on the project root → catches evidence rot in ledgers.
+
+Both stay in scope; neither subsumes the other.
+
 ## Bash chunking pattern
 
 The check should run in parallel chunks for efficiency. ~50 URLs per chunk, ~10 chunks in parallel:

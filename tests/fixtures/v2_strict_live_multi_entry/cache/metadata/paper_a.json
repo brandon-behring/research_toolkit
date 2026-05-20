@@ -1,0 +1,13 @@
+{
+  "bytes": 126,
+  "cache_policy": "max_local_private",
+  "content_type": "text/html",
+  "extraction_status": "ok",
+  "fetched_at": "2026-05-19",
+  "restricted": false,
+  "rights_status": "private_use",
+  "schema_version": 2,
+  "sha256": "9cd621a57f51d078c3ad41bbe03390dbeef2c1a6cc8d3610cf252b3415aab76f",
+  "source_url": "https://example.com/papers/huang-gpt5-jailbreak",
+  "topic": "ai_safety_eval"
+}

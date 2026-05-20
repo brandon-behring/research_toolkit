@@ -1,0 +1,13 @@
+{
+  "bytes": 99,
+  "cache_policy": "max_local_private",
+  "content_type": "text/html",
+  "extraction_status": "ok",
+  "fetched_at": "2026-05-19",
+  "restricted": false,
+  "rights_status": "private_use",
+  "schema_version": 2,
+  "sha256": "4aead4e236a4cabe4a01fa92b83008d48bb5a4bff95c17c16a6532dc0c04b17e",
+  "source_url": "https://example.com/datasets/harmbench",
+  "topic": "ai_safety_eval"
+}

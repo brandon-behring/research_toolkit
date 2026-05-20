@@ -1,0 +1,60 @@
+schema_version: 2
+topic: ai_safety_eval
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+entries:
+- bibkey: huang2024gpt5jailbreak
+  primary_url: https://example.com/papers/huang-gpt5-jailbreak
+  title: GPT-5 Jailbreak Susceptibility Study
+  status: verified
+  claim_family: paper
+  aliases:
+  - GJS
+  - Huang Jailbreak Study
+  retrieved_at: 2026-05-19
+  verified_at: 2026-05-19
+  verification_method: webfetch
+  verified_fields:
+  - title
+  - primary_url
+  freshness_tier: volatile
+  stale_after_days: 30
+  evidence_ids:
+  - ev_jailbreak_rate
+  cache_ids:
+  - cache_huang_gpt5_html
+- bibkey: park2024defenses
+  primary_url: https://example.com/papers/park-defenses
+  title: Eight Refusal Defenses for LLMs
+  status: verified
+  claim_family: paper
+  retrieved_at: 2026-05-19
+  verified_at: 2026-05-19
+  verification_method: webfetch
+  verified_fields:
+  - title
+  - primary_url
+  freshness_tier: volatile
+  stale_after_days: 30
+  evidence_ids:
+  - ev_jailbreak_corroboration
+  cache_ids:
+  - cache_park_defenses_html
+- bibkey: kim2024drift
+  primary_url: https://example.com/blogs/kim-alignment-drift
+  title: Notes on Alignment Drift in Long Conversations
+  status: unverified
+  claim_family: paper
+  retrieved_at: 2026-05-19
+  verified_at:
+  verification_method: webfetch
+  verified_fields:
+  - primary_url
+  freshness_tier: active
+  stale_after_days: 90
+  evidence_ids:
+  - ev_alignment_drift
+  cache_ids:
+  - cache_kim_drift_html

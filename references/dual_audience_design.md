@@ -28,6 +28,44 @@ Brandon works across machines with agents heavily (multi-machine workflow, multi
 
 9. **Explicit "out of scope" sections** — bound each file so an agent looking for the wrong thing knows quickly to look elsewhere. The Scope boundary callout in the README is the load-bearing example.
 
+## Evidence-ID rendering (v2 strict-live)
+
+For strict-live v2 projects, every claim-bearing bullet must be traceable to
+an entry in `evidence_ledger.yml`. The agent-index displays evidence IDs in
+one of two ways; both are valid, pick whichever reads better per block:
+
+**Sixth-bullet form** (default, mirrors the canonical 5-bullet block):
+```markdown
+- **<Display name>** — <Authors> (<Year>).
+  - **Source:** <URL>
+  - **Code:** <URL or "—">
+  - **Mechanism:** <one-liner>
+  - **Result:** <key claim>
+  - **Status:** Verified | (vendor blog) | ...
+  - **Evidence:** ev_<topic>_0001
+```
+
+**Inline suffix form** (more compact, used when the entry has multiple
+evidence-backed claims or the bullet list is already long):
+```markdown
+- **Result:** GPT-5 jailbreak success rate ≈17% [ev_jailbreak_rate]
+```
+
+Square brackets are required so an agent can grep `\[ev_[a-z0-9_]+\]` to
+extract every evidence reference in the file. Multiple evidence IDs go in
+one bracket: `[ev_jailbreak_rate, ev_jailbreak_corroboration]`.
+
+ID format: `ev_<topic_slug>_NNNN` where NNNN is zero-padded for stable
+ordering. Topic slug matches the project's top-level `topic:` field, so the
+agent can distinguish synthesis-added cross-cutting evidence (`ev_<topic>_NNNN`)
+from per-source primary evidence (also `ev_<topic>_NNNN` — same namespace;
+the source_type field in evidence_ledger disambiguates).
+
+The invariant: **every evidence ID rendered in markdown must exist in
+`evidence_ledger.yml`**. `/agent-index` Phase 4b appends synthesis-specific
+entries to keep this invariant intact when the agent-index introduces new
+cross-cutting claims that weren't covered by `/research-gather`.
+
 ## What NOT to put in agent-index
 
 - **LLM-generated specifics**. Quantitative claims (ASR percentages, dataset sizes) MUST appear in primary source abstract or verified body excerpt. Inventing specific numbers is the most common failure mode for synthesis work; never assert a number you can't point to in the linked Source.

@@ -63,6 +63,31 @@ For 5-bullet entries (display name line):
 - `(recheck after YYYY-MM-DD)` — time-sensitive claim should be refreshed after the listed strict-live date.
 - `(unverified body claim)` — quantitative claim is from paper body, not abstract; reader should re-verify.
 
+## v2 evidence IDs (strict-live projects only)
+
+Strict-live v2 projects pair every substantive claim with one or more
+evidence IDs that resolve to entries in `evidence_ledger.yml`. Two equivalent
+inline forms (see `references/dual_audience_design.md` § Evidence-ID rendering
+for the full spec):
+
+- **Sixth bullet** of a 5-bullet entry block:
+  `- **Evidence:** ev_<topic>_0001` (one bullet per claim, lists all
+  supporting evidence IDs space-separated or comma-separated within the bullet)
+- **Inline suffix** on the claim text:
+  `... 17% jailbreak rate [ev_jailbreak_rate]` (square brackets are
+  load-bearing — agent grep relies on `\[ev_[a-z0-9_]+\]`)
+
+Evidence-ID format: `ev_<topic_slug>_NNNN` (zero-padded number; topic_slug
+matches the project's top-level `topic:` field). IDs are stable references,
+not URLs — they only resolve via lookup in `evidence_ledger.yml`.
+
+When citing multiple evidence IDs inline, list all inside one bracket pair:
+`[ev_jailbreak_rate, ev_jailbreak_corroboration]`.
+
+For v1.x projects (no evidence_ledger.yml), skip the evidence bullet / inline
+suffix entirely — the Status flag (`Verified`, `Unverified`, etc.) carries the
+trust signal.
+
 ## Verbatim title rendering
 
 In dossier tables, render titles **exactly as they appear in the primary source**, including:

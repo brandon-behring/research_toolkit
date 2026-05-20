@@ -1,0 +1,13 @@
+{
+  "bytes": 108,
+  "cache_policy": "max_local_private",
+  "content_type": "text/html",
+  "extraction_status": "ok",
+  "fetched_at": "2026-05-19",
+  "restricted": false,
+  "rights_status": "private_use",
+  "schema_version": 2,
+  "sha256": "11cf08551bc1b7647f2a238c62d674035900e28064555f6ddbd5e5728e7e4987",
+  "source_url": "https://example.com/blogs/kim-alignment-drift",
+  "topic": "ai_safety_eval"
+}

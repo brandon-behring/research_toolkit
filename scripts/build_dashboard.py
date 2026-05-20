@@ -29,9 +29,45 @@ from validators.v2_common import (
 
 TIER_ORDER = ("volatile", "active", "stable", "historical")
 
+# Words that should render in upper case rather than title case. Add new
+# acronyms here as they appear in research topics.
+ACRONYMS = {
+    "ai", "ml", "dl", "nn", "llm", "lm", "nlp", "cv", "rl", "rlhf", "rlaif",
+    "api", "sdk", "sql", "html", "json", "yaml", "csv", "pdf",
+    "ui", "ux", "cli", "gui", "cpu", "gpu", "tpu",
+    "us", "eu", "uk", "uae", "iso", "ieee", "acm",
+    "nist", "owasp", "mitre", "fda", "epa",
+    "gpt", "bert", "clip", "vit",
+}
+
 
 def _title_case(slug: str) -> str:
-    return " ".join(part.capitalize() for part in slug.replace("_", " ").split())
+    parts = slug.replace("_", " ").replace("-", " ").split()
+    rendered: list[str] = []
+    for part in parts:
+        if part.lower() in ACRONYMS:
+            rendered.append(part.upper())
+        else:
+            rendered.append(part.capitalize())
+    return " ".join(rendered)
+
+
+def _pluralize_entity_type(entity_type: str) -> str:
+    """Render an entity_type into the noun phrase used in Action Queue lines."""
+    overrides = {
+        "paper": "papers",
+        "dataset": "datasets",
+        "benchmark": "benchmark pages",
+        "model": "models",
+        "repo": "repositories",
+        "vendor": "vendor pages",
+        "standard": "standards",
+        "policy": "policy documents",
+        "author": "author pages",
+        "org": "organizations",
+        "concept": "concept pages",
+    }
+    return overrides.get(entity_type, "entries")
 
 
 def _load_optional(path: Path) -> dict[str, Any]:
@@ -74,7 +110,10 @@ def build(project_dir: Path, today: date) -> str:
         ]
 
     stale_blockers = 0
-    by_tier_stale: dict[str, list[date]] = {}
+    # Per-tier list of (stale_on_date, entity_type) tuples so the Action Queue
+    # can specialize the noun phrase when all entries in a tier share an
+    # entity_type.
+    by_tier_stale: dict[str, list[tuple[date, str]]] = {}
     for idx, entry in enumerate(list(bib_entries) + list(dataset_entries)):
         if not isinstance(entry, dict):
             continue
@@ -84,7 +123,8 @@ def build(project_dir: Path, today: date) -> str:
         tier = entry.get("freshness_tier")
         stale_on = _stale_on(entry)
         if isinstance(tier, str) and stale_on is not None:
-            by_tier_stale.setdefault(tier, []).append(stale_on)
+            entity_type = entry.get("claim_family") or entry.get("source") or ""
+            by_tier_stale.setdefault(tier, []).append((stale_on, str(entity_type)))
 
     evidence_id_set = {
         e.get("evidence_id") for e in evidence_entries
@@ -128,10 +168,16 @@ def build(project_dir: Path, today: date) -> str:
 
     action_lines: list[str] = []
     for tier in TIER_ORDER:
-        dates = sorted(by_tier_stale.get(tier, []))
-        if not dates:
+        stale_items = sorted(by_tier_stale.get(tier, []), key=lambda x: x[0])
+        if not stale_items:
             continue
-        action_lines.append(f"- Refresh {tier} entries by {dates[0].isoformat()}.")
+        earliest_date = stale_items[0][0]
+        entity_types = {et for _, et in stale_items if et}
+        if len(entity_types) == 1:
+            noun = _pluralize_entity_type(next(iter(entity_types)))
+        else:
+            noun = "entries"
+        action_lines.append(f"- Refresh {tier} {noun} by {earliest_date.isoformat()}.")
     if not action_lines:
         action_lines.append("- (no action needed)")
 

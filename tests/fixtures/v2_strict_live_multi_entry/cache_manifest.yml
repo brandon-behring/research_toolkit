@@ -1,0 +1,56 @@
+schema_version: 2
+topic: ai_safety_eval
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+cache_root: ./cache
+
+entries:
+- cache_id: cache_huang_gpt5_html
+  source_url: https://example.com/papers/huang-gpt5-jailbreak
+  fetched_at: 2026-05-19
+  content_type: text/html
+  bytes: 126
+  sha256: 9cd621a57f51d078c3ad41bbe03390dbeef2c1a6cc8d3610cf252b3415aab76f
+  raw_path: cache/raw/paper_a.html
+  text_path: cache/text/paper_a.txt
+  metadata_path: cache/metadata/paper_a.json
+  restricted: false
+  rights_status: private_use
+  extraction_status: ok
+- cache_id: cache_park_defenses_html
+  source_url: https://example.com/papers/park-defenses
+  fetched_at: 2026-05-19
+  content_type: text/html
+  bytes: 131
+  sha256: 9cd93b78753a8a99e5fe958e65eb112b8142003e5ec3a0f84a67fd5ff43a619c
+  raw_path: cache/raw/paper_b.html
+  text_path: cache/text/paper_b.txt
+  metadata_path: cache/metadata/paper_b.json
+  restricted: false
+  rights_status: private_use
+  extraction_status: ok
+- cache_id: cache_kim_drift_html
+  source_url: https://example.com/blogs/kim-alignment-drift
+  fetched_at: 2026-05-19
+  content_type: text/html
+  bytes: 108
+  sha256: 11cf08551bc1b7647f2a238c62d674035900e28064555f6ddbd5e5728e7e4987
+  raw_path: cache/raw/paper_c.html
+  text_path: cache/text/paper_c.txt
+  metadata_path: cache/metadata/paper_c.json
+  restricted: false
+  rights_status: private_use
+  extraction_status: ok
+- cache_id: cache_harmbench_html
+  source_url: https://example.com/datasets/harmbench
+  fetched_at: 2026-05-19
+  content_type: text/html
+  bytes: 99
+  sha256: 4aead4e236a4cabe4a01fa92b83008d48bb5a4bff95c17c16a6532dc0c04b17e
+  raw_path: cache/raw/paper_d.html
+  text_path: cache/text/paper_d.txt
+  metadata_path: cache/metadata/paper_d.json
+  restricted: false
+  rights_status: private_use
+  extraction_status: ok

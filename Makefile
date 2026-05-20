@@ -60,6 +60,13 @@ v2-smoke:
 	$(PY) validators/claim_graph.py tests/fixtures/v2_strict_live_ai_agents/claim_graph.jsonl
 	$(PY) validators/research_kb_export.py tests/fixtures/v2_strict_live_ai_agents/research_kb_export.jsonl
 	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v2_strict_live_ai_agents
+	@echo "--- multi-entry fixture ---"
+	$(PY) validators/bib_ledger.py tests/fixtures/v2_strict_live_multi_entry/bib_ledger.yml
+	$(PY) validators/dataset_ledger.py tests/fixtures/v2_strict_live_multi_entry/dataset_ledger.yml
+	$(PY) validators/evidence_ledger.py tests/fixtures/v2_strict_live_multi_entry/evidence_ledger.yml
+	$(PY) validators/cache_manifest.py tests/fixtures/v2_strict_live_multi_entry/cache_manifest.yml
+	$(PY) validators/claim_graph.py tests/fixtures/v2_strict_live_multi_entry/claim_graph.jsonl
+	$(PY) validators/freshness.py --strict --today 2026-05-19 tests/fixtures/v2_strict_live_multi_entry
 
 builders-smoke:
 	$(PY) scripts/build_claim_graph.py tests/fixtures/v2_strict_live_ai_agents --output /tmp/built_claim_graph.jsonl

@@ -25,6 +25,10 @@
 #                   NOT guess `<author>/<paper-slug>` patterns. Reproduced 2x
 #                   across PEFT/calibration dogfood: ~3% of guessed GitHub URLs hit
 #                   hard 404s.
+#   aliases        (list[str], optional) — alternative names/acronyms for this
+#                   entity. Propagated to the entity record in claim_graph by
+#                   scripts/build_claim_graph.py. Example: ["ASB", "Agent Sec
+#                   Bench"]. Omit when no widely-used alternative name exists.
 
 schema_version: 2
 topic: example_topic

@@ -1,0 +1,2 @@
+HarmBench dataset card
+510 prompts spanning 7 categories.

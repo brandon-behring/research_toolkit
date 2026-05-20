@@ -1,0 +1,71 @@
+schema_version: 2
+topic: ai_safety_eval
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+entries:
+- evidence_id: ev_jailbreak_rate
+  source_url: https://example.com/papers/huang-gpt5-jailbreak
+  source_type: paper
+  source_quality: primary
+  retrieved_at: 2026-05-19
+  verification_method: webfetch
+  cache_ids:
+  - cache_huang_gpt5_html
+  supports:
+  - claim_id: claim_gpt5_jailbreak_rate
+    field_path: bib_ledger.entries[0].title
+    evidence_role: identifies
+  - claim_id: claim_gpt5_jailbreak_rate
+    field_path: agent_index.01_jailbreak.md#A1
+    evidence_role: supports
+  excerpt: GPT-5 exhibits a 17% jailbreak success rate under refusal-bypass prompting across 200 trials in the Huang et al. study.
+  rights_status: private_use
+  confidence:
+    score: 0.95
+    factors:
+    - primary paper
+    - cached raw snapshot
+- evidence_id: ev_jailbreak_corroboration
+  source_url: https://example.com/papers/park-defenses
+  source_type: paper
+  source_quality: secondary
+  retrieved_at: 2026-05-19
+  verification_method: webfetch
+  cache_ids:
+  - cache_park_defenses_html
+  supports:
+  - claim_id: claim_gpt5_jailbreak_rate
+    field_path: agent_index.01_jailbreak.md#A1-cross-ref
+    evidence_role: supports
+  excerpt: Park et al. report similar jailbreak rates near 17%, replicating Huang's finding.
+  rights_status: private_use
+- evidence_id: ev_alignment_drift
+  source_url: https://example.com/blogs/kim-alignment-drift
+  source_type: blog
+  source_quality: secondary
+  retrieved_at: 2026-05-19
+  verification_method: webfetch
+  cache_ids:
+  - cache_kim_drift_html
+  supports:
+  - claim_id: claim_alignment_drift
+    field_path: bib_ledger.entries[2].title
+    evidence_role: identifies
+  excerpt: Kim observes alignment behavior drifts over long-context conversations exceeding 30 turns.
+  rights_status: private_use
+- evidence_id: ev_harmbench_size
+  source_url: https://example.com/datasets/harmbench
+  source_type: benchmark
+  source_quality: primary
+  retrieved_at: 2026-05-19
+  verification_method: webfetch
+  cache_ids:
+  - cache_harmbench_html
+  supports:
+  - claim_id: claim_harmbench_size
+    field_path: dataset_ledger.entries[0].size
+    evidence_role: identifies
+  excerpt: HarmBench contains 510 prompts spanning 7 categories of harmful behaviors.
+  rights_status: private_use

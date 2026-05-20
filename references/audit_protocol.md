@@ -105,6 +105,45 @@ Either:
 
 After applying findings, the skill writes the round-N audit-trail note to the indexed folder's README under the `## Verification & limits` section, NOT as a new top-level section.
 
+## v2 strict-live update contract
+
+When the audited folder lives inside a strict-live v2 project (i.e., a parent
+directory containing `evidence_ledger.yml` + `cache_manifest.yml` +
+`claim_graph.jsonl`), markdown-only edits are not enough. The v2 ledgers must
+stay consistent with the markdown, or `/freshness-audit --strict` will fail
+the regression check and downstream `/research-kb-export` will ship desynced
+data.
+
+For each finding, propagate the change to the v2 artifacts at the project
+root (parent directory of the indexed folder):
+
+- **DROP** (entry for bibkey `<bk>` removed):
+  - Remove every `evidence_ledger.yml` entry whose `supports[*].claim_id`
+    references a claim tied to `<bk>`.
+  - Remove every `claim_graph.jsonl` record whose `id` references `<bk>`
+    (`ent_<bk>`, `claim_<...>` whose `entity_ids` contained `ent_<bk>`,
+    related `evidence`/`cache_blob` records orphaned by the removal).
+  - Leave `cache_manifest.yml` alone unless no surviving evidence entry
+    references the `cache_id`. Cache blobs are cheap; orphaned ones don't
+    fail validation, just bloat the manifest.
+- **CORRECT** (a field changed on `<bk>`):
+  - If the field is evidence-backed (title, authors, year, headline result):
+    update the matching `claim_graph.jsonl` `claim.text` and bump the
+    `evidence_ledger.yml` entry's `verification_method` (e.g., to
+    `webfetch_<YYYY_MM_DD>`).
+  - If the field is cosmetic (formatting, anchor name): no v2 update.
+- **FLAG** (annotated `(unverified, YYYY-MM-DD)` or generalized a number):
+  - Lower the `confidence.score` on the relevant evidence entry's optional
+    `confidence` field. Add a factor noting the audit annotation
+    (e.g., `audit_round_<N>_flagged`).
+  - Optionally set the matching `claim_graph.jsonl` claim's `status` to
+    `conflicted` if the FLAG indicates a quantitative discrepancy.
+
+After applying v2 propagation, the Phase 7 regression checks include
+`python validators/freshness.py --strict <project_root>` in addition to the
+markdown-only checks. Failure means the v2 ledgers and the markdown are now
+out of sync; fix and re-run.
+
 ## Audit-trail note format
 
 ```markdown

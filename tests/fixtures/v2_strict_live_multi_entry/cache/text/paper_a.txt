@@ -1,0 +1,2 @@
+GPT-5 Jailbreak Susceptibility Study (Huang et al. 2024)
+17% jailbreak success rate.

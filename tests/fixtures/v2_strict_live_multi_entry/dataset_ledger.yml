@@ -1,0 +1,33 @@
+schema_version: 2
+topic: ai_safety_eval
+generated_at: 2026-05-19
+current_as_of: 2026-05-19
+freshness_policy: strict_live
+
+entries:
+- bibkey: harmbench2024
+  primary_url: https://example.com/datasets/harmbench
+  name: HarmBench
+  source: benchmark
+  status: verified
+  task_family: other
+  license: unknown
+  size: 510 prompts
+  access_method: direct
+  auth_required: false
+  citation: HarmBench Maintainers (2024), HarmBench
+  aliases:
+  - HB
+  retrieved_at: 2026-05-19
+  verified_at: 2026-05-19
+  verification_method: webfetch
+  verified_fields:
+  - name
+  - primary_url
+  - size
+  freshness_tier: active
+  stale_after_days: 90
+  evidence_ids:
+  - ev_harmbench_size
+  cache_ids:
+  - cache_harmbench_html
