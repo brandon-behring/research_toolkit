@@ -88,7 +88,8 @@ sooner.
 ### Item 3: Attribute-First refactor of `/agent-index` (Tier-1)
 
 - **Evidence**: `ev_attribute_first_pre_selection` (Slobodkin et al. 2024,
-  ACL).
+  ACL) + `ev_c2cite_contextual_citation` (Yu et al. 2026, WSDM '26) +
+  `ev_gentime_vs_posthoc_citation` (Saxena et al. 2025, iter 8).
 - **v2.1 gap**: v2.1 (and v2.0) is *post-hoc* attribution — `/agent-index`
   generates 5-bullet prose, THEN evidence_ledger binds claims back to
   sources. Slobodkin et al. 2024 explicitly identifies this as a
@@ -97,9 +98,27 @@ sooner.
   then Generate: Locally-attributable Grounded Text Generation" —
   span-selection BEFORE generation, generation CONDITIONED ON selected
   spans only.
+- **Iter 8 reinforcement (Saxena 2025)**: empirical comparison of
+  "Generation-Time Citation (G-Cite), which produces the answer and
+  citations in one pass" vs "Post-hoc Citation (P-Cite), which adds or
+  verifies citations after drafting." This directly maps to the v2.1
+  (P-Cite via /citation-audit) vs v2.2 (G-Cite via Attribute-First)
+  trade-off. The paper is the empirical foundation that justifies
+  prioritizing Item 3 as Tier-1: G-Cite paradigm wins on faithfulness
+  metrics.
+- **Iter 8 refinement (Yu 2026, C²-Cite WSDM '26)**: contextual-aware
+  citation generation framework "that explicitly integrates the semantic
+  relationships between citation markers and their" surrounding context.
+  Suggests the span-selection step (2a) should not just pick the highest-
+  similarity span, but also evaluate semantic-relationship coherence
+  between span and target claim. C²-Cite's lesson for v2.2: span-selection
+  should be context-aware (which other spans are also being used in the
+  same paragraph?), not independent.
 - **Proposed mechanism**: rework `/agent-index` Phase 2 into three sub-steps:
   (2a) span-selection — pick cache_blob excerpts per claim_family before
-  writing prose;
+  writing prose; **C²-Cite refinement**: when selecting span N+1, condition
+  on the spans already selected for the same paragraph to maximize
+  inter-span coherence;
   (2b) planning — declare which span supports which atomic claim
   (`pre_selection_manifest.yml`);
   (2c) generation — emit bullets conditioned ONLY on selected spans (system
@@ -111,7 +130,8 @@ sooner.
   validator).
 - **Priority**: Tier-1 — this is the structural anti-hallucination move,
   complementary to span-anchored citation (post-hoc check) by attacking
-  the problem at the generation step.
+  the problem at the generation step. Iter 8 evidence (Saxena 2025)
+  empirically confirms G-Cite > P-Cite for faithfulness.
 
 ---
 
