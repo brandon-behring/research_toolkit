@@ -38,6 +38,7 @@ ACRONYMS = {
     "us", "eu", "uk", "uae", "iso", "ieee", "acm",
     "nist", "owasp", "mitre", "fda", "epa",
     "gpt", "bert", "clip", "vit",
+    "pi",  # prompt injection — surfaced by v2.0 Phase 4 dogfood
 }
 
 

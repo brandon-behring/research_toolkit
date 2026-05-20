@@ -804,6 +804,140 @@ No breaking changes to ledger schema or skill workflows; just three small alignm
 
 ---
 
+## Phase 6: v2 strict-live first-contact dogfood — applied 2026-05-19
+
+**Theme**: first end-to-end run of the v2 chain on a real topic. Phase 0-3.5
+shipped the v2 surface (validators, builders, skills, fixtures, docs) but the
+chain had never been run against fresh sources. This dogfood is the
+definition-of-done gate.
+
+**Topic**: Browser-agent prompt-injection benchmarks. Project at
+`~/Claude/research_browser_agent_pi_bench/`. One entry: AgentDojo
+(Debenedetti et al. 2024, arXiv:2406.13352) — cached via real HTTP fetch of
+the abstract page (47 KB HTML).
+
+**Chain executed**:
+1. `/research-plan` — research_plan.md written, validator OK.
+2. `/research-gather` (v2 sub-phases manually executed) — bib_ledger.yml,
+   cache_manifest.yml, evidence_ledger.yml hand-written; cache_source.py ran
+   against arxiv.org/abs/2406.13352 and produced a real cache entry;
+   build_claim_graph.py auto-generated claim_graph.jsonl.
+3. *(skipped for dogfood scope)* `/dossier-build`, `/agent-index` — markdown
+   rendering only; v2 trust artifacts don't depend on their output.
+4. `/freshness-audit` Phase 5 (build_dashboard.py) — dashboard.md generated:
+   "stale blockers: 0, evidence coverage: 2/2, cache completeness: 1/1, weak
+   claims: 0, Refresh active benchmark pages by 2026-08-17."
+5. `/research-kb-export` — produced
+   `~/Claude/research-kb/inbox/research_toolkit/research_browser_agent_pi_bench.jsonl`,
+   validator OK.
+
+**Verdict**: v2 chain PASSES the definition-of-done gate. The full chain ran
+without manual yaml editing of *validated* artifacts (bib_ledger entries,
+evidence_ledger entries, claim_graph, dashboard, export). Validators clean,
+export sits in research-kb inbox ready for future ingestion. Friction items
+below are surfacings, not blockers.
+
+### Friction items (8 surfaced, 5 deferred to v2.1, 3 applicable for v2.0.1)
+
+**1. cache_source.py default cache_root produces absolute paths (status: surfaced — design tension)**
+- Default `--cache-root ~/Claude/research_cache` writes raw blobs at
+  `~/Claude/research_cache/blobs/sha256/<hash>` and prints those absolute
+  paths in the manifest YAML entry. The v2 fixture (the only documented
+  example) uses project-local relative paths (`cache/raw/<file>.html`)
+  because its cache lives inside the project.
+- Absolute paths break portability — copying the project to another machine
+  breaks the cache references. Relative paths from a global cache require
+  awkward `../..` traversal.
+- **Why it matters**: the inconsistency means a user dogfooding from scratch
+  produces something that doesn't structurally match the canonical fixture.
+- **Action for v2.1**: pick one. Either (a) default cache_source.py to
+  project-local cache (then it can produce relative paths), or (b)
+  explicitly document that global cache + absolute paths is the convention,
+  and update the fixture to demonstrate it.
+
+**2. cache_source.py prints YAML but doesn't append to cache_manifest.yml (status: surfaced — automation gap)**
+- Skill body says "record the resulting cache entry in cache_manifest.yml"
+  but the script only prints stdout. User copy/pastes into the manifest.
+- Per-source manual paste is fine for 1-2 sources; tedious for 20+.
+- **Action for v2.1**: add `--append <manifest>` flag to cache_source.py
+  that appends directly. Also stops the copy/paste error mode (truncated
+  paths, lost fields).
+
+**3. Acronym handling miss for "PI" (status: applied 2026-05-19 — small fix)**
+- Dashboard title rendered "Browser Agent Pi Bench" instead of "Browser
+  Agent PI Bench" — "pi" wasn't in the ACRONYMS set in build_dashboard.py.
+- Fixing inline below; trivial.
+
+**4. /research-gather Phase 4 sub-steps are mostly manual (status: surfaced — design tension)**
+- Phase 4 v2 sub-section enumerates 3 steps (cache_manifest, evidence_ledger,
+  claim_graph). claim_graph is fully mechanized via build_claim_graph.py;
+  cache_manifest and evidence_ledger are LLM-driven (write per fixture
+  template).
+- A user-as-LLM agent has to: read the template, populate fields, find the
+  excerpt by grepping the cached HTML, assign bibkeys, etc. Tedious for many
+  sources.
+- **Why it matters**: this is the longest stage in a real dogfood (20-source
+  effort). The friction compounds with source count.
+- **Action for v2.1**: design a `build_evidence_ledger_skeleton.py` and
+  `build_cache_manifest_append.py` so the skill becomes "search → review →
+  run builders" rather than "search → write YAML by hand → run one builder."
+
+**5. Excerpt extraction is unguided (status: surfaced — skill body gap)**
+- evidence_ledger.yml entries require a non-empty `excerpt` field. For
+  arXiv papers, the abstract is typically the right excerpt. For benchmark
+  websites or vendor blogs, it's less obvious which span to quote.
+- The skill body doesn't say "grep `<meta name='citation_abstract'>` from
+  the cached HTML" or similar. LLM has to figure out where to look.
+- **Action for v2.1**: add an "excerpt-selection cheatsheet" reference doc
+  with per-source-type hints (arXiv: citation_abstract meta tag; vendor
+  blog: first paragraph after H1; etc.).
+
+**6. No automated check that bib_ledger entries fall within plan time scope (status: surfaced — minor)**
+- Research plan declared "2025-2026 releases"; my landmark AgentDojo is
+  2024-06-19. The chain accepted this silently.
+- **Action**: probably wontfix — time scope in the plan is editorial, not
+  contractual. The dogfood-ing user can self-correct.
+
+**7. /dossier-build and /agent-index aren't on the v2 trust chain critical path (status: surfaced — narrative gap)**
+- Skipped both during the dogfood without breaking anything. The v2
+  validators (freshness, evidence, cache_manifest, claim_graph,
+  research_kb_export) all pass without dossier files or agent-index
+  markdown existing.
+- **Why it matters**: the skill bodies and workflow_overview.md present the
+  chain as "/research-gather → /dossier-build → /agent-index → /freshness-audit
+  → /research-kb-export" — implying linear dependency. But the v2 trust
+  artifacts are strictly a sub-chain: gather → freshness → export. The
+  markdown chain (dossier + agent-index) is a parallel rendering track.
+- **Action for v2.1**: split the skill chain documentation into "trust chain"
+  vs. "rendering chain" — they share inputs but produce different artifacts.
+
+**8. claim_graph builder produces 2 entities when bib + dataset share a URL (status: deferred — known design choice, see v2.0 backlog item #4)**
+- Not exercised in this single-entry dogfood. Will revisit when a multi-source
+  project has paired bib + dataset entries.
+
+### Phase 4 of /freshness-audit (rescan volatile sources) sufficiency verdict
+
+**Inconclusive — dogfood ran offline-style.** I cached arxiv.org/abs/2406.13352
+directly without first WebSearching for "recent browser-agent benchmarks 2026"
+to surface fresher sources. A complete dogfood would have started with the
+rescan and surfaced any 2025-2026 benchmark releases I might have missed
+(BrowserGuard, SafeBrowse, AgentSec, etc.). The skill body's Phase 4 lists
+the right categories (arXiv / HF / GitHub / leaderboards / vendor blogs /
+policy) but doesn't enforce running them; this dogfood proves the chain
+works structurally but didn't exercise discovery rigor.
+
+**Action**: defer Phase 4 sufficiency verdict to a future dogfood that
+specifically exercises the rescan path (or implement v2.1 proactive
+mechanisms per [[project-research-toolkit]] backlog item #1).
+
+### Applied fixes during this dogfood
+
+- Added "pi" to `scripts/build_dashboard.py` ACRONYMS set (was rendering
+  "Pi" instead of "PI" for `browser_agent_pi_bench` topic). Will be in the
+  Phase 4 commit alongside this BURN_IN entry.
+
+---
+
 ## v2.0 backlog (seeded 2026-05-19, pending dogfood)
 
 Items the v2.0 audit + completion plan repeatedly punted on. Status will be revisited during Phase 4 dogfood and consolidated into the v2.1 design cycle.
