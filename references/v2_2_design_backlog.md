@@ -395,6 +395,63 @@ sooner.
 - **Priority**: Tier-2 (complements Item 4 semantic entropy from a
   different angle).
 
+### Item 6e: DoublyCal two-tier calibration (knowledge vs reasoning) (Tier-2, 2026)
+
+- **Evidence**: `ev_doublycal_two_tier_confidence` (Lu et al. 2026 — iter 7
+  — arXiv 2601.11956).
+- **v2.1 gap**: v2.1's `link_confidence` is a single per-edge scalar.
+  Mixes two distinct uncertainties: (a) "how confident am I this evidence
+  EXISTS and is correctly bound" (~knowledge confidence) and (b) "how
+  confident am I the reasoning that synthesized this claim is sound"
+  (~reasoning confidence). For verbatim_match these collapse; for
+  llm_inferred and paraphrase, they don't — and v2.1 has no way to
+  distinguish "the cited source is real but the inference is shaky"
+  from "the cited source is shaky but the inference is bulletproof."
+- **Proposed mechanism**: split `link_confidence` into
+  `knowledge_confidence` + `reasoning_confidence`. For verbatim_match,
+  both = 1.0 (or capped per extraction_method as today). For paraphrase,
+  reasoning_confidence may be high (a faithful paraphrase) while
+  knowledge_confidence depends on the proxy's certainty in the underlying
+  cache. For llm_inferred, both come into play — `inference_chain[]`
+  determines knowledge_confidence; the diversity / agreement of the
+  chain determines reasoning_confidence. DoublyCal uses a lightweight
+  proxy model to score each independently.
+- **Why Tier-2**: doubles the cognitive load on evidence-ledger authors
+  and the rendering surface. Not justified unless v2.2's pipeline
+  reveals frequent disagreement between the two dimensions in practice.
+  Demote from Tier-1 unless dogfood surfaces the gap.
+- **Effort**: M (schema split + builder propagation + audit display).
+- **Priority**: Tier-2.
+
+### Item 5f: KEA-style KG-based hallucination scoring (Tier-3, 2025)
+
+- **Evidence**: `ev_kea_explain_graph_kernel` (Haskins et al. 2025 — iter
+  7 — arXiv 2507.03847).
+- **v2.1 gap**: v2.1's substring check verifies that the *quoted text*
+  appears in the cached source. It cannot detect when a synthesis claim
+  generates a *plausible-sounding triple* that doesn't actually exist in
+  the source's underlying knowledge graph. KEA Explain: "Large Language
+  Models (LLMs) frequently generate hallucinations: statements that are
+  syntactically plausible but lack factual grounding. This research
+  presents KEA (Kernel-Enriched AI) Explain: a neurosymbolic framework
+  that detects and explains such hallucinations by comparing knowledge
+  graphs constructed from LLM outputs with ground truth data from
+  Wikidata or contextual documents."
+- **Proposed mechanism**: extract `(subject, relation, object)` triples
+  from each claim's text (would compound naturally with Item 1's SROM
+  decomposition — the SR(O)M triple drops the modifier and yields the
+  same shape). Compare against (a) Wikidata for global facts, or (b)
+  a per-project local KG built from cached primary sources, via graph
+  kernel similarity (or simpler: edit-distance on the triple set).
+  Emit per-claim `kg_grounding_score: 0..1` and surface in dashboard.
+- **Why Tier-3 not higher**: requires a KG extraction step (LLM call)
+  per claim AND either Wikidata API access or local KG construction —
+  both add system complexity. For v2.2 the cheaper Item 5 (Self-RAG
+  retrieval evaluator) gets most of the benefit.
+- **Effort**: L (KG extraction + similarity + caching layer).
+- **Priority**: Tier-3 (exploratory; revisit after Items 1+3 ship).
+- **Compounds with**: Item 1 (SROM atoms become natural triple sources).
+
 ## Tier-1 next-session implementation plan
 
 Top 3 items for v2.2.0 (per user 2026-05-19 commitment "build the backlog
