@@ -1,7 +1,8 @@
 ---
 name: url-freshness-check
-description: HEAD-check every URL in a markdown collection. Categorizes results (2xx / 3xx redirect / 4xx broken / 5xx / timeout); maintains a bot-blocked allowlist; writes a categorized report. Optional --inline mode annotates hard-404 URLs in-place. Invokable on any markdown folder, not just research dossiers.
+description: Use when the user asks to check URL liveness in a markdown collection, detect broken links, or verify URLs before publishing. HEAD-checks every URL; categorizes by HTTP status (2xx / 3xx redirect / 4xx broken / 5xx / timeout); maintains a bot-blocked allowlist; writes a categorized report. Optional --inline mode annotates hard-404 URLs in-place. Works on any markdown folder. For v2 strict-live evidence integrity (not URL liveness), use /freshness-audit instead.
 allowed-tools: Read, Bash, Edit
+paths: '**/0K_*.md, **/agent_index/*.md, **/dossier/*.md'
 ---
 
 # /url-freshness-check — HEAD-check URLs in a markdown collection

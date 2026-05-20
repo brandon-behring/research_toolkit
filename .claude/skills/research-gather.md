@@ -1,7 +1,8 @@
 ---
 name: research-gather
-description: Discover primary sources for a research topic and populate bib_ledger.yml. Reads a research_plan.md, uses WebSearch + WebFetch to find papers / vendor blogs / datasets per sub-area, assigns bibkeys, optionally caches PDFs. Output consumed by /dossier-build.
+description: Use when the user has a research_plan.md ready and asks to discover sources, build a bib_ledger, gather primary references, or populate a v2 strict-live project. Reads the plan, uses WebSearch + WebFetch to find papers / vendor blogs / datasets per sub-area, assigns bibkeys, optionally caches PDFs. For strict-live projects, also writes evidence_ledger.yml + cache_manifest.yml + claim_graph.jsonl. Output consumed by /dossier-build.
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
+paths: '**/research_*/research_plan.md, **/research_plan.md'
 ---
 
 # /research-gather — Discover primary sources

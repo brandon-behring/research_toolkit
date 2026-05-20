@@ -1,7 +1,8 @@
 ---
 name: dossier-audit
-description: Run one round of complementary-scope independent audit on an indexed folder. Spawns a fresh general-purpose sub-agent with WebSearch + WebFetch to verify entries against primary sources; receives a DROP/CORRECT/FLAG/SPOT-CHECK report; applies fixes inline; appends round-N audit-trail note. Single-round — user re-invokes per round. v1.6: also runs against /dataset-index outputs — use focus areas like "license risks + access stability" for dataset dossiers.
+description: Use when the user asks to audit, verify, or fact-check a previously-built indexed folder of research entries, or invokes /dossier-audit on a project. Runs one round of complementary-scope independent verification. Spawns a fresh general-purpose sub-agent with WebSearch + WebFetch; receives a DROP/CORRECT/FLAG/SPOT-CHECK report; applies fixes inline; appends round-N audit-trail note. Single-round — user re-invokes per round. v1.6: also runs against /dataset-index outputs — use focus areas like "license risks + access stability" for dataset dossiers. For v2 strict-live projects, propagates findings to evidence_ledger.yml + claim_graph.jsonl alongside Markdown.
 allowed-tools: Read, Edit, Write, Bash, WebSearch, WebFetch
+paths: '**/agent_index/README.md, **/docs/*_research/README.md, **/0K_*.md'
 ---
 
 # /dossier-audit — One round of independent audit
@@ -50,17 +51,61 @@ Read `<indexed_folder>/README.md`. Search for `**Independent audit, round N (dat
 
 If the user-specified `--focus` overlaps with a prior round's coverage, surface a warning and ask whether to proceed (overlap is OK if the user wants a re-check, but should be deliberate).
 
-### Phase 3: spawn the audit agent
+### Phase 3: spawn the audit agent (CoVE factored verification)
 
-Use the `Agent` tool with `subagent_type=general-purpose`. The prompt includes:
+This phase follows **Chain-of-Verification (CoVe, Dhuliawala et al. 2023,
+arXiv 2309.11495)** — the "factored" variant where verification questions
+are answered in fully decoupled contexts to prevent the auditor from
+post-rationalizing the synthesis it's verifying.
 
-1. **Scope description**: the indexed folder path + focus area + aggressiveness posture
-2. **Prior rounds report**: a list of focus areas covered by previous rounds (so the agent knows what NOT to re-check)
-3. **DROP/CORRECT/FLAG protocol**: instructions on how to format findings (per `audit_protocol.md`)
-4. **Tools available**: WebSearch + WebFetch for verification against primary sources
-5. **Per-finding format**: file + section anchor + entry display name + reason + Source URL
+**Two-step spawn pattern** (do not collapse into one prompt):
 
-The agent should produce a structured report. Read it carefully before applying.
+**Step 3a: Question-generation spawn**
+
+Spawn ONE `Agent` (subagent_type=general-purpose) with this prompt:
+
+> Given the indexed folder at `<path>` and focus area `<focus>`, list 2–3
+> atomic verification questions for each entry in scope. Each question must
+> be answerable from a primary source via WebFetch. Output a JSON array of
+> `{entry_id, question, expected_field}` triples. Do NOT verify anything;
+> just generate the questions.
+
+This spawn IS allowed to read the synthesis (it needs to know what
+entries exist and what claims they make).
+
+**Step 3b: Per-question verification spawns (the CoVE-factored core)**
+
+For EACH question from Step 3a, spawn a separate `Agent` with:
+
+> Verify a specific factual claim about a research source. You are NOT
+> shown the dossier or synthesis — only the question and the source URL.
+> Question: `<question>`. Expected field: `<expected_field>`. Source URL:
+> `<primary_url>`. WebFetch the source, find the relevant span, report the
+> answer + supporting excerpt. If the source contradicts the question's
+> premise, report it. Output: `{verified: bool, supporting_excerpt: str,
+> confidence: float, notes: str}`.
+
+The KEY discipline: the verification spawn does NOT receive the dossier
+text. CoVE's empirical result is that "factored" (decoupled) verification
+outperforms "joint" (verifier sees draft + question together) because
+factored verification cannot post-rationalize.
+
+**Step 3c: Aggregate findings**
+
+Iterate verification results. For each entry:
+- If all 2-3 verifications return `verified: true`: SPOT-CHECK PASSED.
+- If any returns `verified: false` with contradicting evidence: CORRECT
+  finding.
+- If any returns `verified: false` with "couldn't reach source": FLAG with
+  `(unverified, YYYY-MM-DD)` annotation.
+- If aggressiveness=aggressive AND any verification fails: DROP the entry.
+
+Assemble the structured DROP/CORRECT/FLAG/SPOT-CHECK report per
+`audit_protocol.md`.
+
+**Tools available**: WebSearch + WebFetch for the verification spawns.
+
+The aggregated report goes to Phase 4 (review with user).
 
 ### Phase 4: review the report
 

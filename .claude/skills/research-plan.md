@@ -1,6 +1,6 @@
 ---
 name: research-plan
-description: Scope a research topic before any web searching — decompose into 4-8 sub-areas, declare in/out-of-scope, draft a claim_family taxonomy, and list known landmark papers. Output is a research_plan.md consumed by /research-gather.
+description: Use when starting a new research effort on a topic with no existing dossier, or when the user asks to scope a topic before web searching. Decomposes the topic into 4-8 sub-areas, declares in/out-of-scope, drafts a claim_family taxonomy, lists known landmark papers. Output is a research_plan.md consumed by /research-gather.
 allowed-tools: Read, Write, Bash
 ---
 

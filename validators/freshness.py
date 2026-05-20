@@ -107,15 +107,29 @@ def validate(
 
             for evidence_id in entry.get("evidence_ids", []) or []:
                 if isinstance(evidence_id, str) and evidence_id not in evidence_ids:
-                    errors.append(f"{loc}.evidence_ids: {evidence_id!r} not found in evidence_ledger.yml")
+                    suggestions = _closest_matches(evidence_id, evidence_ids)
+                    hint = f" (closest match: {suggestions})" if suggestions else ""
+                    errors.append(
+                        f"{loc}.evidence_ids: {evidence_id!r} not found in evidence_ledger.yml{hint}"
+                    )
             for cache_id in entry.get("cache_ids", []) or []:
                 if isinstance(cache_id, str) and cache_id not in cache_ids:
-                    errors.append(f"{loc}.cache_ids: {cache_id!r} not found in cache_manifest.yml")
+                    suggestions = _closest_matches(cache_id, cache_ids)
+                    hint = f" (closest match: {suggestions})" if suggestions else ""
+                    errors.append(
+                        f"{loc}.cache_ids: {cache_id!r} not found in cache_manifest.yml{hint}"
+                    )
 
     if warnings and not strict:
         for warning in warnings:
             print(f"  - {warning}", file=sys.stderr)
     return errors
+
+
+def _closest_matches(value: str, candidates: set[str], n: int = 2) -> list[str]:
+    """Return up to n closest matches from candidates using difflib ratio."""
+    import difflib
+    return difflib.get_close_matches(value, candidates, n=n, cutoff=0.6)
 
 
 def _cli(argv: list[str]) -> int:
