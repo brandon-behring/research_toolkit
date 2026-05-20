@@ -92,14 +92,18 @@ sooner.
 ### Item 4: Semantic-entropy sampling in `/citation-audit` (Tier-2)
 
 - **Evidence**: `ev_semantic_entropy_meaning_clusters` (Farquhar et al. 2024,
-  Nature).
+  Nature) + `ev_selfcheck_sampling_consistency` (Manakul et al. 2023, EMNLP).
 - **v2.1 gap**: v2.1's `/citation-audit` is mechanical (substring check
   against cache). For `paraphrase` and `llm_inferred` evidence entries it
   cannot verify the link. Farquhar et al. 2024 shows "Semantic entropy
   detects confabulations in free-form text generation across a range of
   language models and domains, without previous domain knowledge" by
   clustering m sampled answers by NLI bidirectional entailment and computing
-  entropy over meaning-clusters.
+  entropy over meaning-clusters. SelfCheckGPT (Manakul 2023) demonstrates
+  a parallel zero-resource path: "sampled responses are likely to be similar
+  and contain consistent facts" — diverging samples flag hallucinations,
+  without any external database. SNNE (Nguyen 2025) extends semantic
+  entropy with LogSumExp smoothing for robustness.
 - **Proposed mechanism**: new sub-script
   `scripts/semantic_entropy_audit.py` that, for each `paraphrase` or
   `llm_inferred` evidence, samples k=5 alternate paraphrases of the claim
@@ -138,6 +142,48 @@ sooner.
   Phase 4 BURN_IN as a deferred item.
 
 ---
+
+### Item 5b: RAGTruth-style word-level hallucination corpus for v2.2 eval harness (Tier-2)
+
+- **Evidence**: `ev_ragtruth_word_level_corpus` (Niu et al. 2024, ACL).
+- **v2.1 gap**: v2.1 has no eval harness against a labeled corpus. We can
+  hand-curate evidence_ledger entries, but there's no way to measure "v2.1
+  catches X% of known hallucinations." Niu et al. 2024: "Retrieval-augmented
+  generation (RAG) has become a main technique for alleviating
+  hallucinations in large language models (LLMs). Despite the integration of
+  RAG, LLMs may still present unsupported or contradictory claims" — they
+  ship a 18,000-response corpus with word-level + case-level annotations
+  and 4-class hallucination taxonomy.
+- **Proposed mechanism**: new `tests/fixtures/ragtruth_subset/` fixture
+  with ~50 hand-selected RAGTruth examples wrapped as v3 evidence_ledger
+  entries. A new test `test_v2_catches_known_hallucinations.py` runs
+  /citation-audit against the fixture and asserts catch rate ≥ a target
+  threshold (e.g., 80%). Becomes a regression baseline for v2.2+ changes.
+- **Effort**: M (fixture construction + test scaffolding).
+- **Priority**: Tier-2 (defer until after Tier-1 v2.2 items ship).
+
+### Item 5c: Hierarchical verification per Retromorphic Testing (Tier-2, 2026)
+
+- **Evidence**: `ev_retromorphic_hierarchical` (Yu et al. 2026, arXiv
+  2603.27752 — fresh 2026 work).
+- **v2.1 gap**: /dossier-audit's CoVE-factored verification (v2.1 Tier-1
+  #3) generates 2-3 questions per finding and answers them independently.
+  Yu et al. 2026 propose **hierarchical** verification: detect at coarse
+  granularity first (whole-passage), then drill into suspect spans. Yu et
+  al.: "Large language models (LLMs) continue to hallucinate in
+  retrieval-augmented generation (RAG), producing claims that are
+  unsupported by or conflict with the retrieved context. Detecting such
+  errors rem[ains a challenge]" — hierarchical verification is cheaper
+  per-passage and surfaces problem regions faster than per-claim
+  verification across an entire dossier.
+- **Proposed mechanism**: extend /dossier-audit with a Phase 2.5 coarse
+  pre-check that scores each dossier file's overall reliability before
+  spawning per-claim verification sub-agents. Files scored "high
+  confidence" skip the expensive per-claim factored verification; "low
+  confidence" files get the full treatment.
+- **Effort**: M.
+- **Priority**: Tier-2 (refines existing v2.1 mechanism rather than
+  adding a new one).
 
 ## A5. judge_calibration
 
