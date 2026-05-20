@@ -22,7 +22,8 @@ sooner.
 ### Item 1: Atomic-claim decomposition in `/agent-index` (Tier-1)
 
 - **Evidence**: `ev_factscore_atomic_methodology` (Min et al. 2023, EMNLP) +
-  `ev_vista_dialogue_history_verification` (Lewis et al. 2025) in
+  `ev_vista_dialogue_history_verification` (Lewis et al. 2025) +
+  `ev_atomeval_srom_atoms` (Cen et al. 2026, iter 6) in
   `research_toolkit_design/evidence_ledger.yml`.
 - **v2.1 gap**: bullet-level `claim_id` hides mixed support. FActScore's
   contribution is that "generations often contain a mixture of supported and
@@ -30,13 +31,24 @@ sooner.
   unsupported fragments inside a partially-supported bullet. VISTA's 2025
   follow-up "decomposes each turn into atomic claims, verifies them against
   trusted sources and dialogue history" and substantially improves over
-  FActScore + LLM-as-Judge baselines.
+  FActScore + LLM-as-Judge baselines. AtomEval (Cen et al. 2026) goes
+  further: a *structured* atom — subject-relation-object-modifier (SROM)
+  4-tuple — that scores adversarial rewrites at the field level, not the
+  text-span level. This makes "partial support" mechanically detectable
+  (e.g., "the modifier in this atom is unsupported").
 - **Proposed mechanism**: `/agent-index` Phase 2 emits 2-5 atomic `claim_id`s
   per 5-bullet block, each with its own evidence_ids. `build_claim_graph.py`
   produces one claim record per atom, not per bullet. Validators reject any
-  atom without supporting evidence_ids.
+  atom without supporting evidence_ids. **Iter 6 refinement**: prefer SROM
+  4-tuple structure (subject, relation, object, modifier) over free-text
+  atoms — gives downstream tools (citation-audit, freshness-audit) a
+  schema-typed unit instead of a string. SROM also enables "modifier-only"
+  partial-support detection (the strong + atomic claim cancels except in
+  the qualifier, e.g., "AlphaProof solved 4 of 6 IMO problems" → atom
+  remains correct, modifier "of 6" remains true, but "in 2024" might be
+  the unsupported claim).
 - **Effort**: M (changes `/agent-index` skill body, schema additions to
-  claim_graph, fixture migration).
+  claim_graph, fixture migration). SROM adds ~S of schema work atop.
 - **Priority**: Tier-1.
 
 ### Item 2: VISTA-style dialogue-history corroboration (Tier-2)
@@ -200,6 +212,34 @@ sooner.
 - **Effort**: M.
 - **Priority**: Tier-2 (refines existing v2.1 mechanism rather than
   adding a new one).
+
+### Item 4c: Counterfactual-probing perturbation audit (Tier-2, 2025)
+
+- **Evidence**: `ev_counterfactual_probing` (Feng et al. 2025, iter 6 —
+  arXiv 2508.01862).
+- **v2.1 gap**: v2.1's citation-audit checks *static* substring presence.
+  It can't tell a *robust* claim (one the model would still produce under
+  perturbation) from a *brittle* one (one a single token change flips).
+  Feng et al. 2025: "genuine knowledge exhibits robustness to
+  counterfactual variations, while hallucinated content shows inconsistent
+  confidence patterns when confronted with plausible alternatives" —
+  achieves 24.5% average hallucination-score reduction via type-specific
+  mitigation (fact verification, temporal hedging, quantitative ranges,
+  logical restructuring).
+- **Proposed mechanism**: extend `/citation-audit` with an optional
+  `--probe-counterfactual` mode. For each `extraction_method:
+  llm_inferred` synthesis claim, generate 2-3 counterfactual rewrites
+  (swap a key entity / negate a key modifier / change a date) and re-run
+  the inference. Stability across counterfactuals → confidence
+  reinforcement; instability → cap `link_confidence` and flag for
+  human review. Cleanly skippable on `verbatim_match` (which is already
+  byte-anchored — counterfactuals don't apply).
+- **Why this is Tier-2 and not Tier-1**: requires LLM calls for each
+  audit run (cost), and applies only to synthesis claims (not byte-anchored
+  primary evidence). Useful insurance once v2.2 ships atomic decomposition
+  (Item 1) — atomic claims are the natural unit for counterfactual probing.
+- **Effort**: M (new probe phase + 4 mitigation types from the paper).
+- **Priority**: Tier-2.
 
 ### Item 4b: Lookback Lens attention-divergence detection (Tier-3, exploratory)
 
