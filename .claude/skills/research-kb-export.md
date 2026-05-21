@@ -67,8 +67,21 @@ Do not report success until the export validates.
 - Export records must preserve strong IDs for entities, sources, claims, evidence, and cache blobs.
 - Full cache blobs stay local/private; export records point to paths and hashes rather than embedding raw copyrighted content.
 
+## Status
+
+**As of 2026-05-21**, the kb-side consumer does **not yet exist**. Verification: `grep -rln 'research_toolkit\|inbox/research_toolkit\|export_schema_version' ~/Claude/research-kb/` returns zero matches. research-kb runs its own corpus pipeline (Semantic Scholar weekly cron → GROBID/Docling/MinerU PDF extraction → BGE-large embeddings into PostgreSQL+pgvector+KuzuDB) and does not poll the toolkit's inbox.
+
+Exports produced by this skill are **currently archival** — they sit in `~/Claude/research-kb/inbox/research_toolkit/` and are not auto-ingested. They remain valid (envelope-wrapped, schema-stable) and will be ingestible once a consumer is built.
+
+**Root cause of the gap**: ontology mismatch. The toolkit's records (entity / claim / atom / evidence / span) don't map 1:1 to the kb's records (source / chunk / citation / concept / method / assumption). Bridging requires either a kb-side adapter or a separate toolkit-dossier corpus inside the kb. Tracked at [research_toolkit#5](https://github.com/brandon-behring/research_toolkit/issues/5); see `references/v2_2_skill_audit.md` § "research-kb-export" and § "Integration sketch" (2026-05-21).
+
+**When to still run this skill anyway**:
+- The export is a clean, append-only durable snapshot of the dossier's claim graph — useful as a long-term archive even without active ingestion.
+- Future kb-consumer builds will retroactively ingest whatever sits in inbox/.
+- Other tooling (e.g., a fresh Claude session) can read the JSONL directly.
+
 ## Output / handoff
 
 **Produces:** a JSONL file in `~/Claude/research-kb/inbox/research_toolkit/` unless `--output` overrides it.
 
-**Consumed by:** `research-kb` ingestion workflows.
+**Consumed by:** No consumer currently exists in `research-kb` (see `## Status` above). Output is archival pending consumer implementation.

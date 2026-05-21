@@ -1,7 +1,8 @@
 ---
 name: agent-index
-description: Synthesize a dossier into a dual-audience indexed folder. Renders entries as 5-bullet blocks (Source/Code/Mechanism/Result/Status), writes an AGENT-INDEX README with scope-boundary callout, lookup recipes, and glossary. Designed for both human readers and future LLM agents grounding reasoning in the literature.
+description: Synthesize a dossier into a dual-audience indexed folder. For v2.2+ strict-live projects, runs Attribute-First atomic decomposition (Phase 2a-2c span-select → plan → generate), emitting `pre_selection_manifest.yml` and atomic claim_ids before any bullet prose is written — making post-hoc rationalization structurally impossible. Renders entries as 5-bullet blocks (Source/Code/Mechanism/Result/Status), writes an AGENT-INDEX README with scope-boundary callout, lookup recipes, and glossary. For v1-era projects without `evidence_ledger.yml`, falls back to legacy rendering.
 allowed-tools: Read, Write, Edit, Bash
+paths: '**/bib_ledger.yml'
 ---
 
 # /agent-index — Synthesize dossier as agent-ready indexed folder
@@ -9,24 +10,35 @@ allowed-tools: Read, Write, Edit, Bash
 ## Usage
 
 ```
-/agent-index <dossier_dir> [--output-dir <dir>] [--topic <slug>]
+/agent-index <input_dir> [--output-dir <dir>] [--topic <slug>]
 ```
+
+`<input_dir>` is either a project root (v2.2+ strict-live; reads from `bib_ledger.yml` + `cache_manifest.yml`) or a legacy `dossier/` directory (v1-era / v2.0 / v2.1; reads `*.md` table files).
 
 **Examples:**
 ```
+# v2.2+ strict-live: point at the project root
+/agent-index ~/Claude/research_eval_drift/ --output-dir ~/Claude/research_eval_drift/agent_index/
+
+# v1-era / v2.0 / v2.1: point at the dossier dir
 /agent-index ~/Claude/research_timeseries/dossier/ --output-dir ~/some_project/docs/timeseries_research/
 /agent-index ~/Claude/research_jailbreak/dossier/ --topic jailbreak --output-dir ~/some_project/docs/jailbreak_research/
 ```
 
-**Default output dir**: `<consumer-project>/docs/<topic>_research/` if invoked from a project root, else prompts the user.
+**Default output dir**: `<project_dir>/agent_index/` for v2.2+ strict-live; `<consumer-project>/docs/<topic>_research/` for legacy flow when invoked from a project root; else prompts the user.
 
 ## When to use
 
-- After `/dossier-build` produces a content-stable dossier directory.
-- Run **once** per dossier; re-run only after material dossier edits.
+- After upstream inputs are content-stable:
+  - **v2.2+ strict-live**: `/research-gather` has produced `bib_ledger.yml` + `cache_manifest.yml` + `evidence_ledger.yml` + `claim_graph.jsonl`, and span-selection can read directly from cached source files. `/dossier-build` is **not required** (skipped in the 4 v2.2-dogfood dossiers).
+  - **v1-era / v2.0 / v2.1**: `/dossier-build` has produced a content-stable `dossier/` directory of MD table files.
+- Run **once** per topic; re-run only after material upstream edits.
 - This is the highest-leverage skill in the pipeline — its output is what future LLM agents read as ground-truth context for the topic.
 
-**Upstream:** `/dossier-build` produces dossier table files.
+**Upstream:**
+- v2.2+ strict-live: `/research-gather` produces `bib_ledger.yml` + `cache_manifest.yml` (Attribute-First reads spans directly from cached source files via `cache_manifest.yml.text_path`).
+- v1-era / v2.0 / v2.1: `/dossier-build` produces `dossier/*.md` table files.
+
 **Downstream:** `/dossier-audit` verifies the synthesis. `/url-freshness-check` may be run on the output before publishing.
 
 ## Workflow
@@ -43,11 +55,17 @@ evidence IDs on each substantive table row / 5-bullet block. Markdown should
 stay readable, but every claim-bearing bullet must be traceable to
 `evidence_ledger.yml`.
 
-### Phase 2: read dossier + plan
+### Phase 2: read entries + plan
+
+**For v2.2+ strict-live projects** (no `dossier/` directory required):
+
+Read `<project_dir>/bib_ledger.yml` directly. Each entry there is a candidate for 5-bullet rendering. The cached source text needed for Phase 2a span-selection lives at the paths declared in `<project_dir>/cache_manifest.yml` → `entries[].text_path` (relative to the manifest's `cache_root`).
+
+**For v1-era / v2.0 / v2.1 projects** (legacy flow):
 
 Read every `*.md` file in `<dossier_dir>` (excluding `_dossier_readme.md`). Extract entries from each table.
 
-Read the corresponding `research_plan.md` (typically `<dossier_dir>/../research_plan.md`) to:
+Read the corresponding `research_plan.md` (typically `<dossier_dir>/../research_plan.md` in legacy mode, or `<project_dir>/research_plan.md` in v2.2+) to:
 - Get the topic-file naming convention
 - Get the section-anchor scheme (`A1`, `A2`, `B1`, etc.)
 - Cross-reference the claim_family taxonomy

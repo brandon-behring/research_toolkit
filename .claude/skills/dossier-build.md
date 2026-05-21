@@ -1,6 +1,6 @@
 ---
 name: dossier-build
-description: Render a populated bib_ledger.yml into N topic-organized Markdown table files (the dossier). Groups entries by claim_family, picks topic file boundaries, renders 7-column tables, and reads evidence_ledger.yml when present to render strict-live verification status flags (read-only — does not write v2 artifacts). Output consumed by /agent-index.
+description: Render a populated bib_ledger.yml into N topic-organized Markdown table files (the dossier). Groups entries by claim_family, picks topic file boundaries, renders 7-column tables, and reads evidence_ledger.yml when present to render strict-live verification status flags (read-only — does not write v2 artifacts). Output consumed by /agent-index in v1-era and v2.0 / v2.1 projects; **optional in v2.2+ strict-live**, where /agent-index reads from `bib_ledger.yml` + `cache_manifest.yml` directly for Attribute-First span-anchoring. Still useful as a human-editable raw-notes pivot when desired.
 allowed-tools: Read, Write, Edit, Bash
 ---
 
@@ -26,8 +26,21 @@ allowed-tools: Read, Write, Edit, Bash
 - Re-run after material `bib_ledger.yml` edits (adding sources, changing claim_family, etc.).
 - The dossier is the editable "raw research notes" form — humans may continue to edit the dossier files directly; the skill should not overwrite manual edits without warning.
 
+### v2.2+ strict-live: this skill is OPTIONAL
+
+For v2.2+ strict-live projects, `/agent-index` runs Attribute-First atomic decomposition (Phase 2a-2c) reading directly from `bib_ledger.yml` + `cache_manifest.yml` → cached source files for span-anchoring. The intermediate `dossier/*.md` table files are not required for the v2.2 flow — the 4 v2.2-dogfood dossiers (`research_toolkit_design`, `research_eval_drift`, `research_causal_inference_ml`, `research_agent_capabilities_scaling`) do not contain a `dossier/` subdirectory and produce valid `pre_selection_manifest.yml` + `agent_index/` outputs.
+
+Run this skill in v2.2+ only when you specifically want:
+- A human-editable MD pivot before atomic decomposition runs.
+- A side-by-side comparison artifact for offline review.
+- Backward compatibility with downstream tools that expect `dossier/*.md`.
+
+For v1-era and v2.0 / v2.1 projects, this skill remains part of the canonical flow.
+
 **Upstream:** `/research-gather` produces `bib_ledger.yml`.
-**Downstream:** `/agent-index` reads the dossier files to produce the agent-ready synthesis.
+**Downstream:**
+- v1-era / v2.0 / v2.1: `/agent-index` reads the dossier files to produce the agent-ready synthesis.
+- v2.2+ strict-live: `/agent-index` may skip dossier files entirely and read `bib_ledger.yml` directly; running this skill is optional.
 
 ## Workflow
 
