@@ -75,6 +75,104 @@ before the dogfood would have hit the failure.
 
 ---
 
+## Post-dogfood: flesh out dossiers 2-4 (batch) — 2026-05-20
+
+Continued the flesh-out arc through three remaining dossiers via /loop
+autonomous pattern. Each follows the same template as dossier 1: add
+7 primary sources covering existing sub-areas, write new synthesis
+claims where natural pairings emerge, full audit chain, agent_index
+refresh, research-kb export.
+
+### Dossier 2: research_eval_drift (4 → 11 sources)
+
+End-state at `~/Claude/research_eval_drift/`:
+- 11 bib entries (was 4)
+- 13 fetches (10 accept + 1 escalate + 1 reject — preserved diversity
+  from dogfood pass; 7 new accepts added)
+- 14 claims (11 atomic + 3 synthesis)
+- 19/19 verbatim_match substring pass
+- **3/14 corroborated (21%)** — new synthesis claims:
+  - `claim_synthesis_contamination_detection` ← CoDeC + Watermarking +
+    Cross-Context + Fragility-critique (4-source synthesis)
+  - `claim_synthesis_dynamic_eval` ← LiveBench + Static-to-Dynamic survey
+  - `claim_synthesis_regulatory_transparency` ← Transparency Atlas +
+    EU AI Act Article 50 II
+- 58-line research-kb export
+
+### Dossier 3: research_agent_capabilities_scaling (4 + 1 → 11 sources)
+
+End-state at `~/Claude/research_agent_capabilities_scaling/`:
+- 11 bib entries (was 4)
+- 12 fetches (10 accept + 1 reject; 7 new accepts)
+- 14 claims (11 atomic + 3 synthesis)
+- 19/19 verbatim_match substring pass
+- **3/14 corroborated (21%)** — synthesis claims grew from 1 → 3:
+  - `claim_synthesis_emergence_debate` (pre-existing, now stronger:
+    Zhao + Schaeffer + U-shape)
+  - `claim_synthesis_emergence_methodology` ← Wei + Snell + Chen
+    (3-source synthesis on emergence-prediction methodology)
+  - `claim_synthesis_tool_use_evolution` ← Evolution survey + Beyond
+    ReAct
+- 58-line research-kb export
+
+### Dossier 4: research_toolkit_design (23 → 30 sources)
+
+End-state at `~/Claude/research_toolkit_design/`:
+- 30 bib entries (was 23)
+- 30 fetches in gather_trace
+- 37 claims (30 atomic + 7 synthesis — synthesis grew from 4 → 7)
+- **49 support links**, 49/49 verbatim_match substring pass
+- **7/37 corroborated (19%)** — 3 NEW synthesis claims emerged
+  alongside the 4 from the original migration:
+  - `claim_toolkit_design_synthesis_adaptive_retrieval` ← CRAG + CoVe
+    (with Self-RAG and FAIR-RAG already in corpus contributing as
+    primary atoms but not synthesis-bound — opportunity to deepen)
+  - `claim_toolkit_design_synthesis_llm_judge_methodology` ← RAGAS +
+    G-Eval + LLMs-as-Judges survey (3-source synthesis)
+  - `claim_toolkit_design_synthesis_citation_benchmarks` ← ALCE + ALiiCE
+- 34/37 atoms fully supported (92%)
+- 157-line research-kb export
+
+### Cumulative final state across all 4 dossiers
+
+| Dossier | Sources | Claims | Synth | Verbatim | Corroborated |
+|---|---|---|---|---|---|
+| toolkit_design | 30 | 37 | 7 | 49/49 | 7/37 (19%) |
+| causal_inference_ml | 10 | 13 | 3 | 17/17 | 3/13 (23%) |
+| eval_drift | 11 | 14 | 3 | 19/19 | 3/14 (21%) |
+| agent_capabilities_scaling | 11 | 14 | 3 | 19/19 | 3/14 (21%) |
+| **Total** | **62** | **78** | **16** | **104/104** | **16/78 (21%)** |
+
+### Friction items (1 surfaced, 0 applied, 1 deferred)
+
+**1. arxiv abstract excerpts have HTML residue at non-standard offsets
+   (status: surfaced — minor)**
+- Two extracts (Fragility + Article 50) had leading `<span>` HTML
+  fragments at the marker positions. The verify_excerpt_anchor
+  substring check correctly caught this; manual offset adjustment
+  (forward by ~50 bytes to skip the tag) resolved both.
+- **v2.3 candidate**: cache_source.py could strip a small fixed set
+  of HTML residue patterns (`<span>`, `</span>`, `<noscript>`) during
+  text extraction so common excerpts don't need offset hunting.
+
+### Key validations across the flesh-out arc
+
+- **100% verbatim_match across 104 substring checks** spanning 62
+  sources and 78 claims. Zero hallucinated citations in the corpus.
+- **Cross-source synthesis scales with corpus size**: 1 synthesis
+  per ~5 sources at fresh-topic scale (10-11 sources × 3 synthesis
+  each), more concentrated at the 30-source toolkit_design (7
+  synthesis on a topic with deeper overlap).
+- **gather_trace stays informative at all corpus sizes** — accept
+  rates 80-100% reflect honest curation discipline.
+
+The flesh-out validated v2.2.0's design at production scale. 62
+sources, 78 claims, 104 substring checks, all 100% verbatim-anchored.
+The corpus is now substantial enough for actual reference use as
+seed dossiers for upcoming work.
+
+---
+
 ## Post-dogfood: flesh out dossier 1 — causal_inference_ml — 2026-05-20
 
 **Theme**: first of four dossier-flesh-out passes. Expanded the seed
