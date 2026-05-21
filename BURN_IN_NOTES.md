@@ -75,6 +75,73 @@ before the dogfood would have hit the failure.
 
 ---
 
+## Post-dogfood: flesh out dossier 1 — causal_inference_ml — 2026-05-20
+
+**Theme**: first of four dossier-flesh-out passes. Expanded the seed
+research_causal_inference_ml project from 3 sources → 10 sources,
+producing 3 cross-source synthesis claims at fleshed-out scale.
+
+**End-state metrics** (`~/Claude/research_causal_inference_ml/`):
+- 10 bib entries (was 3)
+- 11 fetches in gather_trace (10 accept + 1 escalate_to_manual)
+- 13 claims (10 atomic + 3 cross-source synthesis)
+- 17 support links, 17/17 verbatim_match substring pass (100%)
+- 17 selections in pre_selection_manifest
+- **3/13 corroborated (23%)** — three multi-source syntheses:
+  - `claim_synthesis_causal_forests` ← Wager-Athey 2018 + Athey-Wager 2019
+  - `claim_synthesis_tmle` ← Ma 2025 + Nannapaneni 2025 + Smith 2023
+  - `claim_synthesis_notears_debate` ← Zheng 2018 + Kaiser 2021
+- 13/13 atoms fully supported
+- 53-line research-kb export, validator clean
+- Dashboard Action Queue: active + stable tiers
+- Dashboard Discovery Rigor: 91% accept rate
+
+### Friction items (1 surfaced, 0 applied, 1 deferred)
+
+**1. Synthesis emerges naturally at 10-source scale (status: surfaced —
+   positive result confirming Phase 5 hypothesis)**
+- Phase 5 BURN_IN observed: "cross-source synthesis emerges at corpus
+  scale (23 sources) OR with deliberate multi-family curation (4
+  sources). Not automatic at small-N."
+- This 10-source flesh-out hits the threshold: 3 synthesis claims
+  emerged WITHOUT deliberate multi-family curation — just by adding
+  more sources to existing sub-areas. The synthesis emerges when
+  multiple sources cover similar methodology from different angles
+  (causal forests theory vs application; TMLE tutorial vs Bayesian
+  vs epidemiology; NOTEARS method vs critique).
+- **Validation**: corroboration metric is informative at 10+ source
+  scale. At 3-4 sources it's noise; at 10+ it's signal.
+
+### Cumulative dogfood + flesh-out metrics
+
+| Project | Sources | Synthesis | Verbatim | Corroborated |
+|---|---|---|---|---|
+| toolkit_design (migrated) | 23 | 4 | 35/35 | 4/27 (15%) |
+| eval_drift (seed) | 4 | 0 | 4/4 | 0/4 (0%) |
+| causal_inference_ml **(fleshed)** | **10** | **3** | **17/17** | **3/13 (23%)** |
+| agent_capabilities (seed) | 4 | 1 | 6/6 | 1/5 (20%) |
+
+The fleshed causal_inference_ml dossier is the first one to demonstrate
+v2.2's synthesis-claim emergence at intermediate corpus scale (between
+the 23-source migration and the 3-4-source seed pass). Pattern holds:
+v2.2's overhead is proportionate at this scale and the corroboration
+metric is meaningful.
+
+### Friction-free observations
+
+- The "redundant survey paper" escalation pattern continued working
+  cleanly (Phase 3 had 1 escalate_to_manual; the flesh-out kept it
+  with the new 7 accepts adding alongside).
+- Programmatic generation of the manifests from the existing v3
+  byte-anchored evidence excerpts remained mechanical (~10 mins of
+  Python per pass).
+- agent_index/ rendering scaled cleanly — 3 topic files + README, with
+  synthesis-claim cross-references at the end of each topic file.
+
+Next: flesh out research_eval_drift (4 → ~12 sources, ~4-5h).
+
+---
+
 ## v2.2.0 dogfood — Phase 5: cross-cutting synthesis + v2.3 candidate list — 2026-05-20
 
 **Theme**: aggregate friction across Phase 1-4 dogfoods; decide which
