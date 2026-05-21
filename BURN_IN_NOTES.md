@@ -75,6 +75,103 @@ before the dogfood would have hit the failure.
 
 ---
 
+## v2.2.0 dogfood — Phase 4: AI agent emergent capabilities / scaling laws — 2026-05-20
+
+**Theme**: mid-velocity fresh-topic v2.2 pipeline pass. Targeted mechanism:
+multi-family decomposition + cross-source synthesis — does v2.2 produce a
+synthesis claim NATURALLY when sources span overlapping claim_families?
+
+**Project**: `~/Claude/research_agent_capabilities_scaling/` (personal,
+not committed). Seed for future expansion into a full agent-capabilities
+dossier.
+
+**End-state metrics**:
+- 4 primary sources cached + verified (urllib only — all arxiv pages)
+- 5 fetches in gather_trace (4 accept + 1 reject — Stanford HAI news
+  article rejected as redundant secondary)
+- 5 atomic claims (4 primary atoms + 1 cross-source synthesis claim)
+- 6 support links (4 primary + 2 synthesis bindings)
+- 6/6 verbatim_match substring pass (100%)
+- **1/5 corroborated (20%)** — `claim_synthesis_emergence_debate`
+  aggregates Zhao 2025 (emergent_capability family) + Schaeffer 2023
+  (inverse_scaling family). **First fresh-topic dogfood to produce a
+  synthesis claim.**
+- 5/5 atoms fully supported
+- Dashboard Action Queue: 3 tiers (volatile + active + stable)
+- 21-line research-kb export, validator clean
+
+### Friction items (3 surfaced, 0 applied, 3 deferred)
+
+**1. Cross-source synthesis DOES emerge naturally with intentional
+   multi-family source selection (status: surfaced — positive result;
+   v2.2 design validated)**
+- Worry going in: cross-source synthesis was the v2.2 design payoff
+  but only seen in retroactive migration (Phase 1's 23 sources).
+  Could v2.2 produce synthesis claims at fresh-topic scale (3-5
+  sources)?
+- Actual experience: yes, when the AUTHOR deliberately picks sources
+  spanning ≥2 claim_families AND the sources address the same higher-
+  level question from different framings. Zhao 2025 (distributional
+  shifts produce apparent emergence) + Schaeffer 2023 (metric choice
+  produces apparent emergence) BOTH support a single synthesis claim
+  about "emergence is partly an artifact of measurement."
+- **Validation of v2.2.0 Phase B (atomic + Attribute-First)**: the
+  synthesis claim is a real atom (`claim_synthesis_emergence_debate`)
+  with 2 distinct evidence_id supports across 2 distinct source_urls.
+  The corroboration metric correctly reports 1/5 (20%).
+
+**2. The two-evidence synthesis claim required carefully-chosen sources
+   (status: surfaced — author-discipline observation)**
+- The 4 sources cached were NOT randomly representative — Zhao + Schaeffer
+  were deliberately chosen because they argue opposite framings of the
+  same underlying question. A random 4-source set would likely NOT
+  produce a synthesis claim.
+- **Implication**: cross-source synthesis is an *author choice*, not
+  an emergent property of any v2.2-compliant 4-source corpus. The
+  toolkit supports synthesis-claim authorship cleanly; the synthesis
+  itself requires the human to recognize the cross-source pattern.
+- **No v2.2 fix needed**: this is correct — the author SHOULD make
+  this judgment call. But it's worth documenting in
+  references/dual_audience_design.md that synthesis claims aren't
+  automatic.
+
+**3. The two synthesis atoms have identical excerpts (status: surfaced —
+   minor UX issue)**
+- ev_distributional_scaling supports both
+  `claim_agent_capabilities_zhao2025distributional_a1` AND
+  `claim_synthesis_emergence_debate` from the SAME byte offset +
+  sha256. Likewise for ev_mirage_metric_emergence.
+- The synthesis claim's "text" in claim_graph.jsonl came from one of
+  the source excerpts (highest-quality + longest-excerpt tiebreak).
+  That's fine — the synthesis CLAIM is implicit in the cross-source
+  juxtaposition, not in either excerpt alone.
+- **v2.3 candidate**: pre_selection_manifest could allow a synthesis
+  selection to record an *author-written* synthesis_text alongside
+  the source excerpts ("the cross-source claim is X; here are the
+  contributing spans"). Right now the synthesis claim's text is
+  one of the contributing spans, which understates what synthesis
+  is doing.
+
+### Phase 4 conclusion
+
+v2.2 produces cross-source synthesis claims at FRESH-topic scale when
+the author deliberately picks multi-family sources. The corroboration
+metric works as designed. This validates the v2.2.0 Phase B Attribute-
+First design at the smallest-meaningful scale (4 sources + 1 synthesis).
+
+**Cumulative metrics across the four dogfood projects**:
+- Phase 1 (migration, 23 sources): 35/35 verbatim, 4/27 corroborated
+- Phase 2 (eval drift, 4 sources, no synthesis): 4/4 verbatim, 0/4 corroborated
+- Phase 3 (causal inference, 3 sources, no synthesis): 3/3 verbatim, 0/3 corroborated
+- Phase 4 (agent capabilities, 4 sources + 1 synthesis): 6/6 verbatim, 1/5 corroborated
+
+The pattern: **cross-source synthesis emerges at corpus scale OR with
+deliberate multi-family curation**, not from any small-N corpus.
+
+Next: Phase 5 (cross-cutting BURN_IN synthesis + v2.3 promotion review).
+
+---
+
 ## v2.2.0 dogfood — Phase 3: causal inference for observational ML — 2026-05-20
 
 **Theme**: stable-subject fresh-topic v2.2 pipeline pass. Targeted
