@@ -75,6 +75,179 @@ before the dogfood would have hit the failure.
 
 ---
 
+## v2.2.0 dogfood — Phase 5: cross-cutting synthesis + v2.3 candidate list — 2026-05-20
+
+**Theme**: aggregate friction across Phase 1-4 dogfoods; decide which
+Tier-2/3 backlog items deserve v2.3 promotion. Per user's "USE posture"
+framing, no v2.3 design cycle is scheduled; this is forward-looking
+documentation for when one happens.
+
+### Cumulative dogfood metrics
+
+| Phase | Topic | Sources | Synthesis | Verbatim | Corroborated | Atoms / source |
+|---|---|---|---|---|---|---|
+| 1 | toolkit_design migration | 23 | 4 | 35/35 (100%) | 4/27 (15%) | 1 |
+| 2 | eval drift | 4 | 0 | 4/4 (100%) | 0/4 (0%) | 1 |
+| 3 | causal inference | 3 | 0 | 3/3 (100%) | 0/3 (0%) | 1 |
+| 4 | agent capabilities | 4 | 1 | 6/6 (100%) | 1/5 (20%) | 1 |
+
+**Pattern A (positive)**: 100% verbatim_match substring pass across
+every dogfood project, every source. The v2.1.0 substring-anchored
+extraction_method is rock-solid at production scale.
+
+**Pattern B (positive)**: cross-source synthesis emerges (1) at corpus
+scale (Phase 1's 23 sources naturally produce 4 synthesis claims) OR
+(2) with deliberate multi-family curation (Phase 4's hand-picked Zhao
++ Schaeffer pairing). Synthesis is NOT automatic at small-N (Phase 2,
+3 have 0 synthesis claims).
+
+**Pattern C (structural)**: atomic decomposition stayed at 1 atom per
+source across ALL four phases. Per-bullet multi-atom decomposition
+needs LLM-driven /agent-index Phase 2c generation against fresh prose,
+not retroactive splitting of existing excerpts. This is a CLARIFICATION
+of v2.2 Item 1, not a defect — but should be documented as expected
+behavior in references/strict_live_v2.md.
+
+### Cross-phase friction items (sorted by frequency × severity)
+
+**HIGH frequency (3+ phases): atomic decomposition cap**
+- Appears in Phase 1, 2, 3 (and implicitly in Phase 4 — the synthesis
+  claim doesn't change the 1-atom-per-source ratio for the underlying
+  primary atoms).
+- **NOT a defect**: v2.2 Item 1's design intent is per-bullet multi-atom
+  decomposition during /agent-index Phase 2c generation. Migration +
+  gather-time atomic IDs both stay at 1-atom (correctly).
+- **v2.3 documentation candidate**: clarify in strict_live_v2.md that
+  multi-atom-per-bullet requires fresh LLM-driven generation.
+
+**MEDIUM frequency (2 phases): corroboration metric at 0% small-N**
+- Phase 2 and 3 dashboards report `corroborated 0/4 (0%)` and `0/3 (0%)`
+  respectively. Accurate but visibility-degraded — looks like a failure
+  state at first read.
+- **v2.3 candidate (Tier-2)**: dashboard suppresses corroboration row
+  when total atoms <6, OR annotates with "(corpus too small for
+  cross-source synthesis)". Low effort, clear value.
+
+**MEDIUM frequency (2 phases): "redundant survey paper" escalation
+pattern**
+- Phase 2 (Rubrics as Attack Surface → escalate_to_manual on scope
+  overlap) and Phase 3 (Causal Inference Survey → escalate_to_manual
+  as redundant with selected primary).
+- **v2.3 candidate (Tier-2)**: research_plan.md template OR
+  citation_rules.md document the canonical reject/escalate reasons:
+  - "Survey of what we already have" (redundant secondary)
+  - "Borderline scope" (partial fit, belongs in different dossier)
+  - "Vendor marketing" (pattern-match keywords, no methodology)
+  - "Login-gated / paywalled" (rights_status: restricted)
+- Small documentation effort; high signal for future authors.
+
+**LOW frequency (1 phase each), positive signals to preserve:**
+- Phase 2: gather_trace IsSup distribution genuinely useful when author
+  deliberately searches beyond accept-able results — validates v2.2.0
+  Phase A
+- Phase 3: Action Queue refresh dates earn their keep on slow subjects
+  where Discovery Rigor signal is weak
+- Phase 4: cross-source synthesis emerges at fresh-topic scale with
+  multi-family curation — validates v2.2.0 Phase B
+- Phase 1.5: Playwright escalation stayed dormant across all 4 fresh-
+  topic phases (all arxiv sources urllib-friendly). Preventive, not
+  curative yet. Worth keeping but not load-bearing.
+
+**LOW frequency (1 phase): synthesis claim text comes from source
+excerpt, not author-written synthesis**
+- Phase 4 only — but structurally affects all synthesis claims.
+  build_claim_graph picks the "highest-quality + longest-excerpt"
+  tiebreak text from the contributing sources, which is fine for
+  visualization but understates what the synthesis IS.
+- **v2.3 candidate (Tier-3 / exploratory)**: pre_selection_manifest
+  could allow an author-written `synthesis_text` field for synthesis
+  selections, displayed in dashboard + agent_index instead of the
+  contributing-source excerpt. Larger schema change; consider if
+  multiple future projects produce synthesis claims.
+
+**LOW frequency (1 phase): gather_trace synthetic backfill**
+- Only Phase 1 had backfill; subsequent phases generated fresh traces.
+  Not a recurring pattern — defer indefinitely.
+
+**LOW frequency (1 phase): no real-browser Playwright smoke test**
+- Phase 1.5 friction. Optional env-gated test; defer unless we hit a
+  Playwright regression.
+
+### v2.3 candidate list (prioritized)
+
+**Tier-2 v2.3 candidates** (warrant a design cycle if one happens):
+1. **Survey-paper escalation cheatsheet** (XS effort) — add canonical
+   reject/escalate reasons to references/citation_rules.md or
+   research_plan.md template. ~30 minutes of doc work; immediately
+   useful for authors.
+2. **Corroboration metric small-N suppression** (S effort) — modify
+   build_dashboard.py to omit or annotate the corroboration row when
+   total atoms <6. Mechanical change to the existing metric block.
+3. **strict_live_v2.md atomic-decomposition expectation note** (XS
+   effort) — clarify that multi-atom-per-bullet requires fresh
+   /agent-index Phase 2c generation, not retroactive splitting.
+
+**Tier-3 v2.3 candidates** (exploratory; only if specific friction
+recurs):
+4. **pre_selection_manifest synthesis_text field** (M effort) —
+   author-written synthesis text alongside contributing-source excerpts.
+   Schema addition. Defer until multiple projects produce synthesis
+   claims AND the tiebreak-picked text noticeably understates them.
+5. **Playwright real-browser smoke test** (S effort) — env-gated
+   test. Defer unless Playwright path breaks.
+
+**Backlog items NOT promoted** (Tier-2/3 from v2_2_design_backlog.md
+that did NOT surface as friction across 4 dogfoods):
+- Item 4 (semantic entropy audit), Item 4b (Lookback Lens), Item 4c
+  (counterfactual probing): not surfaced — no synthesis claim went
+  through paraphrase / llm_inferred extraction methods that would
+  trigger semantic-entropy stress-testing
+- Items 5b-5f (RAGTruth, Retromorphic, Tool-MAD, GSAR, KEA Explain):
+  not surfaced — multi-agent debate and KG-grounding integrations
+  weren't exercised at this dogfood scale
+- Items 6, 6b-6e (Faithfulness fusion, MAD-Fact, Process reward,
+  Probabilistic certainty, DoublyCal): not surfaced — calibration
+  fusion isn't needed when all evidence is verbatim_match (the v2.1
+  guarantee carries forward)
+
+These remain valid backlog items but lack EVIDENCE-DRIVEN promotion.
+Wait for specific friction before elevating.
+
+### Decision: NO v2.2.2 patch needed
+
+v2.2.0 ships as designed. v2.2.1 (Playwright escalation) shipped as the
+one fixable item that was hitting the user repeatedly. The Phase 1-4
+dogfoods surfaced documentation candidates + small dashboard tweaks +
+2 cosmetic schema additions — none are blocking, none warrant a patch
+release.
+
+**v2.2 release stays USE posture.** v2.3 candidate list above documents
+what to consider whenever a design cycle is scheduled. No design cycle
+is scheduled.
+
+### Closing the v2.2.0 dogfood arc
+
+4 phases completed, 5 BURN_IN sections written, 5 commits to
+research_toolkit/, 4 dogfood projects produced (research_toolkit_design
+migrated; research_eval_drift, research_causal_inference_ml,
+research_agent_capabilities_scaling fresh). Total time: ~12-15h across
+multiple sessions.
+
+The v2.2.0 release was validated end-to-end on real subjects spanning
+fast / mid / slow velocity regimes AND retroactive migration of an
+existing 23-source corpus. Both rounds of design questions ("does
+v2.2 work?" + "is gather_trace's reflection mechanism actually used?")
+got positive answers backed by concrete artifacts.
+
+Next session (whenever): user picks. Options include:
+- Flesh out the 4 dogfood projects from seed corpora into substantial
+  dossiers
+- Bring research-kb ingestion online (separate repo)
+- Schedule a v2.3 design cycle if the candidate list above feels
+  worth pursuing
+
+---
+
 ## v2.2.0 dogfood — Phase 4: AI agent emergent capabilities / scaling laws — 2026-05-20
 
 **Theme**: mid-velocity fresh-topic v2.2 pipeline pass. Targeted mechanism:
