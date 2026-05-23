@@ -239,3 +239,38 @@ entries:
   status: applied
   fix_version: v2.3.0
   notes: 'closes new follow-on #13 + #12. Writer now serializes relative-to-cache_root; reader _resolve() now honors cache_root; portability guard rejects absolute / ~-prefixed paths in raw_path/text_path/metadata_path. Migration script scripts/migrate_manifest_paths.py for legacy consumer manifests. 254 passed + 2 xfailed (was 244 + 2).'
+
+- id: v23-phase2-A2
+  phase: v2.3.0-phase-2
+  stage: cache-source
+  finding: 'cache_source.py left PDFs at extraction_status: raw_only, blocking Attribute-First Phase 2a span-anchoring on 8 of 25 consumer PDFs (consumer:guides #11)'
+  severity: high
+  status: applied
+  fix_version: v2.3.0
+  notes: 'closes #11. Two-stage cascade: pdfplumber (fast) + Docling (lazy import when equation-rich detected). New status enum: rich / ok_text_only / degraded. Per-host extraction_log_<hostname>.jsonl + loud stderr WARN. --no-extract-pdfs / --strict-extraction / --extraction-log / --docling-cache-dir flags. Equation detection: LaTeX residue regex + unicode math density (3/1000 threshold); chemistry false-positive guard via ASCII subscript exclusion. Docling install workaround documented for macOS Python 3.12 cstdint issue. 278 passed + 2 xfailed.'
+
+- id: v23-phase2-A2b
+  phase: v2.3.0-phase-2
+  stage: scripts
+  finding: 'no upgrade path for existing raw_only PDF entries; consumers would have had to delete + re-cache (re-downloading paywall-sensitive sources)'
+  severity: medium
+  status: applied
+  fix_version: v2.3.0
+  notes: 'closes #11 follow-on. scripts/reextract_pdfs.py walks manifest, runs v2.3 cascade against cached blob (no re-download), updates text_path + metadata.json + manifest entry. Idempotent + --dry-run + --strict-extraction. 5 tests.'
+
+- id: v23-phase2-A3
+  phase: v2.3.0-phase-2
+  stage: cache-source
+  finding: 'cache_source.py accepted 1152-byte Nuxt SPA shells as extraction_status: ok (consumer:guides #10 projecteuclid reproduction)'
+  severity: medium
+  status: applied
+  fix_version: v2.3.0
+  notes: 'closes #10. _content_is_suspect() now fires unconditionally on urllib first-pass, not just when --escalate-on-failure is set. Suspect HTML + no escalation → extraction_status: stub + WARN. Downstream stages skip stub entries explicitly.'
+
+- id: v23-phase2-docling-install
+  phase: v2.3.0-phase-2
+  stage: cache-source
+  finding: 'docling-parse C++ build fails on macOS Python 3.12 with cstdint file not found (upstream issue)'
+  severity: low
+  status: surfaced
+  notes: 'Documented in docs/troubleshooting.md. Workarounds: conda install -c conda-forge docling, downgrade to Python 3.11, or --no-extract-pdfs to skip extraction. Lazy import + graceful ImportError fallback means toolkit still works without docling — equation-rich PDFs land at ok_text_only with helpful WARN suggesting install. Not a v2.3 blocker.'

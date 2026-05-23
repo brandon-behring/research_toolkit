@@ -515,6 +515,60 @@ entries are skipped (they reference captures by ID, no paths to fix).
 comments above `entries:` are NOT preserved. If your manifest has hand-edited
 comments worth keeping, manually copy them back after running the script.
 
+## docling install fails on macOS Python 3.12 (v2.3 / #11)
+
+**Symptom:** `pip install -e ".[dev]"` fails building `docling-parse` with
+`'cstdint' file not found` during the C++ compile step.
+
+**Cause:** `docling-parse` ships native C++ that hits a macOS-specific
+libc++ header path issue on Python 3.12. Tracked upstream.
+
+**Workarounds:**
+- **Conda:** `conda install -c conda-forge docling` (pulls a prebuilt wheel).
+- **Python 3.11:** the wheel is available for 3.11 — `pyenv install 3.11.10
+  && pyenv local 3.11.10 && python -m venv .venv && source .venv/bin/activate
+  && pip install -e ".[dev]"`.
+- **Skip extraction:** if you don't need PDF text from equation-rich
+  sources, pass `--no-extract-pdfs` and PDFs land at `extraction_status:
+  raw_only` (the pre-v2.3 behavior). You'll lose Attribute-First Phase 2a
+  span-anchoring on those PDFs.
+
+`scripts/cache_source.py` lazy-imports docling, so the toolkit still works
+without it — equation-rich PDFs just land at `extraction_status:
+ok_text_only` with a WARN suggesting installation.
+
+## Cache_source.py WARN: extraction degraded (v2.3 / #11)
+
+**Symptom:** Caching a PDF prints `WARN: <url> extraction degraded
+(<status>) — <reason>` to stderr.
+
+**Cause + fix by status:**
+
+| Status | What it means | Fix |
+|---|---|---|
+| `ok_text_only` | math detected, Docling unavailable | install `docling` or accept text-only extraction |
+| `degraded` | image-PDF or near-empty text | find a non-scanned source; or accept the degraded entry |
+| `partial` | encrypted PDF | find a non-encrypted source; password-removal isn't automated |
+| `failed` | both extractors errored | check the source URL fetched real PDF bytes (some servers return error HTML with `Content-Type: application/pdf`) |
+| `stub` | HTML page is a JS shell | re-cache with `--escalate-on-failure` to render via Playwright |
+
+The same WARN goes to `<cache_root>/extraction_log_<hostname>.jsonl` for
+later analysis. `/research-gather --cache-pdfs` reads this log and prints
+an aggregated summary at end-of-run.
+
+## First PDF cache takes ~30 seconds (v2.3 / Docling)
+
+**Symptom:** The first PDF cached after a fresh install hangs for
+~30-60 seconds before completing.
+
+**Cause:** Docling (Stage 2 of the PDF cascade) downloads ~600 MB of
+models on first use. Subsequent runs hit the local cache and are fast.
+
+**Fix:** Pre-pull the models proactively via `python
+scripts/precache_docling_models.py`. For multi-machine workflows, point
+`$DOCLING_CACHE_DIR` at a synced location (Dropbox / Drive) so each
+machine doesn't pay the download separately.
+
 ## How to file a new issue you can't fix immediately
 
 Add to `burn_in.yml` AND `BURN_IN_NOTES.md`:

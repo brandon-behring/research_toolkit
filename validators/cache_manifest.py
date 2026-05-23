@@ -22,7 +22,19 @@ from validators.v2_common import (
 import re
 
 URL_PATTERN = re.compile(rf"^{URL_RE}$")
-ALLOWED_EXTRACTION_STATUS = {"ok", "partial", "raw_only", "failed"}
+# v2.3 extends extraction_status with rich/ok_text_only/degraded (#11 PDF cascade)
+# and stub (#10 JS-shell detection). All additive — readers that don't know the
+# new values can treat them as opaque strings.
+ALLOWED_EXTRACTION_STATUS = {
+    "ok",
+    "rich",
+    "ok_text_only",
+    "degraded",
+    "partial",
+    "raw_only",
+    "failed",
+    "stub",
+}
 ALLOWED_RECORD_TYPES = {"capture", "revisit", "metadata", "conversion"}
 ALLOWED_REVISIT_PROFILES = {"server-not-modified", "identical-payload-digest"}
 # v2.2.1: fetch_method records HOW the cache was acquired. urllib is the
@@ -176,6 +188,19 @@ def _validate_entry(
         errors.append(
             f"{loc}.extraction_status: {extraction!r} not in {sorted(ALLOWED_EXTRACTION_STATUS)}"
         )
+
+    # v2.3 optional field — list of human-readable warnings from cache_source.py
+    # explaining why a non-ideal extraction_status was set.
+    extraction_warnings = entry.get("extraction_warnings")
+    if extraction_warnings is not None:
+        if not isinstance(extraction_warnings, list):
+            errors.append(f"{loc}.extraction_warnings: must be a list of strings")
+        else:
+            for i, w in enumerate(extraction_warnings):
+                if not isinstance(w, str):
+                    errors.append(
+                        f"{loc}.extraction_warnings[{i}]: must be a string"
+                    )
 
     fetch_method = entry.get("fetch_method")
     if fetch_method is not None and fetch_method not in ALLOWED_FETCH_METHODS:

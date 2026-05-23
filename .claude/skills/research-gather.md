@@ -163,6 +163,29 @@ If `--cache-pdfs` was passed:
 
 PDFs are gitignored at the toolkit level (`papers/` typically isn't committed).
 
+#### v2.3+ extraction summary (end-of-run)
+
+When `--cache-pdfs` is passed AND `cache_source.py` is invoked against PDF
+URLs, each call appends one JSONL record to
+`<cache_root>/extraction_log_<hostname>.jsonl` (per-host filename avoids
+sync conflicts on Dropbox/Drive-hosted cache_root).
+
+At the end of the run, read that log filtered by the run's start
+timestamp (or just `tail -N` matching the count of fetches) and print an
+aggregated summary like:
+
+```
+Extraction summary: 22 of 25 PDFs ok, 2 ok_text_only, 1 degraded
+  ok_text_only: arxiv.org/abs/2401.XXXXX (Docling errored: ...)
+  ok_text_only: arxiv.org/abs/2402.YYYYY
+  degraded:     kohavi2012... (likely scanned/image PDF)
+```
+
+This catches consumer-visible extraction problems before the user notices
+them downstream in `/agent-index` Phase 2a span-anchoring. For batch debug
+runs add `--strict-extraction` to `cache_source.py` so any non-ideal
+status surfaces as exit-1 immediately.
+
 ### Phase 6: verify (HARD REQUIREMENTS — failures here block downstream stages)
 
 Before exit:

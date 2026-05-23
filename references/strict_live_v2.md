@@ -99,6 +99,42 @@ where possible, plus README/license/release metadata.
 For restricted/authenticated sources, cache when your access and terms allow it.
 Mark `restricted: true` and record access/rights notes in metadata.
 
+### v2.3+ extraction cascade (#11)
+
+For `application/pdf` sources, `scripts/cache_source.py` runs a two-stage
+cascade:
+
+1. **pdfplumber** (Stage 1, always tried first) — pure-Python, fast text
+   extraction.
+2. **Docling** (Stage 2, lazy-imported when math is detected) — preserves
+   equations as LaTeX. ~600 MB models downloaded on first use.
+
+`extraction_status` enum (v2.3 extends v2.0's {ok, partial, raw_only, failed}):
+
+| Status | Meaning | Downstream behavior |
+|---|---|---|
+| `ok` | pdfplumber clean text | Phase 2a span-anchoring fully supported |
+| `rich` | Docling extracted equations | Phase 2a fully supported, equations in LaTeX |
+| `ok_text_only` | math detected, Docling failed | Phase 2a runs but math spans may be lossy |
+| `degraded` | image-PDF / near-empty | **Phase 2a SKIPS** this entry |
+| `partial` | encrypted PDF | **Phase 2a SKIPS** this entry |
+| `failed` | both extractors errored | **Phase 2a SKIPS** this entry |
+| `raw_only` | non-PDF binary OR `--no-extract-pdfs` | **Phase 2a SKIPS** this entry |
+| `stub` (#10) | JS-shell HTML detected without Playwright | **Phase 2a SKIPS** this entry |
+
+Authors should treat `degraded`/`partial`/`failed`/`stub` entries as
+sources that need re-fetching (find a non-paywalled / non-encrypted /
+non-image alternative), not as silently lossy supports. `cache_source.py`
+emits a stderr WARN for any non-ideal status; `/research-gather
+--cache-pdfs` reads `<cache_root>/extraction_log_<hostname>.jsonl` and
+prints an aggregated end-of-run summary.
+
+### Path portability (v2.3 / #13)
+
+`raw_path` / `text_path` / `metadata_path` MUST be relative to
+`cache_root`. Absolute / ~-prefixed paths are rejected by the validator.
+Migrate legacy manifests via `scripts/migrate_manifest_paths.py`.
+
 ## Research-KB Export
 
 `research_toolkit` exports append-only JSONL records. `research-kb` owns the

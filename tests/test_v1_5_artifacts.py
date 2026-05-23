@@ -33,14 +33,14 @@ def test_getting_started_exists_and_reasonable_size() -> None:
     p = DOCS / "getting_started.md"
     assert p.exists(), f"missing {p}"
     lines = p.read_text(encoding="utf-8").splitlines()
-    assert 50 <= len(lines) <= 250, f"getting_started.md has {len(lines)} lines; target ~80-200 (250 cap accommodates v2.2.1 Playwright install section)"
+    assert 50 <= len(lines) <= 350, f"getting_started.md has {len(lines)} lines; target ~80-300 (350 cap accommodates v2.3 PDF extraction + cross-machine cache sync sections)"
 
 
 def test_troubleshooting_exists_and_reasonable_size() -> None:
     p = DOCS / "troubleshooting.md"
     assert p.exists(), f"missing {p}"
     lines = p.read_text(encoding="utf-8").splitlines()
-    assert 60 <= len(lines) <= 550, f"troubleshooting.md has {len(lines)} lines; target ~60-550 (v2.0: ~415 covering paper + dataset + strict-live v2 pipelines)"
+    assert 60 <= len(lines) <= 700, f"troubleshooting.md has {len(lines)} lines; target ~60-700 (v2.3: ~590 covering paper + dataset + strict-live v2 + path portability + PDF extraction)"
 
 
 def test_getting_started_mentions_all_6_skills() -> None:

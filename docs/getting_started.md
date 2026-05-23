@@ -63,6 +63,74 @@ Then `cache_source.py --escalate-on-failure <url>` will retry via headless
 Chromium when urllib returns 403/429 or content that looks like an
 unhydrated SPA (blank text, JS-required markers).
 
+### PDF extraction (v2.3+)
+
+`scripts/cache_source.py` now extracts text from PDFs by default via a
+two-stage cascade:
+
+1. **pdfplumber** (pure Python, fast) — handles plain-text academic PDFs.
+2. **Docling** (IBM, Apache 2.0) — preserves equations as LaTeX when math is
+   detected in the pdfplumber output. ~600 MB of models downloaded lazily
+   on first PDF call.
+
+Both are hard dependencies via `pip install -e ".[dev]"`. The first PDF you
+cache after install will take ~30 seconds while Docling pulls models — this
+is one-time per machine (or per synced cache, see below).
+
+`extraction_status` values surfaced in `cache_manifest.yml`:
+
+| Status | Meaning |
+|---|---|
+| `ok` | pdfplumber extracted clean text, no math suspicion |
+| `rich` | Docling preserved equations as LaTeX |
+| `ok_text_only` | math detected but Docling failed/unavailable — pdfplumber output kept (WARN) |
+| `degraded` | both extractors low-yield (likely scanned/image PDF) (WARN) |
+| `partial` | encrypted PDF, partial extraction (WARN) |
+| `failed` | both extractors errored (ERROR) |
+| `stub` | v2.3 #10: JS-shell HTML page detected without Playwright escalation (WARN) |
+| `raw_only` | non-PDF binary, or `--no-extract-pdfs` was set |
+
+Flags:
+- `--no-extract-pdfs` — skip PDF extraction (PDFs land at `raw_only`).
+- `--strict-extraction` — exit non-zero on any WARN-tier status. For
+  batch runs (`/research-gather --cache-pdfs`) that need clean output.
+- `--extraction-log PATH` — append-only JSONL log of outcomes. Default:
+  `<cache_root>/extraction_log_<hostname>.jsonl` (per-host filename
+  avoids Dropbox/Drive conflicts on synced caches).
+
+### Re-extracting legacy `raw_only` PDFs
+
+For consumers upgrading from <=v2.2: existing `extraction_status: raw_only`
+PDF entries can be re-extracted in place (no re-download) via:
+
+```bash
+python scripts/reextract_pdfs.py path/to/cache_manifest.yml
+python scripts/reextract_pdfs.py path/to/cache_manifest.yml --dry-run
+```
+
+Idempotent. Revisit entries skipped. Mirrors `migrate_manifest_paths.py` UX.
+
+### Cross-machine cache sync (Docling models + cache blobs)
+
+The 600 MB Docling model download + the cache blobs themselves can both
+live on a synced dir (Dropbox / Drive / shared NAS) so multiple machines
+share one copy:
+
+```bash
+# Point cache_source.py at a synced cache_root
+python scripts/cache_source.py --cache-root ~/Dropbox/research_cache <url>
+
+# Point Docling at a synced model dir on both machines
+export DOCLING_CACHE_DIR=~/Dropbox/docling_models
+python scripts/precache_docling_models.py  # pre-pull from machine A
+```
+
+The per-host `extraction_log_<hostname>.jsonl` filename means concurrent
+writes from two machines don't trigger Dropbox conflicted-copy files.
+
+If `docling` install fails on macOS Python 3.12 (`'cstdint' not found`
+during docling-parse build), see `docs/troubleshooting.md` for workarounds.
+
 ## A 5-minute end-to-end run
 
 Pick a topic. From any directory:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 from urllib.error import URLError
@@ -71,21 +72,26 @@ def test_sha256_helper_matches_hashlib() -> None:
 
 
 def test_safe_text_html_extracts_text() -> None:
-    text, status = cache_source._safe_text(b"<html>hi</html>", "text/html")
+    text, status, warnings = cache_source._safe_text(b"<html>hi</html>", "text/html")
     assert "<html>" in text
     assert status == "ok"
+    assert warnings == []
 
 
 def test_safe_text_binary_falls_back_to_raw_only() -> None:
-    text, status = cache_source._safe_text(b"\x00\x01\x02", "application/octet-stream")
+    text, status, warnings = cache_source._safe_text(b"\x00\x01\x02", "application/octet-stream")
     assert status == "raw_only"
     assert "raw binary cached" in text
+    assert warnings == []
 
 
 def test_cache_one_writes_blob_text_metadata(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    body = b"<html><body>Test page for cache_source.</body></html>"
+    # v2.3 A3 (#10): the unconditional JS-shell stub check fires on HTML
+    # responses shorter than SUSPECT_TEXT_MIN_CHARS (500), so test bodies must
+    # be padded above that threshold to avoid landing at stub status.
+    body = (b"<html><body>Test page for cache_source. " + b"x" * 600 + b"</body></html>")
     _patch_fetch(monkeypatch, body, "text/html")
 
     entry = cache_source.cache_one(
@@ -188,7 +194,7 @@ def test_main_reports_url_error(
 def test_main_prints_manifest_yaml(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    _patch_fetch(monkeypatch, b"<html>yaml-test</html>", "text/html")
+    _patch_fetch(monkeypatch, b"<html>yaml-test " + b"x" * 600 + b"</html>", "text/html")
     rc = cache_source.main([
         "cache_source.py",
         "https://example.com/yaml",
@@ -285,7 +291,7 @@ def test_cache_one_new_content_emits_capture_linked_to_prior(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """200 with new hash emits a fresh capture but records refers_to_cache_id."""
-    _patch_fetch(monkeypatch, b"<html>different content</html>", "text/html")
+    _patch_fetch(monkeypatch, b"<html>different content " + b"x" * 600 + b"</html>", "text/html")
     entry = cache_source.cache_one(
         "https://example.com/changed",
         cache_root=tmp_path,
@@ -430,3 +436,273 @@ def test_v221_content_is_suspect_heuristics() -> None:
 
     is_suspect, _ = cache_source._content_is_suspect(b"", "text/html")
     assert is_suspect
+
+
+# ----- v2.3 A2: PDF extraction cascade (#11) -----
+
+
+def test_pdf_text_only_extraction_ok(plain_text_pdf_bytes: bytes) -> None:
+    """Plain-text PDF → status: ok, no warnings."""
+    text, status, warnings = cache_source._extract_pdf_text(plain_text_pdf_bytes)
+    assert status == "ok"
+    assert "synthetic plain-text test PDF" in text
+    assert warnings == []
+
+
+def test_pdf_equation_rich_marks_rich_when_docling_succeeds(
+    equation_rich_pdf_bytes: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Equation-rich PDF with Docling mocked → status: rich."""
+    def fake_docling(raw: bytes, *, docling_cache_dir=None):
+        return "# Equation-Rich Synthetic\n\n$\\frac{a}{b}$ extracted by Docling", "rich", []
+
+    monkeypatch.setattr(cache_source, "_extract_via_docling", fake_docling)
+    text, status, warnings = cache_source._extract_pdf_text(equation_rich_pdf_bytes)
+    assert status == "rich"
+    assert "Docling" in text
+
+
+def test_pdf_equation_rich_docling_errors_falls_back_to_ok_text_only(
+    equation_rich_pdf_bytes: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Math detected but Docling crashes → ok_text_only + WARN."""
+    def fake_docling(raw: bytes, *, docling_cache_dir=None):
+        raise RuntimeError("Docling model load failed")
+
+    monkeypatch.setattr(cache_source, "_extract_via_docling", fake_docling)
+    text, status, warnings = cache_source._extract_pdf_text(equation_rich_pdf_bytes)
+    assert status == "ok_text_only"
+    assert any("Docling" in w for w in warnings)
+    # pdfplumber text still returned
+    assert text
+
+
+def test_pdf_equation_rich_docling_missing_falls_back_to_ok_text_only(
+    equation_rich_pdf_bytes: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Math detected but docling not installed → ok_text_only + helpful WARN."""
+    def fake_docling(raw: bytes, *, docling_cache_dir=None):
+        raise ImportError("No module named 'docling'")
+
+    monkeypatch.setattr(cache_source, "_extract_via_docling", fake_docling)
+    text, status, warnings = cache_source._extract_pdf_text(equation_rich_pdf_bytes)
+    assert status == "ok_text_only"
+    assert any("docling" in w.lower() and "install" in w.lower() for w in warnings)
+
+
+def test_pdf_encrypted_marks_partial(encrypted_pdf_bytes: bytes) -> None:
+    """Encrypted PDF → status: partial + WARN."""
+    text, status, warnings = cache_source._extract_pdf_text(encrypted_pdf_bytes)
+    assert status == "partial"
+    assert any("encrypt" in w.lower() for w in warnings)
+
+
+def test_pdf_image_only_marks_degraded(
+    image_only_pdf_bytes: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Image-only PDF → status: degraded + WARN.
+
+    pdfplumber returns near-empty text on these. We mock Docling to fail
+    (Docling's OCR would otherwise rescue the page; in this test we want to
+    confirm the fall-through degraded branch).
+    """
+    def fake_docling(raw: bytes, *, docling_cache_dir=None):
+        raise RuntimeError("Docling unavailable for this test")
+
+    monkeypatch.setattr(cache_source, "_extract_via_docling", fake_docling)
+    text, status, warnings = cache_source._extract_pdf_text(image_only_pdf_bytes)
+    assert status == "degraded"
+    assert any("low text yield" in w for w in warnings)
+
+
+def test_pdf_extraction_failure_marks_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Corrupt PDF bytes + Docling also fails → status: failed."""
+    def fake_docling(raw: bytes, *, docling_cache_dir=None):
+        raise RuntimeError("docling cannot handle corrupt bytes either")
+
+    monkeypatch.setattr(cache_source, "_extract_via_docling", fake_docling)
+    text, status, warnings = cache_source._extract_pdf_text(b"not a real pdf at all")
+    assert status == "failed"
+    assert any("pdfplumber failed" in w for w in warnings)
+
+
+def test_no_extract_pdfs_returns_raw_only(plain_text_pdf_bytes: bytes) -> None:
+    """--no-extract-pdfs preserves the pre-v2.3 raw_only behavior."""
+    text, status, warnings = cache_source._safe_text(
+        plain_text_pdf_bytes, "application/pdf", extract_pdfs=False
+    )
+    assert status == "raw_only"
+    assert "extraction skipped" in text
+    assert warnings == []
+
+
+def test_safe_text_dispatches_pdf(
+    plain_text_pdf_bytes: bytes,
+) -> None:
+    """_safe_text routes application/pdf to the cascade."""
+    text, status, warnings = cache_source._safe_text(
+        plain_text_pdf_bytes, "application/pdf"
+    )
+    assert status == "ok"
+    assert "synthetic plain-text test PDF" in text
+
+
+# ----- v2.3 A2: equation detection unit -----
+
+
+def test_equation_detection_plain_text_no_match() -> None:
+    is_rich, reason = cache_source._detect_equation_richness(
+        "The quick brown fox jumps over the lazy dog. " * 30
+    )
+    assert not is_rich
+
+
+def test_equation_detection_latex_residue_matches() -> None:
+    is_rich, reason = cache_source._detect_equation_richness(
+        "Some prose about \\frac{a}{b} and other things"
+    )
+    assert is_rich
+    assert "LaTeX residue" in reason
+
+
+def test_equation_detection_unicode_math_density_matches() -> None:
+    # 12 math chars in 100-char string = 120/1000 — well over the 3.0 threshold
+    is_rich, reason = cache_source._detect_equation_richness(
+        "x ≤ y ≥ z ∑ ∫ ∂ ∇ ∞ ± × ÷ " + "padding " * 5
+    )
+    assert is_rich
+    assert "unicode math density" in reason
+
+
+def test_equation_detection_chemistry_no_false_positive() -> None:
+    # 'CO₂' and 'H₂O' use subscripts not in our math char set; should NOT trip
+    is_rich, _ = cache_source._detect_equation_richness(
+        "The reaction CO2 + H2O produces H2CO3 in aqueous solution. " * 10
+    )
+    assert not is_rich
+
+
+# ----- v2.3 A2: per-host extraction log -----
+
+
+def test_extraction_log_appends_per_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_fetch(monkeypatch, b"<html>" + b"x" * 600 + b"</html>", "text/html")
+    log_path = tmp_path / "ext_log.jsonl"
+    cache_source.cache_one(
+        "https://example.com/log-test",
+        cache_root=tmp_path / "cache",
+        fetched_at="2026-05-23",
+        topic="t",
+        extraction_log_path=log_path,
+        run_id="abc123",
+    )
+    assert log_path.exists()
+    lines = log_path.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    import json as _json
+    record = _json.loads(lines[0])
+    assert record["status"] == "ok"
+    assert record["run_id"] == "abc123"
+    assert record["source_url"] == "https://example.com/log-test"
+    assert "hostname" in record
+
+
+def test_default_extraction_log_path_is_per_host(tmp_path: Path) -> None:
+    log_path = cache_source._default_extraction_log_path(tmp_path)
+    assert log_path.parent == tmp_path
+    assert log_path.name.startswith("extraction_log_")
+    assert log_path.name.endswith(".jsonl")
+
+
+# ----- v2.3 A2: docling cache dir threading -----
+
+
+def test_docling_cache_dir_threaded_through_env(
+    equation_rich_pdf_bytes: bytes, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When docling_cache_dir is provided, HF_HOME is set so Docling honors it."""
+    captured: dict[str, str] = {}
+
+    def fake_docling_inner(raw, *, docling_cache_dir=None):
+        captured["docling_cache_dir"] = docling_cache_dir or ""
+        captured["HF_HOME"] = os.environ.get("HF_HOME", "")
+        return "mock output", "rich", []
+
+    monkeypatch.setattr(cache_source, "_extract_via_docling", fake_docling_inner)
+    text, status, _ = cache_source._extract_pdf_text(
+        equation_rich_pdf_bytes, docling_cache_dir="/tmp/test_docling_cache"
+    )
+    assert status == "rich"
+    assert captured["docling_cache_dir"] == "/tmp/test_docling_cache"
+
+
+# ----- v2.3 A3: JS-shell stub detection (#10) -----
+
+
+def test_js_shell_marked_stub_without_escalation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """v2.3 #10: unconditional stub detection. urllib 200 with suspect content
+    AND no --escalate-on-failure → extraction_status: stub + WARN."""
+    short_raw = b"<html><body>Loading</body></html>"  # < 500 chars trips suspect
+    _patch_fetch(monkeypatch, short_raw, "text/html")
+
+    entry = cache_source.cache_one(
+        "https://example.com/spa",
+        cache_root=tmp_path,
+        fetched_at="2026-05-23",
+        topic="t",
+        escalate_on_failure=False,  # explicitly off
+    )
+    assert entry["extraction_status"] == "stub"
+    assert any("JS-shell stub" in w for w in entry.get("extraction_warnings", []))
+    captured = capsys.readouterr()
+    assert "WARN" in captured.err
+    assert "stub" in captured.err
+
+
+def test_js_shell_escalates_with_flag(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """v2.3 #10: when --escalate-on-failure is set, suspect content triggers
+    Playwright (existing v2.2.1 behavior) and the stub status is NOT set."""
+    short_raw = b"<html><body>Loading</body></html>"
+    rendered_raw = b"<html><body>" + (b"hydrated " * 100) + b"</body></html>"
+    _patch_fetch(monkeypatch, short_raw, "text/html")
+    monkeypatch.setattr(
+        cache_source,
+        "_fetch_via_playwright",
+        lambda url: (200, rendered_raw, "text/html", None, None),
+    )
+
+    entry = cache_source.cache_one(
+        "https://example.com/spa",
+        cache_root=tmp_path,
+        fetched_at="2026-05-23",
+        topic="t",
+        escalate_on_failure=True,
+    )
+    assert entry["extraction_status"] == "ok"  # not stub — Playwright rendered fine
+    assert entry["fetch_method"] == "playwright_rendered"
+
+
+# ----- v2.3 --strict-extraction exit code -----
+
+
+def test_strict_extraction_exits_nonzero_on_stub(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    short_raw = b"<html><body>Loading</body></html>"
+    _patch_fetch(monkeypatch, short_raw, "text/html")
+    rc = cache_source.main([
+        "cache_source.py",
+        "https://example.com/spa",
+        "--cache-root",
+        str(tmp_path),
+        "--topic",
+        "t",
+        "--date",
+        "2026-05-23",
+        "--strict-extraction",
+    ])
+    assert rc == 1
