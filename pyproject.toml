@@ -10,7 +10,11 @@ requires-python = ">=3.11"
 dependencies = [
   "PyYAML>=6.0",
   "pdfplumber>=0.11",
-  "docling>=2.0",
+  # docling 2.30+ requires docling-parse 5.x which currently ships source-only
+  # on PyPI (no wheels for darwin x86_64 py3.12); the source build fails with
+  # cstdint not found. docling 2.29.x works with docling-parse 4.7.2 which has
+  # binary wheels. Re-evaluate when docling-parse 5.x ships wheels.
+  "docling>=2.0,<2.30",
 ]
 
 [project.optional-dependencies]

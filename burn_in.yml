@@ -269,8 +269,9 @@ entries:
 
 - id: v23-phase2-docling-install
   phase: v2.3.0-phase-2
-  stage: cache-source
-  finding: 'docling-parse C++ build fails on macOS Python 3.12 with cstdint file not found (upstream issue)'
+  stage: cache-source / pyproject
+  finding: 'docling 2.30+ requires docling-parse>=5.x which ships source-only on PyPI; source build fails on macOS x86_64 py3.12 with cstdint not found'
   severity: low
-  status: surfaced
-  notes: 'Documented in docs/troubleshooting.md. Workarounds: conda install -c conda-forge docling, downgrade to Python 3.11, or --no-extract-pdfs to skip extraction. Lazy import + graceful ImportError fallback means toolkit still works without docling — equation-rich PDFs land at ok_text_only with helpful WARN suggesting install. Not a v2.3 blocker.'
+  status: applied
+  fix_version: v2.3.0
+  notes: 'Pinned docling>=2.0,<2.30 in pyproject.toml. docling 2.29.x works with docling-parse 4.7.2 which has binary wheels. Verified end-to-end: real Docling runs the cascade, falls back gracefully to ok_text_only when Docling itself errors mid-conversion.'

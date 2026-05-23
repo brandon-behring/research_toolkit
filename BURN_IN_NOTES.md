@@ -118,16 +118,24 @@ explicitly.
 
 ### Friction items (3 surfaced, 1 applied, 2 deferred)
 
-**1. docling install fails on macOS Python 3.12 with 'cstdint' file not
-   found (status: surfaced — documented workaround)**
-- `docling-parse` ships native C++ that hits a known libc++ header path
-  issue. Confirmed during local dev install.
-- Workarounds documented in `docs/troubleshooting.md`: conda install,
-  downgrade to Python 3.11, or `--no-extract-pdfs` to skip extraction.
-- Lazy import + graceful ImportError fallback means the toolkit still
-  works without docling — equation-rich PDFs just land at `ok_text_only`
-  with a helpful WARN.
-- Not a v2.3 blocker; upstream issue.
+**1. docling install pins required to avoid source-build failure
+   (status: applied — pinned in pyproject.toml)**
+- Initial install attempt with `docling>=2.0` resolved to docling 2.76 +
+  docling-parse 5.5.0, which currently ship source-only on PyPI (no
+  binary wheels for darwin x86_64 py3.12). Build failed with `'cstdint'
+  file not found` in the docling-parse C++ codebase.
+- **Root cause** identified after user pointed out docling works in
+  another venv on the same machine: docling 2.30+ requires
+  docling-parse>=5.x (source-only); docling 2.29.x works with
+  docling-parse 4.7.2 which has binary wheels.
+- **Fix**: pinned `docling>=2.0,<2.30` in pyproject.toml. Verified
+  end-to-end: pdfplumber path returns `ok`; equation-rich path
+  successfully escalates to real Docling (model downloads work).
+- Note: on a synthetic reportlab-generated equation-rich PDF, Docling
+  itself failed with a transformers padding error and the cascade
+  gracefully fell back to `ok_text_only` with a helpful WARN — the
+  graceful-degradation design works as intended even when Docling
+  errors mid-conversion.
 
 **2. Tests must mock Docling to avoid 600 MB model download in CI
    (status: applied — fixture pattern)**

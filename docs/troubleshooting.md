@@ -515,26 +515,30 @@ entries are skipped (they reference captures by ID, no paths to fix).
 comments above `entries:` are NOT preserved. If your manifest has hand-edited
 comments worth keeping, manually copy them back after running the script.
 
-## docling install fails on macOS Python 3.12 (v2.3 / #11)
+## docling install fails on macOS with 'cstdint' file not found (v2.3 / #11)
 
-**Symptom:** `pip install -e ".[dev]"` fails building `docling-parse` with
-`'cstdint' file not found` during the C++ compile step.
+**Symptom:** `pip install docling` fails while building `docling-parse`
+with `'cstdint' file not found` during the C++ compile step.
 
-**Cause:** `docling-parse` ships native C++ that hits a macOS-specific
-libc++ header path issue on Python 3.12. Tracked upstream.
+**Cause:** `docling>=2.30` requires `docling-parse>=5.0`, which currently
+ships **source-only** on PyPI (no binary wheels for darwin x86_64
+Python 3.12). pip falls back to building from source, which hits a known
+libc++ header path issue in the docling-parse C++ codebase.
 
-**Workarounds:**
+**Fix (already applied in pyproject.toml):** pin `docling>=2.0,<2.30`.
+The 2.29.x line works with `docling-parse 4.7.2` which has binary wheels.
+This is what `pip install -e ".[dev]"` will install by default.
+
+If you need docling-parse 5.x specifically (e.g., for a newer Docling
+feature), workarounds:
 - **Conda:** `conda install -c conda-forge docling` (pulls a prebuilt wheel).
-- **Python 3.11:** the wheel is available for 3.11 — `pyenv install 3.11.10
-  && pyenv local 3.11.10 && python -m venv .venv && source .venv/bin/activate
-  && pip install -e ".[dev]"`.
-- **Skip extraction:** if you don't need PDF text from equation-rich
-  sources, pass `--no-extract-pdfs` and PDFs land at `extraction_status:
-  raw_only` (the pre-v2.3 behavior). You'll lose Attribute-First Phase 2a
-  span-anchoring on those PDFs.
+- **Python 3.11:** docling-parse 5.x has wheels for some 3.11 platforms.
+- **Skip extraction:** pass `--no-extract-pdfs` and PDFs land at
+  `extraction_status: raw_only` (pre-v2.3 behavior). You'll lose
+  Attribute-First Phase 2a span-anchoring on those PDFs.
 
 `scripts/cache_source.py` lazy-imports docling, so the toolkit still works
-without it — equation-rich PDFs just land at `extraction_status:
+without it installed — equation-rich PDFs just land at `extraction_status:
 ok_text_only` with a WARN suggesting installation.
 
 ## Cache_source.py WARN: extraction degraded (v2.3 / #11)
