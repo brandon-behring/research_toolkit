@@ -27,6 +27,13 @@ selections:
   bullet_id: 'B1'                    # bullet identifier within agent_index entry
   atom_id: 'claim_<topic>_b1_a1_0001'  # atomic claim_id this span supports
   cache_id: cache_<sha-prefix>       # which cached source contains the span
+  # v2.3 C2 (optional): point at a synthesis_entry by ID when this selection
+  # represents a multi-source synthesis atom (atom_id matches claim_synthesis_*).
+  # build_claim_graph.py uses synthesis_entry.attribution_map for the claim's
+  # text (longest-substring-match against claim text wins). Validator asserts
+  # the source_urls set on the synthesis_entry matches the union of source_urls
+  # across the claim's supporting evidence — mismatch → WARN.
+  # synthesis_entry_ref: syn_<topic>_<slug>
   span:
     text_path_offset: [0, 200]       # [start, end] byte offsets into cache text_path
     sha256_of_span: <64 hex chars>   # of the bytes at that offset

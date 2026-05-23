@@ -10,6 +10,97 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.3.0 Phase 2 Commit 3: cross-source corroboration + synthesis_entry wire-up — shipped 2026-05-23
+
+**Theme**: Tier-2 promotions from `references/v2_2_design_backlog.md` Item 2
+(cross-source corroboration scoring) plus the synthesis_entry connector
+that closes the loop on daf6699's curation-layer addition. No new schema
+fields on synthesis_entry; one optional connector field on
+pre_selection_manifest.
+
+### Design
+
+**C1 — Cross-source corroboration scoring (v2_2 backlog Item 2):**
+- `build_claim_graph.py` now computes `corroboration_count` per claim record
+  (unique source_urls across the claim's supporting evidence). Additive
+  field; omitted when 0/1 to keep byte-stable existing fixtures.
+- `build_dashboard.py` Claim Health section now lists top-corroborated
+  claims (count ≥ 2), capped at 10 entries. Surfaces the synthesis nuclei
+  so reviewers don't need to grep claim_graph.jsonl.
+
+**C2 — synthesis_entry ↔ claim_graph attribution wire-up:**
+- New optional `synthesis_entry_ref: syn_<topic>_<slug>` field on
+  pre_selection_manifest selections. Validator checks `syn_*` pattern
+  when present.
+- `build_claim_graph.py` resolves claim text via a 3-step cascade when
+  the ref is present:
+  1. Longest-substring-match against `synthesis_entry.attribution_map`
+     keys (with WARN on exact-length tie, picks first by source-order).
+  2. Fall back to `synthesis_entry.title`.
+  3. Fall back to existing v2.2 longest-excerpt tiebreak when ref absent
+     OR the synthesis_id doesn't exist.
+- **Source_urls corroboration check** at build time: asserts that the
+  synthesis_entry's `source_urls` set equals the union of source_urls
+  across the claim's supporting evidence. Mismatch → stderr WARN with
+  the diff. Catches author-side drift loudly without failing the build
+  (curation signal, not structural error).
+- `synthesis_entry_id` persisted on the claim record so the dashboard
+  can render `(synthesis_entry: syn_X)` next to top-corroborated entries.
+
+### Modified surfaces
+
+- `scripts/build_claim_graph.py` — net ~200 LOC:
+  - `_load_synthesis_entries()` — load + index by synthesis_id.
+  - `_load_pre_selection()` — load + index by atom_id.
+  - `_resolve_synthesis_attribution()` — the C2 resolver (return text +
+    warnings + synthesis_id_used).
+  - `_attribution_map_longest_match()` + `_longest_common_substring_len()`
+    helpers.
+  - Wired into the claim-record loop; warnings emitted to stderr at end
+    of build.
+- `scripts/build_dashboard.py` — top-corroborated list + per-claim
+  synthesis_entry link.
+- `templates/pre_selection_manifest.template.yml` — documents the new
+  optional `synthesis_entry_ref` field.
+- `validators/pre_selection_manifest.py` — validates `syn_*` pattern.
+- `.claude/skills/agent-index.md` — Phase 2b v2.3 C2 subsection
+  explaining when + how to emit `synthesis_entry_ref`.
+- `tests/test_v2_strict_live.py` — +7 cases:
+  - C1: corroboration_count on multi-source claim (with omit-on-single
+    assertion).
+  - C2 happy path: ref resolves attribution_map longest match.
+  - C2 fallback: no ref → existing tiebreak (no synthesis_entry_id field).
+  - C2 mismatch: source_urls drift WARNs but doesn't fail.
+  - C2 dangling: missing synthesis_id WARNs + falls back.
+  - C2 no attribution_map: uses synthesis_entry.title.
+  - C2 validator: rejects `synthesis_entry_ref` values not starting with `syn_`.
+
+### End-state metrics
+
+- 285 passed + 2 xfailed (was 278 + 2 after Commit 2 / 3d3763e).
+- v2-smoke green; freshness audit-strict green.
+- Existing byte-exact dashboard fixture test still passes (the new
+  corroboration section only fires when there's a claim with ≥2 sources;
+  the ai_agents fixture has 1 single-source claim, so output unchanged).
+
+### Friction items (0 surfaced)
+
+The synthesis_entry validator already enforced ≥3 source_urls + ≥1 T1, so
+the corroboration check is mechanical — author-side drift is the only
+non-trivial path and it's surfaced loudly.
+
+### Phase 2 Commit 3 conclusion
+
+Synthesis-claim curation now has the full attribution chain: gather +
+caching + synthesis_entry + pre_selection_manifest + claim_graph all
+agree on source_urls, with explicit ref-by-ID linking that scales (O(1)
+lookup, no fuzz). Dashboard surfaces the top corroborated atoms +
+synthesis_entry links so reviewers see the consolidation structure
+without grepping. Next: Commit 4 (Group B docs + version bump 2.2.1 →
+2.3.0 + tag).
+
+---
+
 ## v2.3.0 Phase 2 Commit 2: PDF extraction cascade + reextract + JS-shell stub — shipped 2026-05-23
 
 **Theme**: closes #11 (PDF text extraction) + #10 (JS-shell stub

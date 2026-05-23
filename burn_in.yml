@@ -275,3 +275,21 @@ entries:
   status: applied
   fix_version: v2.3.0
   notes: 'Pinned docling>=2.0,<2.30 in pyproject.toml. docling 2.29.x works with docling-parse 4.7.2 which has binary wheels. Verified end-to-end: real Docling runs the cascade, falls back gracefully to ok_text_only when Docling itself errors mid-conversion.'
+
+- id: v23-phase2-C1
+  phase: v2.3.0-phase-2
+  stage: build-claim-graph / build-dashboard
+  finding: 'v2.2 had cross-source synthesis claim BINDING (multi-evidence) but no per-claim corroboration metric on the claim record itself'
+  severity: low
+  status: applied
+  fix_version: v2.3.0
+  notes: 'Promoted v2_2 backlog Item 2. corroboration_count added to claim records when >= 2 (additive, omits at 0/1 for byte-stability). Dashboard Claim Health lists top-corroborated atoms with synthesis_entry link when ref present.'
+
+- id: v23-phase2-C2
+  phase: v2.3.0-phase-2
+  stage: build-claim-graph / pre-selection-manifest / agent-index
+  finding: 'daf6699 added synthesis_entry.yml with attribution_map but build_claim_graph.py ignored it — claim text always came from longest-excerpt tiebreak even when author-written attribution existed'
+  severity: medium
+  status: applied
+  fix_version: v2.3.0
+  notes: 'pre_selection_manifest gains optional synthesis_entry_ref: syn_<topic>_<slug>. build_claim_graph.py resolves text via attribution_map longest-substring-match → title → tiebreak. Source_urls corroboration check at build time WARNs on drift between synthesis_entry and supporting evidence (curation signal, not structural error). agent-index Phase 2b documents when to emit the ref. 7 new tests covering happy path + 5 edge cases + validator pattern check.'

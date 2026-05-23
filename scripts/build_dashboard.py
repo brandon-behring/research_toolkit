@@ -247,6 +247,35 @@ def build(project_dir: Path, today: date) -> str:
                     f"- corroborated (≥2 independent sources): "
                     f"{corroborated}/{total_claims_for_corr} ({corr_pct}%)"
                 )
+                # v2.3 C1 (backlog Item 2): per-claim corroboration list.
+                # Surface the top-corroborated claims (count >= 2) so reviewers
+                # can spot the synthesis nuclei without grepping claim_graph.jsonl.
+                # v2.3 C2: when a claim has a synthesis_entry_id (resolved by
+                # build_claim_graph.py from synthesis_entry.yml), link it in
+                # the bullet so reviewers can jump to the consolidation entry.
+                claim_synthesis_id: dict[str, str] = {}
+                for cr in claim_records:
+                    cid = cr.get("id")
+                    sid = cr.get("synthesis_entry_id")
+                    if isinstance(cid, str) and isinstance(sid, str):
+                        claim_synthesis_id[cid] = sid
+                top_corroborated = sorted(
+                    (
+                        (cid, len(urls))
+                        for cid, urls in claim_source_urls.items()
+                        if len(urls) >= 2
+                    ),
+                    key=lambda pair: (-pair[1], pair[0]),
+                )[:10]
+                if top_corroborated:
+                    claim_health_lines.append("")
+                    claim_health_lines.append("Top corroborated claims:")
+                    for cid, n in top_corroborated:
+                        line = f"  - `{cid}`: {n} sources"
+                        sid = claim_synthesis_id.get(cid)
+                        if sid:
+                            line += f" (synthesis_entry: `{sid}`)"
+                        claim_health_lines.append(line)
             if claim_strengths:
                 full_only = sum(
                     1 for s in claim_strengths.values() if s == {"full"}

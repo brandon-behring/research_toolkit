@@ -94,6 +94,26 @@ Use atom_id naming `claim_<topic>_b<bullet>_a<atom>_<descriptor>`
 distinct from the others within a bullet; downstream `build_claim_graph`
 emits one claim record per atom, not per bullet.
 
+**v2.3 C2 — synthesis_entry attribution wire-up (when synthesis_entry.yml
+exists in the project).** If `<output_dir>/synthesis_entry.yml` is
+present (multi-source consolidation entries per daf6699), AND the
+atom_id matches `claim_synthesis_*` (i.e., this selection represents a
+synthesis atom whose source_urls span ≥3 sources), AND the synthesis_entry's
+`source_urls` set matches the atom's supporting evidence source_urls,
+emit `synthesis_entry_ref: syn_<topic>_<slug>` on the selection. Then
+`build_claim_graph.py` will:
+1. Resolve the claim text from `synthesis_entry.attribution_map`
+   (longest-substring-match against the fallback excerpt) or
+   `synthesis_entry.title`.
+2. Persist `synthesis_entry_id` on the claim record so the dashboard
+   can link to the consolidation entry.
+3. Emit a WARN to stderr if the source_urls drift between the synthesis_entry
+   and the supporting evidence (a curation signal — fix the entry, not
+   the link).
+
+When in doubt or when no synthesis_entry exists, omit the field — the
+builder falls back cleanly to the v2.2 longest-excerpt tiebreak.
+
 **Phase 2c — generate.** Now write the bullet prose, conditioned ONLY
 on the spans in pre_selection_manifest. The bullet's evidence_ids in
 evidence_ledger.yml must be a subset of the atom_ids declared in 2b.

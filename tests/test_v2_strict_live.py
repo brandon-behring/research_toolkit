@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import copy
 from datetime import date
+import hashlib
 import json
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 import yaml
@@ -312,6 +314,38 @@ def test_build_claim_graph_quality_tiebreak(tmp_path: Path) -> None:
         "ent_huang2024gpt5jailbreak",
         "ent_park2024defenses",
     ]
+
+
+def test_v23_c1_corroboration_count_on_multi_source_claim(tmp_path: Path) -> None:
+    """v2.3 C1: claim_gpt5_jailbreak_rate has 2 distinct source_urls →
+    corroboration_count: 2. Single-source claims omit the field."""
+    project = tmp_path / "project"
+    shutil.copytree(MULTI_FIXTURE, project)
+    out = tmp_path / "claim_graph_built.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_claim_graph.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    records = [
+        json.loads(line)
+        for line in out.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    by_id = {r["id"]: r for r in records if r.get("record_type") == "claim"}
+    jb = by_id["claim_gpt5_jailbreak_rate"]
+    assert jb.get("corroboration_count") == 2, jb
+    # Single-source claims omit the field (additive, byte-stable fixtures)
+    drift = by_id["claim_alignment_drift"]
+    assert "corroboration_count" not in drift, drift
 
 
 def test_build_claim_graph_propagates_aliases(tmp_path: Path) -> None:
@@ -932,3 +966,374 @@ def test_v22_atomic_dashboard_reports_corroboration_and_strength(tmp_path: Path)
     text = out.read_text(encoding="utf-8")
     assert "atoms fully supported: 3/3 (100%)" in text, text
     assert "corroborated (≥2 independent sources): 0/3 (0%)" in text, text
+
+
+# ---------- v2.3 C2: synthesis_entry attribution wire-up ----------
+
+
+def _scaffold_synthesis_project(
+    base: Path,
+    *,
+    synthesis_entry_source_urls: list[str] | None = None,
+    pre_selection_synthesis_ref: str | None = None,
+    attribution_map: dict[str, list[str]] | None = None,
+    synthesis_title: str = "Synthesis: emergence is partly artifact",
+) -> Path:
+    """Build a minimal project dir with one synthesis atom across 3 sources.
+
+    The synthesis claim is ``claim_synthesis_emergence_debate``, supported by
+    3 evidence entries from 3 distinct source_urls (Zhao / Schaeffer /
+    fragility). Caller customizes the synthesis_entry source_urls and the
+    pre_selection_manifest synthesis_entry_ref to exercise drift scenarios.
+    """
+    import yaml as _yaml
+    project = base / "synthesis_project"
+    project.mkdir()
+    cache_dir = project / "cache"
+    cache_dir.mkdir()
+
+    sources = [
+        ("https://arxiv.org/abs/2505.01234", "zhao2025distributional"),
+        ("https://arxiv.org/abs/2304.15004", "schaeffer2023mirage"),
+        ("https://arxiv.org/abs/2502.03200", "fragility2025critique"),
+    ]
+
+    # Scaffold cache blobs for verbatim_match anchor verification — minimal,
+    # just enough that the cache_manifest validator accepts the project.
+    cache_entries = []
+    for url, _bibkey in sources:
+        body = (
+            f"Synthetic test source for {url}. " + "padding " * 100
+        ).encode("utf-8")
+        digest = hashlib.sha256(body).hexdigest()
+        (cache_dir / "blobs" / "sha256").mkdir(parents=True, exist_ok=True)
+        (cache_dir / "text" / "sha256").mkdir(parents=True, exist_ok=True)
+        (cache_dir / "metadata" / "sha256").mkdir(parents=True, exist_ok=True)
+        (cache_dir / "blobs" / "sha256" / digest).write_bytes(body)
+        (cache_dir / "text" / "sha256" / f"{digest}.txt").write_text(
+            body.decode("utf-8"), encoding="utf-8"
+        )
+        (cache_dir / "metadata" / "sha256" / f"{digest}.json").write_text(
+            json.dumps({"sha256": digest}, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        cache_entries.append({
+            "cache_id": f"cache_{digest[:16]}",
+            "source_url": url,
+            "fetched_at": "2026-05-23",
+            "content_type": "text/html",
+            "bytes": len(body),
+            "sha256": digest,
+            "raw_path": f"blobs/sha256/{digest}",
+            "text_path": f"text/sha256/{digest}.txt",
+            "metadata_path": f"metadata/sha256/{digest}.json",
+            "restricted": False,
+            "rights_status": "private_use",
+            "extraction_status": "ok",
+        })
+
+    (project / "cache_manifest.yml").write_text(
+        _yaml.safe_dump({
+            "schema_version": 2,
+            "topic": "synthesis_test",
+            "generated_at": "2026-05-23",
+            "current_as_of": "2026-05-23",
+            "freshness_policy": "strict_live",
+            "cache_root": "./cache",
+            "entries": cache_entries,
+        }, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    # bib_ledger with 3 entries that each reference one evidence_id
+    bib_entries = []
+    for (url, bibkey), ev_id in zip(
+        sources,
+        ["ev_zhao_distributional", "ev_schaeffer_mirage", "ev_fragility_critique"],
+    ):
+        bib_entries.append({
+            "bibkey": bibkey,
+            "title": f"Synthetic paper {bibkey}",
+            "primary_url": url,
+            "claim_family": "paper",
+            "status": "verified",
+            "evidence_ids": [ev_id],
+        })
+    (project / "bib_ledger.yml").write_text(
+        _yaml.safe_dump({
+            "schema_version": 3,
+            "topic": "synthesis_test",
+            "generated_at": "2026-05-23",
+            "current_as_of": "2026-05-23",
+            "freshness_policy": "strict_live",
+            "claim_family_taxonomy": ["paper"],
+            "entries": bib_entries,
+        }, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    # evidence_ledger with 3 supports all pointing at the synthesis claim
+    ev_entries = []
+    for (url, bibkey), ev_id, cache_e in zip(
+        sources,
+        ["ev_zhao_distributional", "ev_schaeffer_mirage", "ev_fragility_critique"],
+        cache_entries,
+    ):
+        ev_entries.append({
+            "evidence_id": ev_id,
+            "source_url": url,
+            "source_type": "paper",
+            "source_quality": "primary",
+            "retrieved_at": "2026-05-23",
+            "verification_method": "webfetch",
+            "cache_ids": [cache_e["cache_id"]],
+            "supports": [{
+                "claim_id": "claim_synthesis_emergence_debate",
+                "field_path": "agent_index/0K_test.md#emergence",
+                "evidence_role": "supports",
+                "evidence_role_strength": "full",
+                "extraction_method": "paraphrase",
+                "link_confidence": 0.7,
+            }],
+            "excerpt": f"Excerpt from {bibkey} on emergence as measurement artifact",
+            "rights_status": "private_use",
+        })
+    (project / "evidence_ledger.yml").write_text(
+        _yaml.safe_dump({
+            "schema_version": 3,
+            "topic": "synthesis_test",
+            "generated_at": "2026-05-23",
+            "current_as_of": "2026-05-23",
+            "freshness_policy": "strict_live",
+            "entries": ev_entries,
+        }, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    # Optional: synthesis_entry.yml
+    if synthesis_entry_source_urls is not None:
+        synth_entry: dict[str, Any] = {
+            "synthesis_id": "syn_synthesis_test_emergence_debate",
+            "source_urls": synthesis_entry_source_urls,
+            "title": synthesis_title,
+            "claim_family": "paper",
+            "volatility": "evolving",
+            "tier_summary": "T1: 3, T2: 0, T3: 0",
+            "status": "verified",
+        }
+        if attribution_map:
+            synth_entry["attribution_map"] = attribution_map
+        (project / "synthesis_entry.yml").write_text(
+            _yaml.safe_dump({
+                "schema_version": 2,
+                "topic": "synthesis_test",
+                "generated_at": "2026-05-23",
+                "current_as_of": "2026-05-23",
+                "freshness_policy": "strict_live",
+                "entries": [synth_entry],
+            }, sort_keys=False),
+            encoding="utf-8",
+        )
+
+    # Optional: pre_selection_manifest with synthesis_entry_ref
+    if pre_selection_synthesis_ref is not None:
+        first_cache = cache_entries[0]
+        sha256_of_span = hashlib.sha256(
+            f"Synthetic test source for {sources[0][0]}. "
+            .encode("utf-8")[:40]
+        ).hexdigest()
+        (project / "pre_selection_manifest.yml").write_text(
+            _yaml.safe_dump({
+                "schema_version": 3,
+                "topic": "synthesis_test",
+                "generated_at": "2026-05-23",
+                "current_as_of": "2026-05-23",
+                "freshness_policy": "strict_live",
+                "selections": [{
+                    "selection_id": "sel_synth_b1_a1",
+                    "bullet_id": "B1",
+                    "atom_id": "claim_synthesis_emergence_debate",
+                    "cache_id": first_cache["cache_id"],
+                    "synthesis_entry_ref": pre_selection_synthesis_ref,
+                    "span": {
+                        "text_path_offset": [0, 40],
+                        "sha256_of_span": sha256_of_span,
+                        "excerpt": f"Synthetic test source for {sources[0][0]}.",
+                    },
+                }],
+            }, sort_keys=False),
+            encoding="utf-8",
+        )
+    return project
+
+
+def _run_build_claim_graph(project: Path, out: Path) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_claim_graph.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+
+
+def test_v23_c2_synthesis_entry_ref_resolves_attribution(tmp_path: Path) -> None:
+    """Happy path: synthesis_entry_ref + matching source_urls + attribution_map
+    → claim text comes from attribution_map; synthesis_entry_id surfaces on
+    the claim record."""
+    project = _scaffold_synthesis_project(
+        tmp_path,
+        synthesis_entry_source_urls=[
+            "https://arxiv.org/abs/2505.01234",
+            "https://arxiv.org/abs/2304.15004",
+            "https://arxiv.org/abs/2502.03200",
+        ],
+        pre_selection_synthesis_ref="syn_synthesis_test_emergence_debate",
+        attribution_map={
+            "Excerpt from zhao2025distributional on emergence as measurement artifact": [
+                "https://arxiv.org/abs/2505.01234",
+            ],
+            "Emergence is partly an artifact of measurement choices": [
+                "https://arxiv.org/abs/2505.01234",
+                "https://arxiv.org/abs/2304.15004",
+            ],
+        },
+    )
+    out = tmp_path / "cg.jsonl"
+    result = _run_build_claim_graph(project, out)
+    assert result.returncode == 0, result.stderr
+
+    records = [json.loads(l) for l in out.read_text().splitlines() if l.strip()]
+    by_id = {r["id"]: r for r in records if r.get("record_type") == "claim"}
+    claim = by_id["claim_synthesis_emergence_debate"]
+    # Resolved text matches the attribution_map key (longest substring match)
+    assert claim["text"] == (
+        "Excerpt from zhao2025distributional on emergence as measurement artifact"
+    ), claim["text"]
+    assert claim["synthesis_entry_id"] == "syn_synthesis_test_emergence_debate"
+    assert claim["corroboration_count"] == 3
+    # No source_urls mismatch warning in stderr
+    assert "source_urls mismatch" not in result.stderr
+
+
+def test_v23_c2_falls_back_to_tiebreak_when_no_ref(tmp_path: Path) -> None:
+    """No pre_selection_manifest at all → existing v2.2 tiebreak behavior.
+    No synthesis_entry_id on the claim record."""
+    project = _scaffold_synthesis_project(
+        tmp_path,
+        synthesis_entry_source_urls=None,
+        pre_selection_synthesis_ref=None,
+    )
+    out = tmp_path / "cg.jsonl"
+    result = _run_build_claim_graph(project, out)
+    assert result.returncode == 0, result.stderr
+
+    records = [json.loads(l) for l in out.read_text().splitlines() if l.strip()]
+    by_id = {r["id"]: r for r in records if r.get("record_type") == "claim"}
+    claim = by_id["claim_synthesis_emergence_debate"]
+    # Text is one of the contributing-source excerpts (longest-excerpt tiebreak)
+    assert claim["text"].startswith("Excerpt from "), claim["text"]
+    assert "synthesis_entry_id" not in claim
+
+
+def test_v23_c2_source_url_mismatch_warns(tmp_path: Path) -> None:
+    """When synthesis_entry.source_urls drift from the supporting evidence's
+    source_urls, a WARN is printed to stderr but the build succeeds (curation
+    signal, not structural error)."""
+    project = _scaffold_synthesis_project(
+        tmp_path,
+        synthesis_entry_source_urls=[
+            "https://arxiv.org/abs/2505.01234",
+            "https://arxiv.org/abs/9999.99999",  # NOT in supporting evidence
+            "https://arxiv.org/abs/2502.03200",
+        ],
+        pre_selection_synthesis_ref="syn_synthesis_test_emergence_debate",
+    )
+    out = tmp_path / "cg.jsonl"
+    result = _run_build_claim_graph(project, out)
+    assert result.returncode == 0, result.stderr
+    assert "source_urls mismatch" in result.stderr, result.stderr
+    assert "9999.99999" in result.stderr or "2304.15004" in result.stderr
+
+
+def test_v23_c2_dangling_ref_warns_and_falls_back(tmp_path: Path) -> None:
+    """pre_selection_manifest references a synthesis_id that doesn't exist in
+    synthesis_entry.yml → WARN + fall back to tiebreak."""
+    project = _scaffold_synthesis_project(
+        tmp_path,
+        synthesis_entry_source_urls=[
+            "https://arxiv.org/abs/2505.01234",
+            "https://arxiv.org/abs/2304.15004",
+            "https://arxiv.org/abs/2502.03200",
+        ],
+        pre_selection_synthesis_ref="syn_does_not_exist",
+    )
+    out = tmp_path / "cg.jsonl"
+    result = _run_build_claim_graph(project, out)
+    assert result.returncode == 0, result.stderr
+    assert "not found in synthesis_entry.yml" in result.stderr, result.stderr
+
+    records = [json.loads(l) for l in out.read_text().splitlines() if l.strip()]
+    by_id = {r["id"]: r for r in records if r.get("record_type") == "claim"}
+    claim = by_id["claim_synthesis_emergence_debate"]
+    assert "synthesis_entry_id" not in claim
+    assert claim["text"].startswith("Excerpt from "), claim["text"]
+
+
+def test_v23_c2_no_attribution_map_uses_title(tmp_path: Path) -> None:
+    """When synthesis_entry has no attribution_map (only title), claim text
+    falls back to the synthesis title."""
+    project = _scaffold_synthesis_project(
+        tmp_path,
+        synthesis_entry_source_urls=[
+            "https://arxiv.org/abs/2505.01234",
+            "https://arxiv.org/abs/2304.15004",
+            "https://arxiv.org/abs/2502.03200",
+        ],
+        pre_selection_synthesis_ref="syn_synthesis_test_emergence_debate",
+        attribution_map=None,
+        synthesis_title="Synthesis claim about emergence and measurement",
+    )
+    out = tmp_path / "cg.jsonl"
+    result = _run_build_claim_graph(project, out)
+    assert result.returncode == 0, result.stderr
+
+    records = [json.loads(l) for l in out.read_text().splitlines() if l.strip()]
+    by_id = {r["id"]: r for r in records if r.get("record_type") == "claim"}
+    claim = by_id["claim_synthesis_emergence_debate"]
+    assert claim["text"] == "Synthesis claim about emergence and measurement"
+    assert claim["synthesis_entry_id"] == "syn_synthesis_test_emergence_debate"
+
+
+def test_v23_c2_pre_selection_validator_rejects_bad_ref_pattern(tmp_path: Path) -> None:
+    """The pre_selection_manifest validator rejects synthesis_entry_ref values
+    that don't start with 'syn_'."""
+    from validators import pre_selection_manifest as psm
+    import yaml as _yaml
+    manifest = tmp_path / "pre_selection_manifest.yml"
+    manifest.write_text(_yaml.safe_dump({
+        "schema_version": 3,
+        "topic": "test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "selections": [{
+            "selection_id": "sel_1",
+            "bullet_id": "B1",
+            "atom_id": "claim_test_b1_a1",
+            "cache_id": "cache_xxx",
+            "synthesis_entry_ref": "not_a_syn_prefix",
+            "span": {
+                "text_path_offset": [0, 10],
+                "sha256_of_span": "a" * 64,
+                "excerpt": "hello",
+            },
+        }],
+    }), encoding="utf-8")
+    errors = psm.validate(manifest)
+    assert any("synthesis_entry_ref" in e and "syn_" in e for e in errors), errors

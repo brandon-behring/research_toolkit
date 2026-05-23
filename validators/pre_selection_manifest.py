@@ -114,6 +114,17 @@ def _validate_selection(
                 f"claim_graph.jsonl. Pre-selection must commit to atoms that exist."
             )
 
+    # v2.3 C2: optional synthesis_entry_ref. Validated for shape only —
+    # build_claim_graph.py does the cross-file resolution (synthesis_id lookup +
+    # source_urls corroboration warning).
+    synthesis_ref = selection.get("synthesis_entry_ref")
+    if synthesis_ref is not None:
+        if not isinstance(synthesis_ref, str) or not synthesis_ref.startswith("syn_"):
+            errors.append(
+                f"{loc}.synthesis_entry_ref: must be a string of the form "
+                f"'syn_<topic>_<slug>' (got {synthesis_ref!r})"
+            )
+
     span = selection.get("span")
     if not isinstance(span, dict):
         errors.append(f"{loc}.span: must be a mapping")
