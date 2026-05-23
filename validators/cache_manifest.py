@@ -15,6 +15,7 @@ from validators.v2_common import (
     ALLOWED_RIGHTS_STATUS,
     load_yaml_mapping,
     parse_iso_date,
+    resolve_cache_path,
     validate_nonempty_string,
     validate_strict_live_top,
 )
@@ -62,24 +63,24 @@ REQUIRED_ENTRY_FIELDS = REQUIRED_ENTRY_FIELDS_CAPTURE
 def _resolve(path: Path, value: str, cache_root: str | None = None) -> Path:
     """Resolve a path value from a manifest entry.
 
-    v2.3+: when ``cache_root`` is set on the manifest, relative path values are
-    resolved against the EXPANDED cache_root (supports portable manifests where
-    the cache lives in a shared location like ~/Claude/research_cache while the
+    Thin wrapper around ``v2_common.resolve_cache_path()`` (shared between
+    cache_manifest.py and evidence_ledger.py per v2_common.py).
+
+    v2.3+: when ``cache_root`` is set, relative path values are resolved
+    against the EXPANDED cache_root (supports portable manifests where the
+    cache lives in a shared location like ~/Claude/research_cache while the
     manifest is committed in a project repo elsewhere).
+
+    v2.3.x: when cache_root is set, falls back to ``manifest_path.parent`` if
+    the file doesn't exist in cache_root — supports mixed-cache-location
+    dossiers where derived artifacts (pdftotext body_text/body_meta) live
+    dossier-local per ADR-049 body-quote anchoring discipline. Closes #14.
 
     Falls back to manifest-co-located resolution (the v2.0-v2.2 behavior) when
     cache_root is not set. Absolute / ~-prefixed values always pass through
     expanduser.
     """
-    p = Path(value).expanduser()
-    if p.is_absolute():
-        return p
-    if cache_root:
-        root = Path(cache_root).expanduser()
-        if not root.is_absolute():
-            root = (path.parent / root).resolve()
-        return (root / p).resolve()
-    return (path.parent / p).resolve()
+    return resolve_cache_path(value, manifest_path=path, cache_root=cache_root)
 
 
 def _path_is_portable(value: str) -> bool:

@@ -431,3 +431,133 @@ def test_cache_manifest_rejects_tilde_path(tmp_path: Path) -> None:
 
     errors = cache_manifest.validate(manifest)
     assert any("portable" in e and "text_path" in e for e in errors), errors
+
+
+# ---------- mixed-cache-location dossiers (v2.3.x / #14) ----------
+
+
+def test_cache_manifest_falls_back_to_manifest_local_for_derived_artifacts(
+    tmp_path: Path,
+) -> None:
+    """v2.3.x #14: when cache_root is set, fall back to manifest_path.parent
+    for entries whose files live dossier-local (derived artifacts per
+    ADR-049 body-quote anchoring discipline).
+
+    Mixed-cache scenario:
+    - Primary cache entries (sha256-keyed PDFs/HTML) live in cache_root
+    - Derived per-bibkey artifacts (pdftotext body_text + body_meta) live
+      under <manifest_dir>/cache/body_text/<bibkey>.txt
+    Both should validate cleanly under v2.3.x.
+    """
+    cache_dir = tmp_path / "shared_cache"
+    cache_dir.mkdir()
+
+    # Primary entry: lives in cache_root
+    primary_entry = _scaffold_cache(cache_dir, b"<html>primary content</html>")
+
+    # Derived entry: pdftotext output lives DOSSIER-LOCAL, not in cache_root.
+    # This mirrors the ADR-049 body-quote anchoring pattern.
+    manifest_dir = tmp_path / "project" / "docs" / "research" / "topic-a"
+    manifest_dir.mkdir(parents=True)
+    body_text_dir = manifest_dir / "cache" / "body_text"
+    body_text_dir.mkdir(parents=True)
+    body_text_dir.joinpath("debenedetti2025camel.txt").write_text(
+        "Sample body-quote anchored extraction from a published paper.\n",
+        encoding="utf-8",
+    )
+    # Also need raw_path + metadata_path to exist somewhere; use dossier-local
+    # for these too (the derived-artifact case).
+    papers_dir = manifest_dir / "papers"
+    papers_dir.mkdir(parents=True)
+    pdf_bytes = b"%PDF-1.4 stub"
+    pdf_path = papers_dir / "debenedetti2025camel.pdf"
+    pdf_path.write_bytes(pdf_bytes)
+    body_meta_dir = manifest_dir / "cache" / "body_meta"
+    body_meta_dir.mkdir(parents=True)
+    body_meta_dir.joinpath("debenedetti2025camel.json").write_text(
+        json.dumps({"extraction_method": "pdftotext"}), encoding="utf-8"
+    )
+
+    pdf_sha = hashlib.sha256(pdf_bytes).hexdigest()
+    derived_entry = {
+        "cache_id": "cache_body_debenedetti2025camel",
+        "source_url": "https://arxiv.org/abs/2503.18813",
+        "fetched_at": "2026-05-23",
+        "content_type": "application/pdf",
+        "bytes": len(pdf_bytes),
+        "sha256": pdf_sha,
+        "raw_path": "papers/debenedetti2025camel.pdf",
+        "text_path": "cache/body_text/debenedetti2025camel.txt",
+        "metadata_path": "cache/body_meta/debenedetti2025camel.json",
+        "restricted": False,
+        "rights_status": "private_use",
+        "extraction_status": "ok",
+    }
+
+    manifest = manifest_dir / "cache_manifest.yml"
+    payload = {
+        "schema_version": 2,
+        "topic": "mixed_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "cache_root": str(cache_dir),
+        "entries": [primary_entry, derived_entry],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    errors = cache_manifest.validate(manifest)
+    assert errors == [], errors
+
+
+def test_resolve_cache_path_prefers_cache_root_then_dossier_local(
+    tmp_path: Path,
+) -> None:
+    """Resolution order for v2.3.x #14:
+    1. cache_root / value (if exists)
+    2. manifest_path.parent / value (if cache_root candidate doesn't exist)
+    3. cache_root / value (for consistent error messages when neither exists)
+    """
+    from validators.v2_common import resolve_cache_path
+
+    cache_dir = tmp_path / "cache_root"
+    cache_dir.mkdir()
+    manifest_dir = tmp_path / "dossier"
+    manifest_dir.mkdir()
+    manifest_path = manifest_dir / "cache_manifest.yml"
+    manifest_path.write_text("# stub\n")
+
+    # Case 1: file in cache_root
+    (cache_dir / "shared.txt").write_text("shared")
+    resolved = resolve_cache_path(
+        "shared.txt", manifest_path=manifest_path, cache_root=str(cache_dir)
+    )
+    assert resolved == (cache_dir / "shared.txt").resolve()
+
+    # Case 2: file dossier-local only (cache_root candidate doesn't exist)
+    (manifest_dir / "local.txt").write_text("local")
+    resolved = resolve_cache_path(
+        "local.txt", manifest_path=manifest_path, cache_root=str(cache_dir)
+    )
+    assert resolved == (manifest_dir / "local.txt").resolve()
+
+    # Case 3: neither exists — return cache_root candidate for consistent
+    # error messages (caller's .exists() check will surface failure)
+    resolved = resolve_cache_path(
+        "missing.txt", manifest_path=manifest_path, cache_root=str(cache_dir)
+    )
+    assert resolved == (cache_dir / "missing.txt").resolve()
+
+    # Case 4: no cache_root — v2.0-v2.2 behavior (manifest-local only)
+    (manifest_dir / "legacy.txt").write_text("legacy")
+    resolved = resolve_cache_path(
+        "legacy.txt", manifest_path=manifest_path, cache_root=None
+    )
+    assert resolved == (manifest_dir / "legacy.txt").resolve()
+
+    # Case 5: absolute path passes through expanduser
+    absolute = str(cache_dir / "shared.txt")
+    resolved = resolve_cache_path(
+        absolute, manifest_path=manifest_path, cache_root=str(cache_dir)
+    )
+    assert resolved == Path(absolute)

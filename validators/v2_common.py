@@ -80,6 +80,52 @@ def is_v3_mapping(data: dict[str, Any]) -> bool:
     return data.get("schema_version") == 3
 
 
+def resolve_cache_path(
+    value: str,
+    *,
+    manifest_path: Path,
+    cache_root: str | None = None,
+) -> Path:
+    """Resolve a relative path from a cache_manifest entry to an absolute Path.
+
+    Resolution order (when ``cache_root`` is set and value is relative):
+    1. Try ``cache_root / value`` (v2.3+ portable convention; primary cache).
+    2. If that doesn't exist, fall back to ``manifest_path.parent / value``
+       (v2.2-vintage convention; derived dossier-local artifacts per
+       ADR-049-style body-quote anchoring).
+    3. Return the cache_root candidate (so error messages remain consistent
+       with the v2.3 convention) if neither exists.
+
+    Absolute / ~-prefixed values always pass through ``expanduser()``.
+    When ``cache_root`` is None, falls back to the v2.0-v2.2 behavior of
+    resolving against ``manifest_path.parent`` directly.
+
+    Closes #14 — supports mixed-cache-location dossiers where primary cache
+    entries (sha256-keyed PDFs/HTML) live in a shared cache_root while
+    derived per-bibkey artifacts (pdftotext body_text, body_meta) live
+    dossier-local. Both are legitimate per ADR-049 body-quote anchoring
+    discipline.
+    """
+    p = Path(value).expanduser()
+    if p.is_absolute():
+        return p
+    if cache_root:
+        root = Path(cache_root).expanduser()
+        if not root.is_absolute():
+            root = (manifest_path.parent / root).resolve()
+        cache_root_candidate = (root / p).resolve()
+        if cache_root_candidate.exists():
+            return cache_root_candidate
+        # Fallback for dossier-local derived artifacts (v2.2-vintage compat).
+        dossier_local_candidate = (manifest_path.parent / p).resolve()
+        if dossier_local_candidate.exists():
+            return dossier_local_candidate
+        # Neither exists; return cache_root candidate for consistent error
+        # messages with v2.3 portability convention.
+        return cache_root_candidate
+    return (manifest_path.parent / p).resolve()
+
+
 def verify_excerpt_anchor(
     *,
     excerpt: str,
@@ -100,6 +146,11 @@ def verify_excerpt_anchor(
     v2.3+: ``cache_root`` (from the manifest's top-level field) is used as the
     base for relative text_path resolution, matching the cache_manifest
     validator's _resolve(). Closes #13.
+
+    v2.3.x: when ``cache_root`` is set, falls back to ``manifest_path.parent``
+    if the file doesn't exist in cache_root — supports mixed-cache-location
+    dossiers where derived artifacts live dossier-local (per ADR-049 body-
+    quote anchoring discipline). Closes #14. See ``resolve_cache_path()``.
     """
     errors: list[str] = []
 
@@ -114,15 +165,11 @@ def verify_excerpt_anchor(
     if not isinstance(text_path_value, str):
         return [f"{loc}.excerpt_anchor: cache_manifest entry has no text_path"]
 
-    text_path = Path(text_path_value).expanduser()
-    if not text_path.is_absolute():
-        if cache_root:
-            root = Path(cache_root).expanduser()
-            if not root.is_absolute():
-                root = (manifest_path.parent / root).resolve()
-            text_path = (root / text_path).resolve()
-        else:
-            text_path = (manifest_path.parent / text_path).resolve()
+    text_path = resolve_cache_path(
+        text_path_value,
+        manifest_path=manifest_path,
+        cache_root=cache_root,
+    )
 
     if not text_path.exists():
         return [f"{loc}.excerpt_anchor: text_path file does not exist: {text_path}"]
