@@ -226,3 +226,16 @@ entries:
   status: applied
   fix_version: v1.9
   notes: 'v1.9 extended validators/cross_stage.py with parallel dataset_ledger flow (orphan ledger ↔ orphan synthesis, --strict promotion); 7 new unit tests'
+
+# ---------------------------------------------------------------------------
+# v2.3.0 Phase 2 — consumer:guides issues + Tier-2 promotions (2026-05-23)
+# ---------------------------------------------------------------------------
+
+- id: v23-phase2-A1
+  phase: v2.3.0-phase-2
+  stage: cache-source / validators
+  finding: 'cache_manifest.yml writer serialized absolute paths despite #2 being closed; reader silently accepted them so the bug stayed invisible until manifests crossed machines (consumer:guides #12)'
+  severity: high
+  status: applied
+  fix_version: v2.3.0
+  notes: 'closes new follow-on #13 + #12. Writer now serializes relative-to-cache_root; reader _resolve() now honors cache_root; portability guard rejects absolute / ~-prefixed paths in raw_path/text_path/metadata_path. Migration script scripts/migrate_manifest_paths.py for legacy consumer manifests. 254 passed + 2 xfailed (was 244 + 2).'

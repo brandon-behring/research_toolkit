@@ -10,6 +10,100 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.3.0 Phase 2 Commit 1: cache_manifest path portability — shipped 2026-05-23
+
+**Theme**: closes new follow-on issue #13 (writer-side fix for #2 path
+portability) + consumer reproduction #12. GH #2 was closed prematurely
+without ever shipping the writer-side fix — only the reader (`_resolve()`)
+ever accepted both relative and absolute paths. As a result, every manifest
+produced by v2.0-v2.2 still serialized `~/Claude/research_cache/...` paths,
+blocking cross-machine reproducibility for downstream consumers (surfaced
+by `brandon-behring/guides-experimentation` Phase A + A.2).
+
+### Design
+
+Writer + reader now agree on a portable convention:
+- **Writer** (`scripts/cache_source.py:294-296`): serializes paths relative
+  to `cache_root` via `raw_path.relative_to(cache_root)`. On-disk blob
+  locations are unchanged.
+- **Reader** (`validators/cache_manifest.py:_resolve()`): when `cache_root`
+  is set on the manifest, relative paths resolve against the expanded
+  cache_root (was previously: against `manifest.parent`, which is wrong
+  when manifest and cache live in different dirs — the consumer's case).
+  Falls back to manifest-co-located resolution when cache_root absent.
+- **Portability guard** (`validators/cache_manifest.py:_path_is_portable()`):
+  validator now REJECTS absolute / ~-prefixed values in raw_path /
+  text_path / metadata_path with a helpful "run migrate_manifest_paths.py"
+  message. Regression prevention.
+- **Template** (`templates/cache_manifest.template.yml`): placeholders
+  updated to show the new convention plus a comment explaining the
+  resolution model.
+- **Validator threading**: `validators/v2_common.verify_excerpt_anchor`
+  and `validators/evidence_ledger`, `validators/pre_selection_manifest`
+  thread `cache_root` through so substring-anchored evidence checks
+  resolve paths consistently.
+
+### Modified surfaces
+
+- `scripts/cache_source.py` — single-line writer change (`str(...)` →
+  `str(...relative_to(cache_root))`).
+- `validators/cache_manifest.py` — cache_root-aware `_resolve()` + new
+  `_path_is_portable()` guard + threading.
+- `validators/v2_common.py` — `verify_excerpt_anchor` gained
+  `cache_root` parameter.
+- `validators/evidence_ledger.py` — loads `cache_root` from sibling
+  manifest, threads to `_validate_support` → `verify_excerpt_anchor`.
+- `validators/pre_selection_manifest.py` — same pattern.
+- `templates/cache_manifest.template.yml` — relative-path placeholders.
+- `scripts/migrate_manifest_paths.py` (NEW) — consumer one-shot
+  remediation; reads cache_root, strips prefix, idempotent, `--dry-run`,
+  warns on out-of-root paths.
+- `docs/troubleshooting.md` — new "cache_manifest.yml uses absolute paths"
+  entry explaining cause + fix.
+- `tests/test_cache_source.py` — new `test_manifest_entry_paths_are_relative`.
+- `tests/test_migrate_manifest_paths.py` (NEW) — 6 tests covering
+  rewrite + idempotency + dry-run + out-of-root warning + revisit skip +
+  missing-cache_root error.
+- `tests/test_validators.py` — +3 cases for cache_manifest portability
+  (relative path resolution, absolute rejection, tilde rejection).
+- `tests/fixtures/v3_strict_live_demo`,
+  `tests/fixtures/v2_strict_live_atomic`,
+  `tests/fixtures/v2_strict_live_multi_entry`,
+  `tests/fixtures/v2_strict_live_ai_agents` — regenerated to match the
+  new convention: `cache_root: ./cache`, `raw_path: raw/paper.html`
+  (was: `cache/raw/paper.html` with double-prefix that worked only
+  by accident under manifest.parent-based resolution).
+
+### End-state metrics
+
+- 254 passed + 2 xfailed (was 244 + 2 from daf6699 Phase 1).
+- v2-smoke green, freshness audit-strict green on both v2 fixtures.
+- All 4 v3 fixture manifests revalidate cleanly under the new resolver.
+
+### Friction items (1 surfaced, 1 applied, 0 deferred)
+
+**1. Validator `_resolve()` originally used `manifest.parent` not
+   `cache_root` (status: applied — root-cause fix)**
+- The original v2.0 design assumed manifests and caches were co-located
+  (which the test fixtures honor). Real consumer use (manifest in a
+  committed project repo, cache in `~/Claude/research_cache/`) breaks
+  that assumption silently. The closed-but-unfixed #2 didn't account for
+  this; the read path appeared to "work" because absolute paths bypassed
+  `_resolve()` entirely.
+- **Fix**: `_resolve()` now honors `cache_root` when set; falls back to
+  manifest.parent when absent. Both modes coexist; no fixture migration
+  needed beyond the 4 v2/v3 fixtures whose paths happened to use the
+  redundant `cache/` prefix.
+
+### Phase 2 Commit 1 conclusion
+
+Consumer:guides Phase A + A.2 manifests can now be one-pass-migrated via
+`scripts/migrate_manifest_paths.py`. Forward writes are portable by
+default. Validator regression guard prevents reintroducing the bug.
+Next: Commit 2 (A2 PDF extraction + A2b reextract + A3 stub detection).
+
+---
+
 ## v2.2.1: Playwright escalation in cache_source.py — shipped 2026-05-20
 
 **Theme**: cache_source.py now retries via headless Chromium when urllib

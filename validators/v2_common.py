@@ -89,12 +89,17 @@ def verify_excerpt_anchor(
     cache_entries_by_id: dict[str, dict[str, Any]],
     manifest_path: Path,
     loc: str,
+    cache_root: str | None = None,
 ) -> list[str]:
     """Verify a v3 excerpt_anchor against the cached text_path.
 
     Substring + hash + slice-bytes-equality. Closes the hallucination gap:
     "source is real" (cache_manifest) vs "the link between source and claim
     is real" (this check). Returns list of error strings (empty = OK).
+
+    v2.3+: ``cache_root`` (from the manifest's top-level field) is used as the
+    base for relative text_path resolution, matching the cache_manifest
+    validator's _resolve(). Closes #13.
     """
     errors: list[str] = []
 
@@ -111,7 +116,13 @@ def verify_excerpt_anchor(
 
     text_path = Path(text_path_value).expanduser()
     if not text_path.is_absolute():
-        text_path = (manifest_path.parent / text_path).resolve()
+        if cache_root:
+            root = Path(cache_root).expanduser()
+            if not root.is_absolute():
+                root = (manifest_path.parent / root).resolve()
+            text_path = (root / text_path).resolve()
+        else:
+            text_path = (manifest_path.parent / text_path).resolve()
 
     if not text_path.exists():
         return [f"{loc}.excerpt_anchor: text_path file does not exist: {text_path}"]

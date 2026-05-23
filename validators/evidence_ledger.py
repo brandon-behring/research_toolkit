@@ -87,6 +87,7 @@ def _validate_support(
     entry_excerpt: str | None = None,
     cache_entries_by_id: dict[str, Any] | None = None,
     manifest_path: Path | None = None,
+    cache_root: str | None = None,
 ) -> list[str]:
     errors: list[str] = []
     if not isinstance(support, dict):
@@ -156,6 +157,7 @@ def _validate_support(
                         sha256_of_span=anchor["sha256_of_span"],
                         cache_entries_by_id=cache_entries_by_id,
                         manifest_path=manifest_path,
+                        cache_root=cache_root,
                         loc=loc,
                     )
                 )
@@ -192,6 +194,7 @@ def _validate_entry(
     is_v3: bool = False,
     cache_entries_by_id: dict[str, Any] | None = None,
     manifest_path: Path | None = None,
+    cache_root: str | None = None,
 ) -> list[str]:
     errors: list[str] = []
     for field in REQUIRED_ENTRY_FIELDS:
@@ -253,6 +256,7 @@ def _validate_entry(
                     entry_excerpt=entry_excerpt,
                     cache_entries_by_id=cache_entries_by_id,
                     manifest_path=manifest_path,
+                    cache_root=cache_root,
                 )
             )
 
@@ -301,6 +305,7 @@ def validate(path: Path) -> list[str]:
     # field shape but substring checks are skipped (with a warning).
     cache_entries_by_id: dict[str, Any] | None = None
     manifest_path: Path | None = None
+    cache_root_value: str | None = None
     if is_v3:
         manifest_candidate = path.parent / "cache_manifest.yml"
         if manifest_candidate.exists():
@@ -312,6 +317,8 @@ def validate(path: Path) -> list[str]:
                     for e in (mdata.get("entries") or [])
                     if isinstance(e, dict) and isinstance(e.get("cache_id"), str)
                 }
+                if isinstance(mdata.get("cache_root"), str):
+                    cache_root_value = mdata["cache_root"]
         # If manifest is missing, the per-link verbatim_match checks will
         # skip substring validation (only field-shape errors will surface).
 
@@ -333,6 +340,7 @@ def validate(path: Path) -> list[str]:
                 is_v3=is_v3,
                 cache_entries_by_id=cache_entries_by_id,
                 manifest_path=manifest_path,
+                cache_root=cache_root_value,
             )
         )
     return errors

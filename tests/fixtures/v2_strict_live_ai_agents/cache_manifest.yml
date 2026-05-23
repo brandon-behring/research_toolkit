@@ -12,9 +12,9 @@ entries:
   content_type: text/html
   bytes: 320
   sha256: d579a24446c41df4850c6db762d61e3570f91e017745ac463244eb9846b9ea7d
-  raw_path: cache/raw/agent_security.html
-  text_path: cache/text/agent_security.txt
-  metadata_path: cache/metadata/agent_security.json
+  raw_path: raw/agent_security.html
+  text_path: text/agent_security.txt
+  metadata_path: metadata/agent_security.json
   restricted: false
   rights_status: private_use
   extraction_status: ok

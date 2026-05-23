@@ -41,24 +41,33 @@ REQUIRED_SPAN_FIELDS = (
 )
 
 
-def _load_cache_entries(manifest_path: Path) -> tuple[dict[str, dict[str, Any]], Path | None]:
-    """Sibling cache_manifest.yml lookup. Returns (cache_entries_by_id, manifest_path) or ({}, None)."""
+def _load_cache_entries(
+    manifest_path: Path,
+) -> tuple[dict[str, dict[str, Any]], Path | None, str | None]:
+    """Sibling cache_manifest.yml lookup.
+
+    Returns ``(cache_entries_by_id, cache_manifest_path, cache_root)``.
+    All three are None / empty when the sibling manifest is missing.
+    ``cache_root`` is the top-level field from the manifest (v2.3+ relative
+    path resolution base).
+    """
     candidate = manifest_path.parent / "cache_manifest.yml"
     if not candidate.exists():
-        return {}, None
+        return {}, None, None
     data, _errs = load_yaml_mapping(candidate)
     if not isinstance(data, dict):
-        return {}, candidate
+        return {}, candidate, None
     entries = data.get("entries")
     if not isinstance(entries, list):
-        return {}, candidate
+        return {}, candidate, None
     by_id: dict[str, dict[str, Any]] = {}
     for entry in entries:
         if isinstance(entry, dict):
             cid = entry.get("cache_id")
             if isinstance(cid, str):
                 by_id[cid] = entry
-    return by_id, candidate
+    cache_root = data.get("cache_root") if isinstance(data.get("cache_root"), str) else None
+    return by_id, candidate, cache_root
 
 
 def _load_atom_ids(manifest_path: Path) -> set[str] | None:
@@ -82,6 +91,7 @@ def _validate_selection(
     loc: str,
     cache_entries_by_id: dict[str, dict[str, Any]],
     cache_manifest_path: Path | None,
+    cache_root: str | None,
     known_atom_ids: set[str] | None,
 ) -> list[str]:
     errors: list[str] = []
@@ -132,6 +142,7 @@ def _validate_selection(
                 sha256_of_span=sha256_of_span,
                 cache_entries_by_id=cache_entries_by_id,
                 manifest_path=cache_manifest_path,
+                cache_root=cache_root,
                 loc=f"{loc}.span",
             )
         )
@@ -152,7 +163,7 @@ def validate(path: Path) -> list[str]:
         errors.append("'selections' must be a non-empty list")
         return errors
 
-    cache_entries_by_id, cache_manifest_path = _load_cache_entries(path)
+    cache_entries_by_id, cache_manifest_path, cache_root = _load_cache_entries(path)
     known_atom_ids = _load_atom_ids(path)
 
     seen_ids: set[str] = set()
@@ -172,6 +183,7 @@ def validate(path: Path) -> list[str]:
                 loc=loc,
                 cache_entries_by_id=cache_entries_by_id,
                 cache_manifest_path=cache_manifest_path,
+                cache_root=cache_root,
                 known_atom_ids=known_atom_ids,
             )
         )

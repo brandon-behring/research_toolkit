@@ -9,14 +9,18 @@ This proves the validators have signal — they don't just accept everything.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
+import yaml
 
 from validators import (
     agent_index,
     audit_trail,
     bib_ledger,
+    cache_manifest,
     dossier,
     research_plan,
     url_check_report,
@@ -323,3 +327,107 @@ def test_cross_stage_dangling_wiki_link_warns(tmp_path: Path) -> None:
     assert any(
         "dangling" in e and "totally-nonexistent-slug" in e for e in errors_strict
     ), errors_strict
+
+
+# ---------- cache_manifest path portability (v2.3 / #13) ----------
+
+
+def _scaffold_cache(cache_root: Path, body: bytes, name: str = "aaaa") -> dict:
+    """Write blob/text/metadata files into cache_root and return manifest entry shape."""
+    digest = hashlib.sha256(body).hexdigest()
+    (cache_root / "blobs" / "sha256").mkdir(parents=True, exist_ok=True)
+    (cache_root / "text" / "sha256").mkdir(parents=True, exist_ok=True)
+    (cache_root / "metadata" / "sha256").mkdir(parents=True, exist_ok=True)
+    (cache_root / "blobs" / "sha256" / digest).write_bytes(body)
+    (cache_root / "text" / "sha256" / f"{digest}.txt").write_text(
+        body.decode("utf-8", errors="replace"), encoding="utf-8"
+    )
+    (cache_root / "metadata" / "sha256" / f"{digest}.json").write_text(
+        json.dumps({"sha256": digest}), encoding="utf-8"
+    )
+    return {
+        "cache_id": f"cache_{digest[:16]}",
+        "source_url": "https://example.com/portable",
+        "fetched_at": "2026-05-23",
+        "content_type": "text/html",
+        "bytes": len(body),
+        "sha256": digest,
+        "raw_path": f"blobs/sha256/{digest}",
+        "text_path": f"text/sha256/{digest}.txt",
+        "metadata_path": f"metadata/sha256/{digest}.json",
+        "restricted": False,
+        "rights_status": "private_use",
+        "extraction_status": "ok",
+    }
+
+
+def test_cache_manifest_resolves_relative_paths_against_cache_root(tmp_path: Path) -> None:
+    """v2.3 _resolve honors cache_root for relative path values."""
+    cache_dir = tmp_path / "shared_cache"
+    cache_dir.mkdir()
+    entry = _scaffold_cache(cache_dir, b"<html>portable</html>")
+
+    manifest_dir = tmp_path / "project" / "docs"
+    manifest_dir.mkdir(parents=True)
+    manifest = manifest_dir / "cache_manifest.yml"
+    payload = {
+        "schema_version": 2,
+        "topic": "portable_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "cache_root": str(cache_dir),
+        "entries": [entry],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    errors = cache_manifest.validate(manifest)
+    assert errors == [], errors
+
+
+def test_cache_manifest_rejects_absolute_path(tmp_path: Path) -> None:
+    """v2.3 portability guard: writer-side absolute paths fail validation."""
+    cache_dir = tmp_path / "shared_cache"
+    cache_dir.mkdir()
+    entry = _scaffold_cache(cache_dir, b"<html>absolute</html>")
+    # Promote to absolute path (the writer bug we're guarding against)
+    digest = entry["sha256"]
+    entry["raw_path"] = str(cache_dir / "blobs" / "sha256" / digest)
+
+    manifest = tmp_path / "cache_manifest.yml"
+    payload = {
+        "schema_version": 2,
+        "topic": "absolute_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "cache_root": str(cache_dir),
+        "entries": [entry],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    errors = cache_manifest.validate(manifest)
+    assert any("portable" in e and "raw_path" in e for e in errors), errors
+
+
+def test_cache_manifest_rejects_tilde_path(tmp_path: Path) -> None:
+    """v2.3 portability guard: ~-prefixed paths fail validation."""
+    cache_dir = tmp_path / "shared_cache"
+    cache_dir.mkdir()
+    entry = _scaffold_cache(cache_dir, b"<html>tilde</html>")
+    entry["text_path"] = "~/Claude/research_cache/text/sha256/whatever.txt"
+
+    manifest = tmp_path / "cache_manifest.yml"
+    payload = {
+        "schema_version": 2,
+        "topic": "tilde_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "cache_root": str(cache_dir),
+        "entries": [entry],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    errors = cache_manifest.validate(manifest)
+    assert any("portable" in e and "text_path" in e for e in errors), errors

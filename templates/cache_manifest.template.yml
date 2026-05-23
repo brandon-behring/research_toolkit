@@ -4,6 +4,15 @@
 # Full source snapshots live in ~/Claude/research_cache by default and are
 # private/local research artifacts. Commit manifests and hashes; keep large
 # cache blobs gitignored unless explicitly archiving a small fixture.
+#
+# Path resolution (v2.3+):
+# - raw_path / text_path / metadata_path are stored RELATIVE to cache_root,
+#   making manifests portable across machines (closes #2 / #13).
+# - cache_root can be: ~-prefixed home path, absolute, or relative-to-manifest.
+# - The validator resolves cache_root first, then resolves each path relative
+#   to it. Absolute / ~-prefixed paths in raw_path et al still work for
+#   backward compat but are rejected as writer output (use migrate_manifest_paths.py
+#   to fix legacy manifests).
 
 schema_version: 2
 topic: '<topic slug>'
@@ -19,9 +28,9 @@ entries:
   content_type: text/html
   bytes: 12345
   sha256: <64 lowercase hex chars>
-  raw_path: ~/Claude/research_cache/blobs/sha256/<sha256>
-  text_path: ~/Claude/research_cache/text/sha256/<sha256>.txt
-  metadata_path: ~/Claude/research_cache/metadata/sha256/<sha256>.json
+  raw_path: blobs/sha256/<sha256>
+  text_path: text/sha256/<sha256>.txt
+  metadata_path: metadata/sha256/<sha256>.json
   restricted: false
   rights_status: private_use
   extraction_status: ok       # ok | partial | raw_only | failed

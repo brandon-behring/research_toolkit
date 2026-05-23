@@ -96,9 +96,10 @@ def test_cache_one_writes_blob_text_metadata(
     )
 
     digest = hashlib.sha256(body).hexdigest()
-    raw_path = Path(entry["raw_path"])
-    text_path = Path(entry["text_path"])
-    metadata_path = Path(entry["metadata_path"])
+    # v2.3+: manifest paths are relative to cache_root for portability
+    raw_path = tmp_path / entry["raw_path"]
+    text_path = tmp_path / entry["text_path"]
+    metadata_path = tmp_path / entry["metadata_path"]
 
     assert raw_path.read_bytes() == body
     assert "Test page for cache_source" in text_path.read_text(encoding="utf-8")
@@ -112,6 +113,38 @@ def test_cache_one_writes_blob_text_metadata(
     assert entry["bytes"] == len(body)
     assert entry["cache_id"] == f"cache_{digest[:16]}"
     assert entry["extraction_status"] == "ok"
+
+
+def test_manifest_entry_paths_are_relative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """v2.3+ #13: writer must serialize paths relative to cache_root.
+
+    Absolute / ~-prefixed paths are not portable across machines. Regression
+    guard against the bug that #2 was closed for but never actually fixed.
+    """
+    body = b"<html>portable</html>"
+    _patch_fetch(monkeypatch, body, "text/html")
+
+    entry = cache_source.cache_one(
+        "https://example.com/portable",
+        cache_root=tmp_path,
+        fetched_at="2026-05-19",
+        topic="t",
+    )
+
+    for field in ("raw_path", "text_path", "metadata_path"):
+        value = entry[field]
+        assert not value.startswith("/"), (
+            f"{field} is absolute: {value!r} — manifests must be portable"
+        )
+        assert not value.startswith("~"), (
+            f"{field} is ~-prefixed: {value!r} — manifests must be portable"
+        )
+        # Sanity: relative path resolves under cache_root
+        assert (tmp_path / value).exists(), (
+            f"{field} {value!r} does not resolve to a real file under cache_root"
+        )
 
 
 def test_cache_one_hash_stable_across_runs(

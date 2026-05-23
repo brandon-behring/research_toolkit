@@ -59,11 +59,39 @@ REQUIRED_ENTRY_FIELDS_REVISIT = (
 REQUIRED_ENTRY_FIELDS = REQUIRED_ENTRY_FIELDS_CAPTURE
 
 
-def _resolve(path: Path, value: str) -> Path:
+def _resolve(path: Path, value: str, cache_root: str | None = None) -> Path:
+    """Resolve a path value from a manifest entry.
+
+    v2.3+: when ``cache_root`` is set on the manifest, relative path values are
+    resolved against the EXPANDED cache_root (supports portable manifests where
+    the cache lives in a shared location like ~/Claude/research_cache while the
+    manifest is committed in a project repo elsewhere).
+
+    Falls back to manifest-co-located resolution (the v2.0-v2.2 behavior) when
+    cache_root is not set. Absolute / ~-prefixed values always pass through
+    expanduser.
+    """
     p = Path(value).expanduser()
     if p.is_absolute():
         return p
+    if cache_root:
+        root = Path(cache_root).expanduser()
+        if not root.is_absolute():
+            root = (path.parent / root).resolve()
+        return (root / p).resolve()
     return (path.parent / p).resolve()
+
+
+def _path_is_portable(value: str) -> bool:
+    """v2.3+: writer-side guard. Manifest path values must be relative.
+
+    Absolute paths (`/foo/bar`) and ~-prefixed paths (`~/Claude/...`) are not
+    portable across machines. Validator rejects these as a regression guard for
+    issue #13 (writer-side fix for #2 path portability).
+    """
+    if not value:
+        return True
+    return not (value.startswith("/") or value.startswith("~"))
 
 
 def _sha256(path: Path) -> str:
@@ -79,6 +107,7 @@ def _validate_entry(
     *,
     loc: str,
     manifest_path: Path,
+    cache_root: str | None = None,
     capture_ids: set[str] | None = None,
 ) -> list[str]:
     errors: list[str] = []
@@ -156,7 +185,13 @@ def _validate_entry(
 
     raw_value = entry.get("raw_path")
     if isinstance(raw_value, str) and raw_value.strip():
-        raw_path = _resolve(manifest_path, raw_value)
+        if not _path_is_portable(raw_value):
+            errors.append(
+                f"{loc}.raw_path: must be relative to cache_root (got {raw_value!r}); "
+                f"absolute / ~-prefixed paths are not portable across machines. "
+                f"Run scripts/migrate_manifest_paths.py to fix."
+            )
+        raw_path = _resolve(manifest_path, raw_value, cache_root=cache_root)
         if not raw_path.exists():
             errors.append(f"{loc}.raw_path: file does not exist: {raw_value}")
         elif raw_path.is_file():
@@ -173,7 +208,13 @@ def _validate_entry(
     for field in ("text_path", "metadata_path"):
         value = entry.get(field)
         if isinstance(value, str) and value.strip():
-            resolved = _resolve(manifest_path, value)
+            if not _path_is_portable(value):
+                errors.append(
+                    f"{loc}.{field}: must be relative to cache_root (got {value!r}); "
+                    f"absolute / ~-prefixed paths are not portable across machines. "
+                    f"Run scripts/migrate_manifest_paths.py to fix."
+                )
+            resolved = _resolve(manifest_path, value, cache_root=cache_root)
             if not resolved.exists():
                 errors.append(f"{loc}.{field}: file does not exist: {value}")
             elif field == "metadata_path":
@@ -192,10 +233,13 @@ def validate(path: Path) -> list[str]:
     assert data is not None
 
     errors.extend(validate_strict_live_top(data))
+    cache_root_value: str | None = None
     if "cache_root" in data:
         err = validate_nonempty_string(data["cache_root"], "top-level.cache_root")
         if err:
             errors.append(err)
+        elif isinstance(data["cache_root"], str):
+            cache_root_value = data["cache_root"]
 
     entries = data.get("entries")
     if not isinstance(entries, list) or not entries:
@@ -224,7 +268,13 @@ def validate(path: Path) -> list[str]:
                 errors.append(f"{loc}: duplicate cache_id {cache_id!r}")
             seen.add(cache_id)
         errors.extend(
-            _validate_entry(entry, loc=loc, manifest_path=path, capture_ids=capture_ids)
+            _validate_entry(
+                entry,
+                loc=loc,
+                manifest_path=path,
+                cache_root=cache_root_value,
+                capture_ids=capture_ids,
+            )
         )
     return errors
 

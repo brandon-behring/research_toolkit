@@ -12,9 +12,9 @@ entries:
   content_type: text/html
   bytes: 148
   sha256: 65a9923ccc51e85bd23049f3fba23481504bdf0063ca61cdc0626c2a35f1cd9a
-  raw_path: cache/raw/paper.html
-  text_path: cache/text/paper.txt
-  metadata_path: cache/metadata/paper.json
+  raw_path: raw/paper.html
+  text_path: text/paper.txt
+  metadata_path: metadata/paper.json
   restricted: false
   rights_status: private_use
   extraction_status: ok

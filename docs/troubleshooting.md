@@ -484,6 +484,37 @@ v1.0 prompt-injection recreation drift, not v1.2 tooling defects.
 v1.x re-run of prompt-injection recreation under newer skills), `strict=True` will fail
 the suite to flag the change.
 
+## cache_manifest.yml uses absolute paths and breaks on a new machine (v2.3 #13)
+
+**Symptom:** Cloning a project repo onto a new machine (or CI runner), running
+`validators/cache_manifest.py` reports `file does not exist:
+~/Claude/research_cache/blobs/sha256/...` even though the cache lives at the
+same logical location on the new machine. Or the validator complains that
+paths are `not portable across machines`.
+
+**Cause:** Pre-v2.3 (`cache_source.py` ≤ v2.2.1) serialized absolute /
+~-prefixed paths into `raw_path`/`text_path`/`metadata_path` despite
+`cache_root` being declared at the top of the manifest. Closing #2 didn't
+ship the writer-side fix; the reader (`_resolve()`) silently accepted both
+formats so the bug stayed invisible until manifests crossed machines.
+
+**Fix:** v2.3 ships `scripts/migrate_manifest_paths.py`. It reads
+`cache_root` from the top of the manifest, strips the prefix from each
+entry's path fields, and writes back relative paths.
+
+```bash
+python scripts/migrate_manifest_paths.py path/to/cache_manifest.yml
+# or preview without writing:
+python scripts/migrate_manifest_paths.py path/to/cache_manifest.yml --dry-run
+```
+
+Idempotent — re-running on an already-portable manifest is a no-op. Revisit
+entries are skipped (they reference captures by ID, no paths to fix).
+
+**Caveat:** the script uses `yaml.safe_dump` to re-serialize, so YAML
+comments above `entries:` are NOT preserved. If your manifest has hand-edited
+comments worth keeping, manually copy them back after running the script.
+
 ## How to file a new issue you can't fix immediately
 
 Add to `burn_in.yml` AND `BURN_IN_NOTES.md`:
