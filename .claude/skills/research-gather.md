@@ -60,6 +60,10 @@ NOT hard-code stale year pairs. Examples:
 - `dataset card` → `"<topic> dataset huggingface.co/datasets"`
 - `leaderboard` → `"<topic> leaderboard"`
 
+**Tool-call discipline**: see `~/Claude/research_toolkit/references/agent_discipline.md` for full guidance. Summary:
+- Cap each dispatched agent at ~25-30 tool calls. ~3-4 calls per source (WebSearch + WebFetch + cache + Write) means a 10-source sub-area already runs at the cap; split high-volume sub-areas across two narrower agents rather than one wide one (e.g., "track A: 5 sources" + "track B: 5 sources" + "synthesis" instead of one agent covering 10).
+- After every 5-6 sources written, run `python ~/Claude/research_toolkit/validators/bib_ledger.py <output_dir>/bib_ledger.yml` on the partial file. Failing fast catches systematic drift (broken bibkey, wrong status enum, paraphrased claim_family) before it propagates to remaining sources.
+
 Use `WebSearch` for each query. For results that look promising, use `WebFetch` to read the abstract / first page. Decide:
 - Does this match the sub-area scope? (Skip if it's in the out-of-scope list)
 - Is the URL canonical? (arXiv `/abs/` not `/pdf/`; GitHub repo root not subdir)

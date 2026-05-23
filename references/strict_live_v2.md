@@ -46,6 +46,15 @@ Default maximum stale windows:
 | `stable` | 365 | published papers, stable datasets, finalized standards |
 | `historical` | 1825 | classics whose bibliographic facts rarely change |
 
+**Examples for calibration** (agents default to the middle category when uncertain — concrete examples shift the distribution toward correct):
+
+- **`volatile` (30 days)**: release candidates and beta features, GitHub repo READMEs that ship per-release, leaderboard pages, model cards on Hugging Face that update with each checkpoint, security-advisory feeds, the MCP RC pages during the May–July 2026 RC window.
+- **`active` (90 days)**: vendor blog posts on shipping features, docs pages that ship per release (e.g., `code.claude.com/docs/en/agent-sdk/overview`), SDK release notes, dated case studies, Anthropic engineering posts on a still-evolving system.
+- **`stable` (365 days)**: spec sections of ratified protocol versions (e.g., MCP `2025-11-25` spec sections), core architecture posts (e.g., agent-loop semantics, hub-and-spoke patterns), established mechanisms documented years ago, published peer-reviewed papers.
+- **`historical` (1825 days)**: foundational papers (Brier 1950, Vaswani 2017, Sutton & Barto), classical algorithms, mathematical proofs, completed RFCs that have not been amended.
+
+If you find yourself defaulting many entries to `active`, recalibrate: `active` is for things that ship updates regularly. Anything documented once and rarely touched is `stable`; anything mid-flight is `volatile`.
+
 Do not increase `stale_after_days` above the tier default. Use a less volatile
 tier only when the source truly deserves it.
 

@@ -22,7 +22,10 @@ if __package__ in (None, ""):
 from validators._common import cli_main
 
 H1_RE = re.compile(r"^# URL Freshness Report\b", re.MULTILINE)
-SUMMARY_RE = re.compile(r"^## Summary\b", re.MULTILINE)
+# Permissive heading regex: tolerate clarifying parentheticals after the
+# canonical heading (e.g., '## Summary (May 2026)'). See BURN_IN_NOTES.md
+# external dogfood item #3.
+SUMMARY_RE = re.compile(r"^##\s+Summary\b[^\n]*", re.MULTILINE | re.IGNORECASE)
 GENERATED_DATE_RE = re.compile(
     r"^(?:## )?Generated:?\s*(?P<date>\d{4}-\d{2}-\d{2})\b", re.MULTILINE
 )

@@ -1,0 +1,80 @@
+# Synthesis entry template
+# Maintained by /research-gather Phase 4b (synthesis pass; v2.3+) or by hand when
+# consolidating multiple sources into a single citation-ready note. Validated by
+# validators/synthesis_entry.py.
+#
+# A synthesis_entry is the complement to a per-source bib_ledger entry: instead
+# of one URL → one entry, a synthesis_entry weaves multiple primary sources
+# into a single claim with explicit source-attribution. Use when a single claim
+# is supported by 3+ sources that together form the citation but no individual
+# source is the canonical primary.
+#
+# When to use:
+# - "Three independent sources agree X" — synthesis_entry rather than 3 separate
+#   bib_ledger entries cited indirectly.
+# - "Anthropic + AWS + Microsoft all ship this feature" — synthesis_entry.
+# - "Multi-source production pattern observed in field-guide audit" —
+#   synthesis_entry.
+#
+# When NOT to use:
+# - One source is canonical and others are corroboration → use bib_ledger
+#   with `evidence_ledger` cross-references, not synthesis_entry.
+# - You're tempted to use synthesis_entry to hide a single weak source behind
+#   "convergence" framing → reject; promote the strongest source to bib_ledger
+#   and cite the corroboration in evidence_ledger.
+#
+# Required fields:
+#   synthesis_id   (str, required, unique) — convention:
+#                   syn_<topic>_<slug>, e.g., syn_csr_escalation_patterns
+#   source_urls    (list[str], required, len >= 3, each a valid http(s) URL)
+#                  The defining trait: a synthesis has 3+ sources or it isn't a
+#                  synthesis. Two sources is "a claim with corroboration"; use
+#                  bib_ledger + evidence_ledger instead.
+#   title          (str, required, non-empty) — what this synthesis claims
+#   claim_family   (str, required) — must appear in research_plan.md taxonomy
+#                  (same rule as bib_ledger entries)
+#   cert_task_areas (list[str], optional) — cert-coverage.md task-area
+#                  phrasings the synthesis supports (project-specific; safely
+#                  omitted for projects without a cert taxonomy)
+#   volatility     (str, enum) — stable | evolving | fast-moving
+#                  Synthesis inherits the least-stable source's volatility.
+#   tier_summary   (str, required, pattern "T<n>: N(, T<n>: N)*") — e.g.,
+#                  "T1: 2, T2: 1, T3: 0" — the source tier distribution.
+#                  Synthesis claims must include ≥1 T1 source.
+#   status         (str, enum) — unverified | verified | mismatched
+#                  Same semantics as bib_ledger.
+#
+# Optional fields:
+#   attribution_map (mapping str → list[str], optional) — claim text → list of
+#                  source_urls supporting that claim. Promotes inline attribution.
+#   contradictions  (list[str], optional) — open contradictions noted across
+#                  sources. Preserve rather than resolve in the synthesis.
+
+schema_version: 2
+topic: example_topic
+generated_at: <YYYY-MM-DD>
+current_as_of: <YYYY-MM-DD>
+freshness_policy: strict_live
+
+entries:
+- synthesis_id: syn_example_csr_escalation
+  source_urls:
+  - https://www.anthropic.com/engineering/multi-agent-research-system
+  - https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them
+  - https://www.anthropic.com/engineering/april-23-postmortem
+  title: 'Customer Support escalation patterns: when to escalate vs autonomously resolve'
+  claim_family: agentic_pattern
+  cert_task_areas:
+  - "Escalation / ambiguity resolution patterns"
+  - "Human review workflows + confidence calibration"
+  volatility: evolving
+  tier_summary: "T1: 3, T2: 0, T3: 0"
+  status: unverified
+  attribution_map:
+    "Multi-agent systems benefit from explicit escalation criteria":
+    - https://claude.com/blog/building-multi-agent-systems-when-and-how-to-use-them
+    "Sentiment-based escalation triggers are unreliable proxies":
+    - https://www.anthropic.com/engineering/multi-agent-research-system
+    "Programmatic prerequisite gates outperform prompt-based instructions for compliance":
+    - https://www.anthropic.com/engineering/april-23-postmortem
+  contradictions: []

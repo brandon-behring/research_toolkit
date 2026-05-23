@@ -132,6 +132,7 @@ Run the dossier validator on the output directory before exit.
 ## References
 
 - `Read ~/Claude/research_toolkit/references/citation_rules.md` — URL canonical forms, author rendering, status flags.
+- `Read ~/Claude/research_toolkit/references/agent_discipline.md` — agent tool-call discipline + crash-recovery patterns (applies when `/dossier-build` re-fetches primary sources to verify rendered citations).
 
 ## Validation
 

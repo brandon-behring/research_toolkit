@@ -2259,3 +2259,118 @@ Items the v2.0 audit + completion plan repeatedly punted on. Status will be revi
 ## Cross-cutting observations
 
 (non-stage-specific friction lives here — e.g., "templates dir resolution from foreign CWD", "WebFetch rate-limit recovery")
+
+---
+
+## v2.3.0 candidate — fuzzy-match validator helpers + tolerant heading regex + synthesis-entry template — applied 2026-05-23
+
+**Theme**: feature group from external-dogfood (claude-books research sprint, below). Three additive changes — fuzzy taxonomy matching in `validators/_common.py`, tolerant heading regex in `validators/url_check_report.py`, and a new `templates/synthesis_entry.template.yml` + matching validator — all ship as v2.3.0 candidate. No breaking changes; existing fixtures continue to pass (verified via `pytest -x` = 244 passed + 2 xfailed).
+
+### Design
+
+- **`validators/_common.py`**: new helpers `_norm()` and `matches_canonical_fuzzy(value, canonical_set, min_len=10)`. Strips backticks / quotes / `--`; collapses whitespace; lowercases. Substring match in either direction with a ≥10-char guard to avoid trivial collisions. Imported wherever taxonomy-string membership is checked.
+- **`validators/url_check_report.py`**: `SUMMARY_RE` from `^## Summary\b` → `^##\s+Summary\b[^\n]*` (tolerates clarifying parentheticals like `## Summary (May 2026)`). `agent_index.py`'s SCOPE_BOUNDARY_RE / LOOKUP_RECIPES_RE were already tolerant (`re.IGNORECASE` + `.*`); no change needed there.
+- **`validators/cross_stage.py`**: claim_family vs research_plan taxonomy check now two-tier — strict equality stays an error; fuzzy match downgrades to a warning (`--strict` promotes to error). New `_check_wiki_link_resolution()` walks `[[slug]]` references in `agent_index/` and warns on dangling targets (--strict promotes). Resolves against agent_index filenames + bib_ledger bibkeys + dataset_ledger entry IDs.
+- **`templates/synthesis_entry.template.yml`** (NEW): template for multi-source consolidation entries. Required fields: `synthesis_id`, `source_urls` (≥3), `title`, `claim_family`, `volatility`, `tier_summary` (matching pattern + ≥1 T1), `status`. Optional: `cert_task_areas`, `attribution_map`, `contradictions`.
+- **`validators/synthesis_entry.py`** (NEW): schema check for the new template.
+
+### Modified surfaces
+
+- `validators/_common.py`: +35 LOC (`_norm`, `matches_canonical_fuzzy`)
+- `validators/url_check_report.py`: 1-line regex change
+- `validators/cross_stage.py`: +55 LOC (fuzzy taxonomy two-tier + wiki-link check)
+- `validators/synthesis_entry.py`: NEW, ~130 LOC
+- `templates/synthesis_entry.template.yml`: NEW, ~65 LOC
+- `tests/test_validators.py`: +4 new tests (fuzzy helper, annotated heading, cross_stage two-tier, dangling wiki-link)
+- `tests/test_synthesis_entry.py`: NEW, 10 tests
+- `references/citation_rules.md`: 2 new sections (YAML quoting; source-tier worked examples)
+- `references/strict_live_v2.md`: "Examples for calibration" paragraph
+- `references/agent_discipline.md`: NEW file (~80 LOC)
+- `.claude/skills/research-gather.md`: Phase 2 tool-call discipline insert
+- `.claude/skills/research-plan.md`: references section addition
+- `.claude/skills/dossier-build.md`: references section addition
+
+### Verification
+
+- `pytest -x` → **244 passed + 2 xfailed** (was 234 + 2 before; +10 new `test_synthesis_entry.py` tests, +4 new in `test_validators.py`). Zero regressions.
+- No existing fixtures changed; all v1.x / v2.0 / v2.1 / v2.2 strict-live tests still pass.
+- The claude-books external-dogfood `.lint.py` / `.crossref.py` scripts are unaffected (they live in `claude-books/docs/research/` and don't share code with the toolkit).
+
+---
+
+## External dogfood — claude-books research sprint — applied 2026-05-23
+
+**Theme**: a non-strict-live application of the research methodology — a per-source markdown cache for the `claude-books` three-volume practitioner reference project. Produced **118 source notes across 10 topics (17,465 lines)**. Format is NOT toolkit-canonical (no `bib_ledger.yml`, no `evidence_ledger.yml`, no `cache_manifest.yml` — just per-source markdown notes with YAML frontmatter and `[[slug]]` cross-references), but the discovery / verification / synthesis stages mirror the toolkit's flow closely enough that several lessons surface that the toolkit's strict-live v2.2+ pipeline may also exhibit. Lessons logged here as candidate friction items for the toolkit's design backlog — applicability varies by item.
+
+### Context / what differed from toolkit-canonical
+
+- Used **per-source markdown notes** with YAML frontmatter (filename = slug), not `bib_ledger.yml` + companion artifacts.
+- No `bibkey` convention; filenames serve as slugs.
+- No `evidence_ledger.yml` / `cache_manifest.yml` / `claim_graph.jsonl`.
+- `cert_task_areas` is a project-specific taxonomy analogous to `claim_family` in the toolkit (drawn from an external cert competency model).
+- Wave-based dispatch: 3 parallel research agents per wave × 3 waves; each agent owned a topic and wrote its own per-source notes + topic README.
+- Linter / crossref scripts written ad-hoc (PyYAML + regex) for verification.
+
+### Friction items (toolkit-relevant)
+
+**1. Per-agent tool-call budget too high → socket crash at 47 calls (status: `applied: 2026-05-23` — see `references/agent_discipline.md` + `.claude/skills/research-gather.md` Phase 2 tool-call discipline)**
+- Wave-1 Academy-courses agent crashed with `API Error: socket connection was closed unexpectedly` after 47 tool calls. 9 of 10 priority notes had been written; 10th note + topic README were missed. Recovery cost ~30 min of manual cleanup by the parent.
+- The toolkit's `/research-gather` Phase 2 likely shares this exposure on high-source-count sub-areas. Each accepted source = WebSearch + WebFetch + (v2.2) cache_source.py + Write = ~3-4 tool calls. 12-source sub-area = ~50 calls.
+- **Suggested fix for `/research-gather`**: document an explicit per-agent tool-call cap (~25-30) in Phase 2; for high-source-count sub-areas, dispatch two narrower-scoped agents rather than one wide one. Worked example showing how to split a "12-source sub-area" into "track A: 5 sources" + "track B: 5 sources" + "track C: synthesis" would help.
+
+**2. Quote YAML string values containing `:` (status: `applied: 2026-05-23` — see `references/citation_rules.md` § "YAML quoting in ledger values")**
+- 1 of 118 notes had `source_title: Even Claude agrees: hole in its sandbox...` — the unquoted colon broke YAML parsing. Without YAML-aware tooling the note would be invisible to frontmatter-driven grep.
+- **Suggested fix for `references/citation_rules.md`**: explicit rule — *"any YAML string value containing `:`, `#`, `[`, `{`, `}`, or starting with `-` MUST be double-quoted. When in doubt, quote."* Applies to `bib_ledger.yml`'s `title`, `authors`, `venue` fields directly. A `bib_ledger.py` validator check for "is title YAML-parseable when re-loaded standalone?" could catch this.
+
+**3. Section-header regex tolerance — clarifying parentheticals (status: `applied: 2026-05-23` — see `validators/url_check_report.py` SUMMARY_RE update; `validators/agent_index.py` already tolerant via `re.IGNORECASE` + `.*`)**
+- Linter regex `## Key takeaways\n` failed on notes using `## Key takeaways (multi-agent-relevant only)\n`. The parenthetical is editorially valuable but breaks strict matching.
+- **Suggested fix for `validators/dossier.py`** (or any other validator with strict heading checks): regex `## Key [Tt]akeaways?\b[^\n]*\n` instead of `## Key takeaways\n`. Probably similar in `agent_index.py` for `## See also` / `## Critique` headings.
+
+**4. Mid-wave validator checkpoint actually pays off (status: `applied: 2026-05-23` — confirms v1.5 design intent — see `references/agent_discipline.md` + `.claude/skills/research-gather.md` Phase 2)**
+- Plan said "between waves: brief review of intermediate output." Parent skipped the checkpoint. Two systematic issues — D-prefix `cert_domains` bug across all 20 Topic-5 notes; synthesis-note structure deviation in Topic 7 — propagated to multiple notes before lint caught them at sprint end. With a between-waves linter run, Topic 5's bug would have been caught after Wave 2 and prevented from propagating into Topic 5's remaining work + into agent prompts for Waves where Topic 5 would have been referenced.
+- **Suggested fix for `/research-gather` Phase 2**: surface explicit "after each sub-area's writes, run `validators/bib_ledger.py` on the partial file" guidance. Failing fast catches drift.
+
+**5. Fuzzy matching needed for taxonomy-string fields (status: `applied: 2026-05-23` — partial overlap with v2.0 backlog #3 — see `validators/_common.py` `matches_canonical_fuzzy()` + `validators/cross_stage.py` two-tier claim_family check)**
+- Agents writing `cert_task_areas` paraphrased canonical phrasings: shortened ("Session state" vs canonical "Session state (--resume, fork_session, scratchpads)") or punctuation-drifted (backticks around CLI flags vs bare). Strict equality flagged 22 false positives across 118 notes; a fuzzy substring + normalization match (strip backticks/quotes/`--`, lowercase, ≥10-char overlap) reduced false positives to ~5 and surfaced 1 genuine coverage gap.
+- **Suggested fix for validators that check taxonomy-string membership** (e.g., `claim_family` in `validators/bib_ledger.py` matching the plan's taxonomy): use fuzzy matching at lint time but normalize back to the plan's canonical phrasing in the canonical artifact. Could be a `_norm()` helper in `validators/_common.py`. Lint message should distinguish "paraphrased — accepted" from "no canonical overlap — review."
+
+**6. Dangling cross-reference detection (status: `applied: 2026-05-23` — was not previously covered — see `validators/cross_stage.py` `_check_wiki_link_resolution()`)**
+- 4 of 637 `[[slug]]` references pointed to nonexistent slugs (3 typos — `[[docs-security-review]]` instead of `[[news-security-review]]`; 1 directory-link mistake `[[03-advanced-tool-use]]`; 1 forward-reference to a never-written note). A 30-line crossref script caught all 4.
+- The toolkit's `/agent-index` writes `__see_also` cross-references — a `cross_stage.py` resolution check is the right place to validate. If not already covered, add: every `[[slug]]` in any agent-index output resolves to a real entry in `bib_ledger.yml` or `dataset_ledger.yml`.
+
+**7. Volatility classification needs concrete examples (status: `applied: 2026-05-23` — see `references/strict_live_v2.md` "Examples for calibration" paragraph)**
+- 60% of notes tagged `volatility: evolving` by default when uncertain; 31% `stable`, 9% `fast-moving`. Spot-check suggests ~40-50% of `evolving` notes are actually `stable` (spec sections, core architecture posts).
+- **Suggested fix for `references/strict_live_v2.md` § freshness_tier** (or wherever volatility/freshness tiers are documented): add a table of concrete examples per tier:
+  - `stable`: spec sections, core architecture posts, established mechanisms (e.g., MCP base protocol, agent-loop semantics)
+  - `evolving`: docs pages shipped per release, SDK release notes, dated case studies
+  - `fast-moving`: beta features, release candidates, recent CVE advisories
+- Agents default to the middle category when uncertain; concrete examples calibrate the distribution.
+
+**8. Synthesis notes deserve their own template (status: `applied: 2026-05-23` — see `templates/synthesis_entry.template.yml` + `validators/synthesis_entry.py` + 10 new tests)**
+- 1 note (`07-structured-output/blog-semantic-vs-schema-errors.md`) consolidated material from multiple cookbook + SDK sources. The per-source template's `Quoted (citation-ready)` section doesn't fit a multi-source synthesis. The note was forced into per-source template and lint flagged structure deviation.
+- The toolkit's strict-live flow handles this via the evidence_ledger model (each claim has its own evidence IDs spanning multiple sources). But a non-strict-live application has no parallel.
+- **Suggested fix for `templates/`**: complement `bib_ledger.template.yml` with a `synthesis_entry.template.yml` for non-strict-live applications that need multi-source consolidation: requires ≥3 source URLs in body, drops single-source frontmatter shape (`source_url` → `source_urls: [...]`), keeps `cert_task_areas` / `claim_family` for indexing. Or just document that multi-source synthesis belongs in `/agent-index` Phase 4, not in `/research-gather` per-source notes.
+
+**9. Tier definitions worked example reduces drift (status: `applied: 2026-05-23` — see `references/citation_rules.md` § "Source-tier worked examples (host pattern → tier)")**
+- Tier confusion at first: a couple of notes tier-classified Anthropic Academy Skilljar pages as T1 because they're hosted on Anthropic infrastructure. Strict definition reserves T1 for Anthropic-authored docs / spec material; Academy pages are T2 release-notes.
+- **Suggested fix for `references/citation_rules.md`**: add a host-pattern → tier worked-example table. Pattern: `<domain glob> → <tier>` so agents can pattern-match before writing.
+
+### Doesn't apply / out of scope for this dogfood
+
+- The strict-live `evidence_ledger.yml` + `cache_manifest.yml` + `claim_graph.jsonl` artifacts weren't built (chose simpler per-source markdown cache). v2.2-strict-live span-anchoring patterns not exercised.
+- `bibkey` convention not used (filenames serve as slugs). Toolkit's `firstauthor_year_slug` is more rigorous and probably better for academic work; for non-academic per-source notes (docs / blog posts) the slug-as-bibkey shortcut is acceptable.
+- `gather_trace.yml` Self-RAG reflection not used. Worth recommending for any future research sprint at this scale.
+- `cache_source.py` Playwright escalation (v2.2.1) not exercised — relied on agent prompts mentioning Playwright MCP as fallback for JS-heavy Skilljar pages, but agents underused this path. Future research sprints should call `cache_source.py --escalate-on-failure` proactively for known JS-heavy domains.
+
+### Linter scripts written (may inform validator design)
+
+- `claude-books/docs/research/.lint.py` — PyYAML-based frontmatter linter; required fields, enum validation (tier / volatility / cert_domains), fuzzy taxonomy match, ≥3 takeaways + ≥1 anchored quote per note. ~200 LOC. CI-ready (exits non-zero on violations). Patterns mirror what `validators/bib_ledger.py` would look like for a non-strict-live cache.
+- `claude-books/docs/research/.crossref.py` — `[[slug]]` resolution + per-cert-task-area T1/T2/T3 backing coverage check. ~120 LOC. The coverage-map output is the most useful artifact for spot-checking thoroughness.
+
+### Full lessons writeup
+
+- `claude-books/docs/research/METHODOLOGY-LESSONS.md` — 12 numbered lessons with title + impact + concrete fix, prioritized 3 High / 5 Medium / 4 Low severity. Each lesson is structured copy-paste-ready as a GitHub issue.
+
+### Status verdicts
+
+All 9 friction items above are **`applied: 2026-05-23`** as part of the **v2.3.0 candidate** documented in the version section above. The external-dogfood feedback loop closed in one cycle — no items deferred or wontfix'd. Cross-references on each item point at the specific edit location for spot-checking.

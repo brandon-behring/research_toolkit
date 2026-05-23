@@ -164,3 +164,162 @@ def test_url_check_report_accepts_minimal_well_formed(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert url_check_report.validate(good) == []
+
+
+# ---------- v2.3 lessons: fuzzy taxonomy + heading tolerance + wiki-links ----------
+
+def test_common_matches_canonical_fuzzy_helper() -> None:
+    """Unit test for matches_canonical_fuzzy — covers exact, substring (both
+    directions), case/whitespace/backtick normalization, and the min-len guard.
+    """
+    from validators._common import matches_canonical_fuzzy
+
+    canonical = {
+        "Session state (--resume, fork_session, scratchpads)",
+        "Agentic loops (stop_reason, tool result handling)",
+        "Built-in tools (Read, Write, Edit, Bash, Grep, Glob)",
+    }
+
+    # Exact match (after normalization)
+    assert matches_canonical_fuzzy(
+        "Session state (--resume, fork_session, scratchpads)", canonical
+    )
+
+    # Substring — note is shorter than canonical
+    assert matches_canonical_fuzzy("Session state", canonical)
+    assert matches_canonical_fuzzy("Agentic loops", canonical)
+
+    # Punctuation normalization (`--` stripped; backticks stripped)
+    assert matches_canonical_fuzzy(
+        "Session state (resume, fork_session, scratchpads)", canonical
+    )
+    assert matches_canonical_fuzzy(
+        "Built-in tools (`Read`, `Write`, `Edit`, `Bash`, `Grep`, `Glob`)", canonical
+    )
+
+    # Min-len guard: a too-short value shouldn't match via substring
+    assert not matches_canonical_fuzzy("loops", canonical)
+    assert not matches_canonical_fuzzy("ABC", canonical)
+
+    # Genuinely unknown value
+    assert not matches_canonical_fuzzy(
+        "Completely unrelated taxonomy entry that won't match", canonical
+    )
+
+
+def test_url_check_report_accepts_summary_with_parenthetical(tmp_path: Path) -> None:
+    """Heading regex tolerates clarifying parentheticals (BURN_IN dogfood #3)."""
+    good = tmp_path / "url_check.md"
+    good.write_text(
+        (
+            "# URL Freshness Report\n\n"
+            "Generated: 2026-05-06\n\n"
+            "## Summary (May 2026 snapshot)\n\n"
+            "- total: 100\n"
+            "- ok: 95\n"
+            "- broken: 3\n"
+            "- bot-blocked: 2\n"
+        ),
+        encoding="utf-8",
+    )
+    assert url_check_report.validate(good) == []
+
+
+def test_cross_stage_fuzzy_claim_family_is_warning_not_error(tmp_path: Path) -> None:
+    """A paraphrased claim_family that fuzzy-matches the taxonomy is a WARN,
+    not an error (default strict=False). BURN_IN dogfood #5.
+    """
+    from validators import cross_stage
+
+    (tmp_path / "research_plan.md").write_text(
+        (
+            "# Research Plan: test\n\n"
+            "## Sub-areas\n\n- A1 alpha\n- A2 beta\n\n"
+            "## Out-of-scope\n\n- nothing\n\n"
+            "## Claim family taxonomy\n\n"
+            "- `benchmark`\n"
+            "- `dataset_resource`\n"
+            "- `toolkit`\n"
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "bib_ledger.yml").write_text(
+        (
+            "entries:\n"
+            "- bibkey: alpha2024test\n"
+            "  primary_url: https://arxiv.org/abs/2401.00001\n"
+            "  title: 'Alpha Test Paper'\n"
+            "  status: unverified\n"
+            "  claim_family: dataset_resource_v2\n"
+        ),
+        encoding="utf-8",
+    )
+    errors_default = cross_stage.validate(tmp_path)
+    # Default (non-strict): the paraphrased family fuzzy-matches → WARN, not error.
+    assert errors_default == [], errors_default
+
+    errors_strict = cross_stage.validate(tmp_path, strict=True)
+    # Strict: WARN promotes to error.
+    assert any("paraphrases" in e or "fuzzy" in e for e in errors_strict), errors_strict
+
+
+def test_cross_stage_dangling_wiki_link_warns(tmp_path: Path) -> None:
+    """Dangling [[slug]] cross-references in agent_index/ produce warnings
+    (--strict promotes to error). BURN_IN dogfood #6.
+    """
+    from validators import cross_stage
+
+    # Minimal valid setup so the other checks don't fire spuriously.
+    (tmp_path / "research_plan.md").write_text(
+        (
+            "# Research Plan: test\n\n"
+            "## Sub-areas\n\n- A1 alpha\n- A2 beta\n\n"
+            "## Out-of-scope\n\n- nothing\n\n"
+            "## Claim family taxonomy\n\n- `benchmark`\n"
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "bib_ledger.yml").write_text(
+        (
+            "entries:\n"
+            "- bibkey: alpha2024test\n"
+            "  primary_url: https://arxiv.org/abs/2401.00001\n"
+            "  title: 'Alpha Test Paper'\n"
+            "  status: unverified\n"
+            "  claim_family: benchmark\n"
+        ),
+        encoding="utf-8",
+    )
+    agent_index_dir = tmp_path / "agent_index"
+    agent_index_dir.mkdir()
+    (agent_index_dir / "README.md").write_text(
+        (
+            "<!-- AGENT-INDEX: test -->\n\n"
+            "## Scope boundary\n\nx\n\n## Lookup recipes\n\nx\n\n"
+            "## Glossary\n\nx\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_index_dir / "01_synthesis.md").write_text(
+        (
+            "# Synthesis\n\n"
+            "- **Source:** https://arxiv.org/abs/2401.00001 alpha2024test\n"
+            "  See [[alpha2024test]] for the canonical paper (resolves: bibkey).\n"
+            "  See [[02_other_synthesis]] for related material (resolves: filename).\n"
+            "  See [[totally-nonexistent-slug]] (DANGLING — should warn).\n"
+        ),
+        encoding="utf-8",
+    )
+    (agent_index_dir / "02_other_synthesis.md").write_text(
+        "# Other\n\n- **Source:** https://arxiv.org/abs/2401.00001 alpha2024test\n",
+        encoding="utf-8",
+    )
+
+    errors_default = cross_stage.validate(tmp_path)
+    # The dangling link is a WARN, not an error in default mode.
+    assert errors_default == [], errors_default
+
+    errors_strict = cross_stage.validate(tmp_path, strict=True)
+    assert any(
+        "dangling" in e and "totally-nonexistent-slug" in e for e in errors_strict
+    ), errors_strict

@@ -73,6 +73,7 @@ Read `~/Claude/research_toolkit/templates/research_plan.template.md` for the can
 
 - `Read ~/Claude/research_toolkit/references/scope_planning.md` — scoping discipline.
 - `Read ~/Claude/research_toolkit/references/citation_rules.md` — bibkey convention.
+- `Read ~/Claude/research_toolkit/references/agent_discipline.md` — operational discipline (tool-call budget, mid-phase checkpoints). Light reference here; more applicable to `/research-gather` and `/dossier-build` since `/research-plan` doesn't dispatch high-volume search itself.
 
 ## Validation
 

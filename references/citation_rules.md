@@ -15,6 +15,18 @@ URL rendering and citation conventions used across `/research-gather`, `/dossier
 | Vendor blog | Full URL of the specific post (not the blog index) | `https://www.lakera.ai/blog/the-year-of-the-agent-prompt-injection-in-the-real-world` |
 | Conference proceedings | DOI if available, else the proceedings page URL | — |
 
+## YAML quoting in ledger values
+
+Any YAML string value containing `:`, `#`, `[`, `{`, `}`, `&`, `*`, `?`, `|`, `>`, `!`, `%`, `@`, `` ` ``, or starting with `-` MUST be double-quoted. Otherwise the value parses as a nested mapping, list, alias, or tag — and silently breaks frontmatter-driven tools.
+
+Applies especially to fields where colons are common:
+- `title:` when the title contains a subtitle separator — `title: "Even Claude agrees: hole in its sandbox was real and dangerous"`
+- `venue:` when the venue includes a track separator — `venue: "ACL 2024: Findings"`
+- `authors:` when authors include compound surnames or list separators — quote when in doubt
+- Any `source_title:` or `note:` field if your source's headline contains a colon (common in security advisories, postmortems, academic papers).
+
+**Rule of thumb: when in doubt, quote.** PyYAML and the validators accept either form for plain strings; readers and downstream tools may silently misparse the unquoted form. The cost of an extra quote is zero; the cost of a misparsed entry is invisible until something downstream breaks.
+
 ## Bibkey convention
 
 `{firstauthor_lowercase}{year}{slug}` where:
@@ -62,6 +74,33 @@ For 5-bullet entries (display name line):
 - `(vendor blog)` — sourced from a vendor blog or press release; treat numbers with skepticism.
 - `(recheck after YYYY-MM-DD)` — time-sensitive claim should be refreshed after the listed strict-live date.
 - `(unverified body claim)` — quantitative claim is from paper body, not abstract; reader should re-verify.
+
+## Source-tier worked examples (host pattern → tier)
+
+Tier assignment is the single most common source of agent drift during `/research-gather`. Use this table for quick pattern-match before writing a `bib_ledger` entry:
+
+| Host pattern | Tier | Notes |
+|---|---|---|
+| `anthropic.com/docs/*`, `anthropic.com/engineering/*`, `anthropic.com/news/*` | **T1-official** | Anthropic-authored docs / blog / news |
+| `claude.com/blog/*`, `claude.com/docs/*`, `claude.com/resources/*` | **T1-official** | Anthropic-authored (Claude.com is the consumer Anthropic property) |
+| `platform.claude.com/docs/*`, `code.claude.com/docs/*`, `docs.claude.com/*` | **T1-official** | Anthropic-authored API + Claude Code docs |
+| `modelcontextprotocol.io/*`, `blog.modelcontextprotocol.io/*` | **T1-official** | Spec-authoritative (MCP donated to Agentic AI Foundation but spec authorship traces to Anthropic) |
+| `arxiv.org/abs/*` | **T1-official** | Primary academic source (the abstract page, not `/pdf/`) |
+| Major vendor docs (`aws.amazon.com/bedrock/*`, `cloud.google.com/vertex-ai/*`, etc.) | **T1-official** | Vendor-authored docs |
+| `anthropic.skilljar.com/*` | **T2-release-notes** | Anthropic-managed Academy course pages — Anthropic-managed but not spec/docs |
+| `github.com/<anthropic-org>/<repo>` releases + README | **T2-release-notes** | Anthropic-owned repo metadata |
+| `github.com/<other-org>/<repo>` releases + README | **T2-release-notes** if a primary tool of the topic; else **T3** | E.g., MCP servers in `modelcontextprotocol/servers` are T2 |
+| Vendor blogs for non-Anthropic vendors (vendor-authoritative on vendor topics) | **T2-release-notes** | E.g., AWS announcing a Bedrock feature = T2-AWS-authoritative |
+| Substack, dev.to, Medium, third-party tech blogs | **T3-practitioner** | Even if citing primary sources accurately |
+| Press / news (TechCrunch, The Register, Reuters, etc.) | **T3-practitioner** | Even when reporting Anthropic announcements — find Anthropic's primary source instead |
+| Aggregator sites (cert-prep sites, awesome lists) | **T3-practitioner** | Useful for discovery; never the primary citation |
+
+**Strict rule**: third-party citing T1 ≠ T1. If three Substack posts each quote the same Anthropic announcement, the tier of the Substack posts is still T3; the announcement at `anthropic.com/news/...` is T1.
+
+**Boundary cases**:
+- Conference papers presented at workshops (no proceedings DOI): treat as **T1-official** if the paper exists on arXiv; otherwise the workshop's official site is T1.
+- Pre-prints later published: keep the arXiv URL as the bibkey's primary URL; the published version's DOI goes into a `published_url:` field if useful.
+- Anthropic employees writing on their personal Substack about Anthropic features: **T2-release-notes** (semi-official; the byline is Anthropic but the venue isn't).
 
 ## v2 evidence IDs (strict-live projects only)
 

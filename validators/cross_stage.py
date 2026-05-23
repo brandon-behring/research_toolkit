@@ -52,7 +52,7 @@ import yaml
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from validators._common import cli_main
+from validators._common import cli_main, matches_canonical_fuzzy
 
 ARXIV_ID_RE = re.compile(
     r"(?:arxiv\.org/abs/|arxiv:)(\d{4}\.\d{4,5})", re.IGNORECASE
@@ -69,6 +69,7 @@ TAXONOMY_SECTION_RE = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 TAXONOMY_ITEM_RE = re.compile(r"^[-*]\s+`?([a-zA-Z_][\w]*)`?", re.MULTILINE)
+WIKI_LINK_RE = re.compile(r"\[\[([\w\-]+)\]\]")
 
 
 def _research_plan_taxonomy(plan_path: Path) -> set[str] | None:
@@ -199,11 +200,28 @@ def _check_bib_ledger_flow(
     if plan.exists():
         taxonomy = _research_plan_taxonomy(plan)
         if taxonomy is not None:
-            unknown = ledger_families - taxonomy
-            if unknown:
+            # Two-tier check: strict equality stays an error; fuzzy match
+            # downgrades to a warning ("paraphrased — accepted"). Avoids
+            # false-positive errors when agents write near-canonical forms
+            # (e.g., "Session state" vs canonical "Session state (--resume,
+            # fork_session, scratchpads)"). See BURN_IN_NOTES.md dogfood #5.
+            strict_unknown = ledger_families - taxonomy
+            truly_unknown = {
+                f for f in strict_unknown
+                if not matches_canonical_fuzzy(f, taxonomy)
+            }
+            paraphrased = strict_unknown - truly_unknown
+            if truly_unknown:
                 errors.append(
-                    f"bib_ledger uses {len(unknown)} claim_family value(s) "
-                    f"not in research_plan.md taxonomy: {sorted(unknown)}"
+                    f"bib_ledger uses {len(truly_unknown)} claim_family value(s) "
+                    f"not in research_plan.md taxonomy (no fuzzy match either): "
+                    f"{sorted(truly_unknown)}"
+                )
+            if paraphrased:
+                warnings.append(
+                    f"WARN bib_ledger paraphrases {len(paraphrased)} claim_family "
+                    f"value(s) (fuzzy-matched the taxonomy; prefer canonical phrasing): "
+                    f"{sorted(paraphrased)} (--strict promotes to error)"
                 )
 
     dossier = path / "dossier"
@@ -294,6 +312,61 @@ def _check_dataset_ledger_flow(
         )
 
 
+def _check_wiki_link_resolution(
+    path: Path, *, errors: list[str], warnings: list[str]
+) -> None:
+    """Check that ``[[slug]]`` cross-references in agent_index/ resolve.
+
+    A ``[[slug]]`` resolves if it matches one of:
+    - A filename stem in ``agent_index/`` (slug = filename without .md)
+    - A bibkey in ``bib_ledger.yml`` (paper pipeline)
+    - An entry ID in ``dataset_ledger.yml`` (dataset pipeline)
+
+    Dangling references are flagged as warnings (soft by default; --strict
+    promotes to errors). See BURN_IN_NOTES.md external dogfood item #6.
+    """
+    agent_index_dir = path / "agent_index"
+    if not agent_index_dir.is_dir():
+        return
+
+    valid_slugs: set[str] = set()
+    for md in agent_index_dir.glob("*.md"):
+        valid_slugs.add(md.stem)
+
+    bib_ledger_path = path / "bib_ledger.yml"
+    if bib_ledger_path.exists():
+        for entry in _ledger_entries(bib_ledger_path):
+            if isinstance(entry, dict):
+                bibkey = entry.get("bibkey", "")
+                if isinstance(bibkey, str) and bibkey.strip():
+                    valid_slugs.add(bibkey.strip())
+
+    dataset_ledger_path = path / "dataset_ledger.yml"
+    if dataset_ledger_path.exists():
+        for entry in _ledger_entries(dataset_ledger_path):
+            if isinstance(entry, dict):
+                eid = entry.get("id") or entry.get("dataset_id") or entry.get("bibkey", "")
+                if isinstance(eid, str) and eid.strip():
+                    valid_slugs.add(eid.strip())
+
+    dangling: list[tuple[str, str]] = []
+    for md in sorted(agent_index_dir.glob("*.md")):
+        text = md.read_text(encoding="utf-8")
+        for m in WIKI_LINK_RE.finditer(text):
+            slug = m.group(1)
+            if slug not in valid_slugs:
+                dangling.append((md.name, slug))
+
+    if dangling:
+        sample = dangling[:5]
+        extra = f" (and {len(dangling) - 5} more)" if len(dangling) > 5 else ""
+        sample_str = ", ".join(f"{f}→[[{s}]]" for f, s in sample)
+        warnings.append(
+            f"WARN {len(dangling)} dangling [[slug]] reference(s) in agent_index: "
+            f"{sample_str}{extra} (--strict promotes to error)"
+        )
+
+
 def validate(path: Path, *, strict: bool = False) -> list[str]:
     """Validate cross-stage consistency for a research-toolkit project directory.
 
@@ -323,6 +396,11 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
 
     if dataset_ledger.exists():
         _check_dataset_ledger_flow(path, errors=errors, warnings=warnings)
+
+    # Dangling [[slug]] reference check — applies whenever agent_index/ exists.
+    # Treats agent_index filenames + bib_ledger bibkeys + dataset_ledger
+    # entry IDs as valid targets. See BURN_IN_NOTES.md dogfood item #6.
+    _check_wiki_link_resolution(path, errors=errors, warnings=warnings)
 
     if strict:
         errors.extend(warnings)
