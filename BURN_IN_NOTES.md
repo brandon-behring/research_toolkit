@@ -2468,3 +2468,25 @@ Items the v2.0 audit + completion plan repeatedly punted on. Status will be revi
 ### Status verdicts
 
 All 9 friction items above are **`applied: 2026-05-23`** as part of the **v2.3.0 candidate** documented in the version section above. The external-dogfood feedback loop closed in one cycle — no items deferred or wontfix'd. Cross-references on each item point at the specific edit location for spot-checking.
+
+---
+
+## External dogfood — claude-books visual-pedagogy sprint (2026-05-23, round 2)
+
+The Phase A 4-agent + Phase 05 focused-agent rounds surfaced two additional linter/validator patterns worth feeding back. Local fixes already applied in `claude-books/docs/research/.lint.py` and the cache; toolkit-side analogs would benefit other consumers.
+
+**10. Per-topic structural variants need linter exemptions (status: `surfaced 2026-05-23`)**
+- The per-source markdown template for the pedagogy topic (T11) uses a structurally rich per-area template: `## What it is + best-fit use case`, `## Astro/MDX integration`, `## Source format + maintainability`, `## Accessibility`, `## Theme-awareness`, etc. — no single `## Key takeaways` section because synthesis lives at the topic README level.
+- The local linter assumed a flat "Key takeaways with ≥3 bullets" structure, producing 48 false-positive violations against the 47 topic-11 notes.
+- **Local resolution applied**: `lint.py` now skips the Key-takeaways check when `topic` starts with `"pedagogy"`. Reduced violation count from 70 → 23 in one config tweak.
+- **Suggested fix for toolkit's `validators/bib_ledger.py` (or equivalent)**: when a topic-prefix-based linter exemption is added, document the pattern in `references/citation_rules.md`. Alternative implementation: any H2 with ≥3 bullets in the upper third of the body counts as a "structured-takeaways equivalent" (more general but harder to reason about). Per-topic-prefix exemption is the simpler and clearer pattern.
+
+**11. Literal `[[example-slug]]` syntax in prose triggers crossref false positives (status: `surfaced 2026-05-23`)**
+- When agents write notes ABOUT the cross-reference convention (e.g., "the `[[slug]]` syntax used elsewhere in this cache..."), the crossref regex `\[\[([\w\-]+)\]\]` matches the literal example and flags it as dangling. 34 such false positives surfaced across topic 11 notes using `[[README]]`, `[[term]]`, `[[slug]]`, `[[other-note]]` as literal demonstrations.
+- **Local resolution applied**: bulk-replaced literal examples with plain-prose descriptions ("the double-bracket slug convention used elsewhere", "the topic README" instead of `[[README]]`). Dangling count: 34 → 0.
+- **Suggested fix for toolkit's `validators/cross_stage.py`**: ignore `[[…]]` patterns when they appear inside backtick-fenced inline code (`` `[[slug]]` ``) or fenced code blocks. The regex would become: skip matches whose start position is inside a `` ` `` … `` ` `` span or a `` ``` `` … `` ``` `` block. This is a 5-line tweak to the matcher. Alternative: allow-list certain "obvious example" slugs (`example`, `slug`, `term`, `other-note`) — less general but no parser work.
+- **Discoverability surface**: this hits any agent writing methodological / meta documentation about the cache. The fix has zero downside (true cross-references don't live in code blocks) and high upside (eliminates a class of false positives that look like real problems to readers).
+
+### Status verdicts
+
+Items 10 and 11 are **`surfaced 2026-05-23`** — local resolutions applied in `claude-books/docs/research/`. Toolkit-side analogous fixes are a clear next step but not yet ported; consumer of toolkit's `validators/cross_stage.py` would benefit immediately. Promoting to `applied:` when the toolkit's validators are extended with the same patterns.
