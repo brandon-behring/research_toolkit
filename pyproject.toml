@@ -24,6 +24,11 @@ dev = [
   "reportlab>=4.0",
   "pypdf>=4.0",
 ]
+synthesis = [
+  # Required for /dataset-synthesize (closes #1). Lazy-imported by
+  # scripts/dataset_synthesize.py so --validate-only works without this.
+  "anthropic>=0.40",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

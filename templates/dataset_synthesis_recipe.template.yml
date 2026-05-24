@@ -1,0 +1,63 @@
+# Recipe schema for /dataset-synthesize (closes
+# brandon-behring/research_toolkit#1).
+#
+# See scripts/dataset_synthesize.py and .claude/skills/dataset-synthesize.md
+# for the full spec. Validated by validate_recipe() in the skill script.
+
+# Anthropic model identifier. Must be a key in PRICING_PER_MTOK.
+# Recommended: claude-sonnet-4-7 for cost/quality balance.
+model: claude-sonnet-4-7
+
+# Optional defaults applied to every template (override per-template
+# by adding the same fields inside the template entry).
+defaults:
+  temperature: 0.9
+  max_tokens: 800
+  batch_size: 1
+
+# At least one template required. Each template generates target_count
+# samples; the system prompt + few_shot are cached (Anthropic prompt
+# caching) so subsequent calls within the same template hit the cache.
+templates:
+  - id: example-template            # unique within recipe
+    cache_key: example-template-v1  # unique; used in Anthropic cache key
+    system: |
+      You are a domain expert assistant. Generate realistic samples
+      matching the pattern below. Output ONLY the sample content — no
+      preamble, no commentary.
+
+      Pattern: [describe the pattern this template generates]
+      Constraints: [length, style, format rules]
+      Avoid: [what NOT to produce]
+    few_shot:
+      - role: user
+        content: |
+          Generate one sample following the pattern.
+      - role: assistant
+        content: |
+          [Example output 1]
+      - role: user
+        content: |
+          Generate another sample.
+      - role: assistant
+        content: |
+          [Example output 2 — show diversity within the pattern]
+    user_prompt: |
+      Generate one sample. Do not repeat any prior example verbatim.
+    target_count: 100
+    metadata:
+      # Free-form metadata carried into each output row's 'metadata' field.
+      # Useful for downstream filtering / stratified evaluation.
+      domain: example
+      style: declarative
+
+# Optional second template (delete if single-template):
+#  - id: another-template
+#    cache_key: another-v1
+#    system: |
+#      [different system prompt — gets its own cache key]
+#    user_prompt: |
+#      Generate one sample.
+#    target_count: 50
+#    metadata:
+#      domain: another
