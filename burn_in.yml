@@ -293,3 +293,30 @@ entries:
   status: applied
   fix_version: v2.3.0
   notes: 'pre_selection_manifest gains optional synthesis_entry_ref: syn_<topic>_<slug>. build_claim_graph.py resolves text via attribution_map longest-substring-match → title → tiebreak. Source_urls corroboration check at build time WARNs on drift between synthesis_entry and supporting evidence (curation signal, not structural error). agent-index Phase 2b documents when to emit the ref. 7 new tests covering happy path + 5 edge cases + validator pattern check.'
+
+- id: v23-phase2-B1
+  phase: v2.3.0-phase-2
+  stage: references / templates
+  finding: '4 canonical escalate_to_manual reasons (survey / borderline / vendor marketing / paywall) surfaced repeatedly across v2.2 dogfoods + consumer:guides sprint without being documented'
+  severity: low
+  status: applied
+  fix_version: v2.3.0
+  notes: 'BURN_IN Phase 5 Tier-2 promotion. Added Escalation reason cheatsheet table to citation_rules.md; cross-linked from research_plan.template.md Out-of-scope section.'
+
+- id: v23-phase2-B2
+  phase: v2.3.0-phase-2
+  stage: references
+  finding: 'Phase 5 BURN_IN noted that retroactive v2.1 → v2.2 migration produces 1 atom per source, not multi-atom — but the strict_live_v2.md atomic-decomposition section did not say so explicitly. New authors misread the migration ratio as defect.'
+  severity: low
+  status: applied
+  fix_version: v2.3.0
+  notes: 'BURN_IN Phase 5 Tier-2 promotion. Appended "Migration vs fresh generation" paragraph to strict_live_v2.md Atomic claim IDs section.'
+
+- id: v23-phase2-B3
+  phase: v2.3.0-phase-2
+  stage: build-dashboard
+  finding: 'Dashboard reported corroboration as raw percentage (e.g., 0/3 = 0%) on small-N corpora, reading as "broken" rather than "small sample"; surfaced in Phase 2 + 3 dogfoods'
+  severity: low
+  status: applied
+  fix_version: v2.3.0
+  notes: 'BURN_IN Phase 5 Tier-2 promotion. At N<6 atoms dashboard now annotates "(corpus too small for synthesis metric — needs ≥6 atoms)" instead of the percentage. N≥6 behavior unchanged. 2 new tests.'

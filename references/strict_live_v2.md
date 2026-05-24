@@ -229,6 +229,17 @@ v2.2 ships **free-text atoms** (string per atom). SROM 4-tuple
 (subject-relation-object-modifier) atomic structure deferred to v2.3
 once free-text usage surfaces friction.
 
+**Migration vs fresh generation (v2.3 clarification).** Retroactive
+migration from v2.1 (one atom per bullet) does NOT trigger multi-atom
+decomposition — the existing excerpt only anchors a single atomic
+claim_id, since both retroactive ID assignment and gather-time excerpt
+capture naturally produce one claim per evidence. True 2-5 atoms per
+bullet emerges only when `/agent-index` Phase 2c generates fresh prose
+conditioned on a `pre_selection_manifest` with multi-atom selections.
+This pattern held across all 4 v2.2 dogfood phases (every project
+stayed at 1 atom per source even after migration); it's expected
+behavior, not a defect of the migration path.
+
 ### Dashboard additions (v3 evidence ledgers)
 
 `build_dashboard.py` surfaces two new Claim Health rows when

@@ -965,7 +965,11 @@ def test_v22_atomic_dashboard_reports_corroboration_and_strength(tmp_path: Path)
     )
     text = out.read_text(encoding="utf-8")
     assert "atoms fully supported: 3/3 (100%)" in text, text
-    assert "corroborated (≥2 independent sources): 0/3 (0%)" in text, text
+    # v2.3 B3: small-N suppression — N<6 gets an annotation, not a percentage.
+    assert (
+        "corroborated (≥2 independent sources): 0/3 "
+        "(corpus too small for synthesis metric — needs ≥6 atoms)"
+    ) in text, text
 
 
 # ---------- v2.3 C2: synthesis_entry attribution wire-up ----------
@@ -1337,3 +1341,128 @@ def test_v23_c2_pre_selection_validator_rejects_bad_ref_pattern(tmp_path: Path) 
     }), encoding="utf-8")
     errors = psm.validate(manifest)
     assert any("synthesis_entry_ref" in e and "syn_" in e for e in errors), errors
+
+
+# ---------- v2.3 B3: dashboard small-N corroboration suppression ----------
+
+
+def _scaffold_dashboard_project_with_n_claims(base: Path, n: int) -> Path:
+    """Minimal v3 project with N single-source claims for B3 testing.
+
+    Each claim has 1 source_url so corroboration_count=1. With N=6 the
+    dashboard reports `0/6 (0%)` (the percentage branch); with N<6 it
+    annotates "(corpus too small...)".
+    """
+    import yaml as _yaml
+    project = base / f"dashboard_n{n}_project"
+    project.mkdir()
+
+    bib_entries = []
+    ev_entries = []
+    for i in range(n):
+        bibkey = f"bib{i:02d}"
+        url = f"https://example.com/paper{i:02d}"
+        ev_id = f"ev_{i:02d}"
+        claim_id = f"claim_test_atom{i:02d}"
+        bib_entries.append({
+            "bibkey": bibkey,
+            "title": f"Test paper {i}",
+            "primary_url": url,
+            "claim_family": "paper",
+            "status": "verified",
+            "evidence_ids": [ev_id],
+        })
+        ev_entries.append({
+            "evidence_id": ev_id,
+            "source_url": url,
+            "source_type": "paper",
+            "source_quality": "primary",
+            "retrieved_at": "2026-05-23",
+            "verification_method": "webfetch",
+            "supports": [{
+                "claim_id": claim_id,
+                "field_path": "agent_index/0K_test.md",
+                "evidence_role": "supports",
+                "evidence_role_strength": "full",
+                "extraction_method": "paraphrase",
+                "link_confidence": 0.7,
+            }],
+            "excerpt": f"Excerpt from paper {i}",
+            "rights_status": "private_use",
+        })
+
+    (project / "bib_ledger.yml").write_text(
+        _yaml.safe_dump({
+            "schema_version": 3,
+            "topic": "b3_test",
+            "generated_at": "2026-05-23",
+            "current_as_of": "2026-05-23",
+            "freshness_policy": "strict_live",
+            "claim_family_taxonomy": ["paper"],
+            "entries": bib_entries,
+        }, sort_keys=False),
+        encoding="utf-8",
+    )
+    (project / "evidence_ledger.yml").write_text(
+        _yaml.safe_dump({
+            "schema_version": 3,
+            "topic": "b3_test",
+            "generated_at": "2026-05-23",
+            "current_as_of": "2026-05-23",
+            "freshness_policy": "strict_live",
+            "entries": ev_entries,
+        }, sort_keys=False),
+        encoding="utf-8",
+    )
+    return project
+
+
+def test_v23_b3_corroboration_annotated_at_small_n(tmp_path: Path) -> None:
+    """N<6 atoms → corroboration line is annotated, not a percentage."""
+    project = _scaffold_dashboard_project_with_n_claims(tmp_path, n=4)
+    out = tmp_path / "dash.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(project),
+            "--output",
+            str(out),
+            "--today",
+            "2026-05-23",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    text = out.read_text(encoding="utf-8")
+    assert (
+        "corroborated (≥2 independent sources): 0/4 "
+        "(corpus too small for synthesis metric — needs ≥6 atoms)"
+    ) in text, text
+
+
+def test_v23_b3_corroboration_percentage_at_n6plus(tmp_path: Path) -> None:
+    """N>=6 atoms → corroboration line reverts to the percentage form."""
+    project = _scaffold_dashboard_project_with_n_claims(tmp_path, n=6)
+    out = tmp_path / "dash.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(project),
+            "--output",
+            str(out),
+            "--today",
+            "2026-05-23",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    text = out.read_text(encoding="utf-8")
+    assert "corroborated (≥2 independent sources): 0/6 (0%)" in text, text
+    # And the small-N annotation does NOT appear at N=6
+    assert "corpus too small" not in text, text

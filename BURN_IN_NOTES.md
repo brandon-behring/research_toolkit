@@ -10,6 +10,169 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.3.0 release summary — shipped 2026-05-23
+
+v2.3.0 = Phase 1 (daf6699, claude-books external-dogfood lessons) + Phase 2
+(consumer:guides issues + Tier-2 promotions + Group B docs).
+
+### What shipped
+
+**Phase 1 (commit `daf6699`)** — closed 9 BURN_IN-internal items from the
+external claude-books research sprint:
+- Validators: fuzzy claim_family match (two-tier check), tolerant
+  SUMMARY_RE for annotated headings, NEW `synthesis_entry.py` validator
+  for multi-source consolidation (≥3 source_urls, ≥1 T1, tier_summary
+  pattern).
+- Templates: NEW `synthesis_entry.template.yml`.
+- References: NEW `agent_discipline.md` (tool-call budget ~25-30 cap,
+  mid-phase checkpoints, crash-recovery patterns); citation_rules
+  source-tier table; strict_live_v2 freshness calibration examples.
+- Skills: tool-call-discipline insert in research-gather, pointers in
+  research-plan + dossier-build.
+
+**Phase 2 Commit 1 (`0ecd138`)** — manifest path portability (closes #13,
+#12; leaves #2 closed historically). Writer serializes relative-to-
+cache_root; reader honors cache_root; portability guard rejects absolute
+paths; `scripts/migrate_manifest_paths.py` for legacy consumer manifests.
+
+**Phase 2 Commit 2 (`e5d542f` + `3d3763e` follow-up)** — PDF extraction
+cascade + reextract + JS-shell stub (closes #11, #10, #14). pdfplumber +
+Docling (lazy import) two-stage cascade; per-host `extraction_log_<hostname>.jsonl`;
+loud-failure WARN surface; `scripts/reextract_pdfs.py` for upgrade path;
+unconditional JS-shell stub detection. docling pinned `>=2.0,<2.30` after
+docling-parse 5.x source-only wheel issue surfaced.
+
+**Phase 2 Commit 3 (`3c2ef1f`)** — cross-source corroboration scoring +
+synthesis_entry attribution wire-up (Tier-2 backlog Item 2 + connector).
+`corroboration_count` on claim records; dashboard top-corroborated list;
+optional `synthesis_entry_ref` on pre_selection_manifest with O(1)
+lookup + source_urls corroboration check; `synthesis_entry_id` on claim
+records for dashboard linking.
+
+**Phase 2 Commit 4 (this commit)** — Group B docs + version bump:
+- Survey-paper escalation cheatsheet in `references/citation_rules.md`.
+- Atomic-decomposition migration note in `references/strict_live_v2.md`.
+- Small-N corroboration suppression in `build_dashboard.py` (<6 atoms
+  annotates "corpus too small" instead of misleading 0%).
+- `pyproject.toml` 2.2.1 → 2.3.0; user-agent strings bumped.
+- Local tag `v2.3.0`.
+
+### Metrics
+
+| Phase | Tests | Net change | Files | LOC |
+|---|---|---|---|---|
+| Baseline (post-daf6699) | 244 | — | — | — |
+| Phase 2 Commit 1 | 254 | +10 | 17 | +761 |
+| Phase 2 Commit 2 | 278 | +24 | 15 | +1804 |
+| Phase 2 Commit 2 fix | 278 | +0 | 4 | +46 |
+| Phase 2 Commit 3 | 285 | +7 | 8 | +823 |
+| Phase 2 Commit 4 | 287 | +2 | this commit | this commit |
+
+Total: 287 passed + 2 xfailed. All historical dogfood projects continue
+to validate; the v2 + v3 fixtures regenerate cleanly under the new path
+resolution convention.
+
+### Issues closed in v2.3.0
+
+| # | Title | Closed by |
+|---|---|---|
+| 2 | Cross-platform path portability (closed historically) | left closed |
+| 9 | Playwright escalation on 403 not firing | (shipped v2.2.1) |
+| 10 | cache_source.py should detect undersized HTML stubs | Commit 2 |
+| 11 | Add PDF text extraction to cache_source.py | Commit 2 |
+| 12 | consumer:guides reproduction of #2 (path portability) | Commit 1 |
+| 13 | Writer-side fix for #2 path portability (follow-on) | Commit 1 |
+| 14 | v2_common.py text_path resolution doesn't honor cache_root | Commit 1 |
+
+### Scope explicitly deferred
+
+- Tier-3 BURN_IN candidate: Playwright real-browser smoke test
+  (speculative; defer until concrete friction).
+- v2_2 backlog Items 4 (semantic entropy), 4b (Lookback Lens), 4c
+  (counterfactual probing), 5b (RAGTruth fixture), 5c (Retromorphic
+  hierarchical), 5d (Tool-MAD), 5e (GSAR typed grounding), 5f (KEA
+  KG-grounding), 6 (faithfulness fusion), 6b (MAD-Fact), 6c (process
+  reward), 6d (probabilistic certainty), 6e (DoublyCal). None surfaced
+  as friction across 4 v2.2 dogfoods + consumer:guides sprint.
+- SROM 4-tuple atomic structure (v2.2 backlog Item 1 v2.3 follow-on).
+- `/research-gather Phase 4b` synthesis producer (synthesis_entry stays
+  hand-authored in v2.3; v2.4 candidate after 2-3 syntheses validate
+  the hand-authored UX).
+- research-kb integration Path 5 (retrieval convergence) — belongs in
+  the kb repo, not the toolkit.
+
+### v2.3.0 → next
+
+v2.3.0 settles into "use" posture. The next design cycle is unplanned;
+the candidate list above documents what to consider when one is
+scheduled. v2.4 candidates (per Phase 2 Commit 3 decision):
+- `/research-gather Phase 4b` synthesis producer (once hand-authored
+  synthesis_entry UX validates across 2-3 real syntheses).
+- PDF re-extraction integration in `/research-gather --cache-pdfs`
+  (auto-detect raw_only entries on re-runs).
+
+---
+
+## v2.3.0 Phase 2 Commit 4: Group B docs + version bump — shipped 2026-05-23
+
+**Theme**: BURN_IN Phase 5 Tier-2 doc + dashboard candidates that earned
+promotion via repeated dogfood patterns. Smallest commit by LOC; closes
+out Phase 2.
+
+### Design
+
+**B1 — Survey-paper escalation cheatsheet**: appended to
+`references/citation_rules.md` with the 4 canonical reasons surfaced
+across v2.2 dogfood Phases 2-4 + consumer:guides sprint (survey of what
+we already have / borderline scope / vendor marketing / login-gated).
+Cross-linked from `templates/research_plan.template.md` Out-of-scope
+section.
+
+**B2 — Atomic-decomposition migration note**: appended to the v2.2
+"Atomic claim IDs" section in `references/strict_live_v2.md`. Clarifies
+that v2.1 → v2.2 migration produces 1 atom per source (not multi-atom);
+true multi-atom decomposition emerges only from fresh `/agent-index`
+Phase 2c generation against a multi-atom pre_selection_manifest. This
+pattern held across all 4 v2.2 dogfood phases — surfaced as documentation
+debt in Phase 5 BURN_IN.
+
+**B3 — Dashboard corroboration small-N suppression**: at N<6 atoms,
+`build_dashboard.py` now annotates "(corpus too small for synthesis
+metric — needs ≥6 atoms)" instead of emitting the raw percentage (which
+was misread as "broken" in Phase 2/3 dogfoods with 0/3 and 0/4 ratios).
+N≥6 behavior unchanged.
+
+### Modified surfaces
+
+- `references/citation_rules.md` — new "Escalation reason cheatsheet"
+  section with 4-row table.
+- `templates/research_plan.template.md` — cross-link in Out-of-scope.
+- `references/strict_live_v2.md` — Atomic claim IDs section gains a
+  "Migration vs fresh generation" paragraph.
+- `scripts/build_dashboard.py` — small-N guard around the corroboration
+  percentage line.
+- `pyproject.toml` — version 2.2.1 → 2.3.0.
+- `scripts/cache_source.py` — UA strings bumped to 2.3.0.
+- `tests/test_v2_strict_live.py` — +2 dedicated B3 tests
+  (`test_v23_b3_corroboration_annotated_at_small_n` +
+  `test_v23_b3_corroboration_percentage_at_n6plus`) + updated existing
+  atomic-fixture test assertion to expect the new annotated form.
+
+### End-state metrics
+
+- 287 passed + 2 xfailed (was 285 + 2 after Commit 3).
+- v2-smoke + freshness audit-strict green.
+- Local tag `v2.3.0` created. User pushes when ready.
+
+### Phase 2 Commit 4 conclusion
+
+v2.3.0 ships complete. Consumer:guides issues #10/#11/#12/#13/#14 all
+closed. Tier-2 backlog items 2 + connector promoted to working
+infrastructure. Group B docs lock in the patterns from v2.2 dogfood that
+were documentation debt. The toolkit returns to USE posture.
+
+---
+
 ## v2.3.0 Phase 2 Commit 3: cross-source corroboration + synthesis_entry wire-up — shipped 2026-05-23
 
 **Theme**: Tier-2 promotions from `references/v2_2_design_backlog.md` Item 2

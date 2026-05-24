@@ -149,6 +149,26 @@ every cited claim_id has a matching atom selection in
 `pre_selection_manifest.yml`. Validators reject bullets that cite
 spans outside the pre-selection commitment.
 
+## Escalation reason cheatsheet (v2.3+)
+
+When `/research-gather` Phase 2 fetches a source, the `gather_trace.yml`
+record sets `decision` to one of `accept` / `reject` / `escalate_to_manual`.
+The escalate-to-manual path is for sources that are real and accessible
+but don't cleanly fit the current dossier. Use the following canonical
+reasons so future authors recognize the pattern:
+
+| Reason | When to use | Disposition |
+|---|---|---|
+| `survey of what we already have` | A survey / review paper covers the same primary sources you've already cited individually. Adds breadth-of-citation but no new mechanism. | Escalate; the human decides whether to cite as a secondary corroboration or skip entirely. |
+| `borderline scope` | Real source, technically relevant, but its claim_family is closer to a sibling dossier (e.g., a security-of-RAG paper showing up during a search for evaluation methodology). | Escalate; consider whether to move to the sibling dossier or drop. |
+| `vendor marketing` | Vendor blog / press release with no methodology, no benchmarks, no reproducible artifacts. | Reject. The mention is interesting; the citation isn't load-bearing. |
+| `login-gated / paywalled` | Real source but you can't access it without authentication beyond what the toolkit's cache can handle. | Escalate; the human can decide to obtain access or find an open mirror. Set `rights_status: restricted` if cached via authenticated access. |
+
+These four cover ~80% of `escalate_to_manual` cases observed across the
+v2.2 dogfood arc (Phases 2-4) and the consumer:guides experimentation
+sprint. New patterns surfaced by future dogfoods should be appended here
+rather than reinvented.
+
 ## Verbatim title rendering
 
 In dossier tables, render titles **exactly as they appear in the primary source**, including:

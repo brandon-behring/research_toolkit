@@ -242,11 +242,23 @@ def build(project_dir: Path, today: date) -> str:
                     1 for urls in claim_source_urls.values() if len(urls) >= 2
                 )
                 total_claims_for_corr = len(claim_source_urls)
-                corr_pct = round(100 * corroborated / total_claims_for_corr)
-                claim_health_lines.append(
-                    f"- corroborated (≥2 independent sources): "
-                    f"{corroborated}/{total_claims_for_corr} ({corr_pct}%)"
-                )
+                # v2.3 B3: small-N suppression. At fewer than 6 atoms,
+                # corroboration percentages are dominated by noise — the
+                # Phase 5 dogfood arc showed 0/3 and 0/4 ratios reading
+                # as "broken" rather than "small corpus." Annotate explicitly
+                # instead of suppressing entirely.
+                if total_claims_for_corr < 6:
+                    claim_health_lines.append(
+                        f"- corroborated (≥2 independent sources): "
+                        f"{corroborated}/{total_claims_for_corr} "
+                        f"(corpus too small for synthesis metric — needs ≥6 atoms)"
+                    )
+                else:
+                    corr_pct = round(100 * corroborated / total_claims_for_corr)
+                    claim_health_lines.append(
+                        f"- corroborated (≥2 independent sources): "
+                        f"{corroborated}/{total_claims_for_corr} ({corr_pct}%)"
+                    )
                 # v2.3 C1 (backlog Item 2): per-claim corroboration list.
                 # Surface the top-corroborated claims (count >= 2) so reviewers
                 # can spot the synthesis nuclei without grepping claim_graph.jsonl.

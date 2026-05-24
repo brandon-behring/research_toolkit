@@ -384,7 +384,7 @@ def _fetch(
     Returns (status_code, body_bytes, content_type, etag, last_modified).
     On a 304 Not Modified response, body_bytes is empty.
     """
-    headers = {"User-Agent": "research_toolkit/2.1 strict-live cache"}
+    headers = {"User-Agent": "research_toolkit/2.3.0 strict-live cache"}
     if if_etag:
         headers["If-None-Match"] = if_etag
     if if_last_modified:
@@ -443,7 +443,7 @@ def _fetch_via_playwright(source_url: str) -> tuple[int, bytes, str, str | None,
         browser = p.chromium.launch(headless=True)
         try:
             context = browser.new_context(
-                user_agent="research_toolkit/2.2.1 strict-live cache (Playwright)"
+                user_agent="research_toolkit/2.3.0 strict-live cache (Playwright)"
             )
             page = context.new_page()
             response = page.goto(source_url, wait_until="domcontentloaded", timeout=30_000)
