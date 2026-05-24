@@ -531,7 +531,7 @@ def synthesize(
     return exit_code, manifest
 
 
-def _cli(argv: list[str]) -> int:
+def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="dataset-synthesize",
         description=(
@@ -615,4 +615,4 @@ def _cli(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(_cli(sys.argv[1:]))
+    sys.exit(main(sys.argv[1:]))

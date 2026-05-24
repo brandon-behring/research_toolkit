@@ -1,8 +1,22 @@
-# Recipe schema for /dataset-synthesize (closes
-# brandon-behring/research_toolkit#1).
+# Recipe template for /dataset-synthesize
 #
-# See scripts/dataset_synthesize.py and .claude/skills/dataset-synthesize.md
-# for the full spec. Validated by validate_recipe() in the skill script.
+# Purpose: declarative recipe driving prompt-cached synthetic dataset
+# generation via Anthropic Claude. One recipe → one synthesis run →
+# JSONL output + manifest. Multiple templates per recipe; each template
+# generates target_count samples with cached system + few_shot.
+#
+# Maintainer: /dataset-synthesize skill (scripts/dataset_synthesize.py
+# implements; .claude/skills/dataset-synthesize.md documents).
+#
+# Validator: validate_recipe() in scripts/dataset_synthesize.py. Run
+# `--validate-only` flag before incurring API spend.
+#
+# Required fields per top-level: model, templates (non-empty list).
+# Required fields per template: id, system, user_prompt, target_count.
+# Optional per template: few_shot, metadata.
+# Optional top-level: defaults (temperature, max_tokens, batch_size).
+#
+# Closes: brandon-behring/research_toolkit#1.
 
 # Anthropic model identifier. Must be a key in PRICING_PER_MTOK.
 # Recommended: claude-sonnet-4-7 for cost/quality balance.

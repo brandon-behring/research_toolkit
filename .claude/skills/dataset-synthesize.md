@@ -1,133 +1,122 @@
 ---
 name: dataset-synthesize
-description: Generate synthetic samples via Anthropic Claude with prompt caching. Takes a recipe YAML (multi-template, each with cached system + few-shot + per-call user prompt + target count) and writes JSONL output + a manifest with per-template counts + cost + cache-hit metrics. Cost-bounded via --bail-at-cost (writes partial manifest + exits 2 on threshold trip). Idempotent re-runs resume from existing JSONL.
+description: Generate synthetic datasets via Anthropic Claude with multi-template prompt caching and a cost-bounded escape hatch. Use when constructing training corpora, eval sets, or red-team carrier sets across multiple template patterns.
 allowed-tools: Read, Write, Edit, Bash
 ---
 
 # dataset-synthesize
 
-Generates synthetic datasets via Anthropic Claude with prompt caching as
-the load-bearing primitive. Use when you need to construct a synthetic
-training corpus, evaluation set, or red-team carrier set across multiple
-templated patterns where each template's system prompt + few-shot
-examples should be cached once and reused across many generations.
+## Usage
+
+```bash
+python3 ~/Claude/research_toolkit/scripts/dataset_synthesize.py \
+    --recipe <path-to-recipe.yaml> \
+    --output <output-dir>/ \
+    --bail-at-cost 80.00
+```
+
+`--validate-only` parses + validates the recipe without calling the
+API. Errors written to stderr; exit code 1 on any validation error.
 
 ## When to use
 
 - Building a synthetic training corpus across 5-20 template families.
 - Generating evaluation sets where each template covers a distinct
-  pattern + you want per-template count control.
+  pattern + per-template count control is required.
 - Red-team carrier construction (per ADR-041-style ETHICS norm: only
-  use documented attack vectors; this skill is a tool, not a policy
-  layer — the recipe author is responsible for content discipline).
+  documented attack vectors; the recipe author is responsible for
+  content discipline).
+- NOT for: single-template free-form generation (use the Anthropic
+  API directly); cross-provider work (prompt caching is
+  Anthropic-specific); real-time / streaming use cases (this skill
+  is batch-oriented).
 
-## When NOT to use
+## Workflow
 
-- Single-template free-form generation — use the Anthropic API directly.
-- Cross-provider work (OpenAI/Gemini) — prompt caching is
-  Anthropic-specific; cross-provider abstraction defeats the point.
-- Real-time / streaming use cases — this skill is batch-oriented.
+### Phase 1 — Validate the recipe
 
-## Inputs
+Read `~/Claude/research_toolkit/templates/dataset_synthesis_recipe.template.yml`
+for the schema. Construct or edit a recipe YAML; run
+`--validate-only` first to confirm schema before incurring API spend:
 
-- **Recipe YAML** at `--recipe <path>`. See
-  `templates/dataset_synthesis_recipe.template.yml` for the schema.
-- **Output directory** at `--output <dir>` — created if absent.
-- **Bail-at-cost threshold** at `--bail-at-cost <usd>` (default 80.00).
-  REACTIVE (post-call): the first sample always runs; subsequent
-  samples halt once the running total crosses the threshold. For
-  pre-call caps, tighten max_tokens / pick a cheaper model in the
-  recipe.
+```bash
+python3 ~/Claude/research_toolkit/scripts/dataset_synthesize.py \
+    --recipe my_recipe.yaml --output /tmp/_validate --validate-only
+```
 
-## Outputs
+### Phase 2 — Set up API access
 
-`<output>/samples.jsonl` — one row per sample::
+`ANTHROPIC_API_KEY` env var must be set. The skill requires the
+`anthropic` Python SDK (optional dep: `pip install
+'research_toolkit[synthesis]'`); `--validate-only` works without it.
 
-    {"id": "sample_<uuid12>", "template_id": "...", "content": "...",
-     "model": "...", "metadata": {...}, "usage": {...},
-     "cost_usd": 0.00X, "timestamp": "..."}
+### Phase 3 — Run synthesis with cost cap
 
-`<output>/manifest.json` — aggregate counts + cost + cache hit metrics
-+ per-template breakdown.
+```bash
+python3 ~/Claude/research_toolkit/scripts/dataset_synthesize.py \
+    --recipe my_recipe.yaml \
+    --output data/synthetic/run-1/ \
+    --bail-at-cost 80.00
+```
 
-## Cost bounding
+`--bail-at-cost` is REACTIVE (post-call): the first sample always
+runs; subsequent samples halt once total cost crosses the threshold.
+To cap pre-call, tighten `max_tokens` or pick a cheaper model in the
+recipe.
 
-`--bail-at-cost` is a REACTIVE (post-call) $-cap, NOT proactive. The
-first sample always runs to completion regardless of expected cost.
-After each call, the running total is checked; if it crosses the
-threshold, the loop halts, the partial manifest is written (with
-`bail_fired: true`), and the skill exits with code 2. The next re-run
-resumes from the existing JSONL — samples already produced are not
-regenerated.
+### Phase 4 — Resume after interrupt or API failure
 
-**Implication**: with an expensive model + large max_tokens, the
-first call alone can exceed `--bail-at-cost`. To cap before the
-first call, reduce `max_tokens` or pick a cheaper model in the
-recipe. Pre-call cost estimation is a future enhancement.
+`samples.jsonl` is append-only. On re-run, the skill reads existing
+rows + per-template counts + generates only the remaining shortfall.
+Safe to interrupt + resume.
 
-## Exit codes
+If exit code 3 (API error): inspect `manifest.json`'s `api_error`
+field, address the upstream issue (rate limit, auth, etc.), re-run
+to continue from the JSONL state.
+
+## Templates
+
+- [`dataset_synthesis_recipe.template.yml`](~/Claude/research_toolkit/templates/dataset_synthesis_recipe.template.yml)
+  — recipe schema + field documentation.
+
+## References
+
+- Anthropic prompt caching docs:
+  https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
+- [`scripts/dataset_synthesize.py`](~/Claude/research_toolkit/scripts/dataset_synthesize.py)
+  — implementation reference.
+- [`docs/conventions/skill-spec.md`](~/Claude/research_toolkit/docs/conventions/skill-spec.md)
+  — skill format conventions this file follows.
+
+## Validation
+
+`--validate-only` exits 0 on a valid recipe + 1 on errors.
+For a smoke test against the canonical template:
+
+```bash
+python3 ~/Claude/research_toolkit/scripts/dataset_synthesize.py \
+    --recipe ~/Claude/research_toolkit/templates/dataset_synthesis_recipe.template.yml \
+    --output /tmp/_smoke --validate-only
+```
+
+Exit codes:
 
 - `0` — all templates reached `target_count`
 - `1` — recipe validation error or missing recipe / API key
 - `2` — bail-at-cost tripped; partial manifest written
 - `3` — API call raised an exception; partial manifest written with
-  `api_error` field set; samples up to the failing call are preserved
-  in JSONL (re-run resumes from there)
+  `api_error` field set; samples up to the failing call are
+  preserved in JSONL (re-run resumes from there)
 
-## Recipe schema
+## Output / handoff
 
-```yaml
-model: claude-sonnet-4-7        # required; one of PRICING_PER_MTOK keys
-defaults:                       # optional
-  temperature: 0.9
-  max_tokens: 800
-  batch_size: 1                 # reserved for future multi-sample-per-call
-templates:                      # required, non-empty
-  - id: email-imperative        # unique within recipe
-    system: |                   # cacheable system prompt
-                                # (Anthropic caches by content hash;
-                                # no user-supplied cache key)
-      You are generating ...
-    few_shot:                   # optional; alternating user/assistant
-      - role: user
-        content: "Example input"
-      - role: assistant
-        content: "Example output"
-    user_prompt: |              # per-call prompt (NOT cached)
-      Generate one sample.
-    target_count: 100           # required; positive integer
-    metadata:                   # optional; carried into each output row
-      carrier: email
-      style: imperative
-```
+- Writes: `<output>/samples.jsonl` (one row per sample;
+  `{id, template_id, content, model, metadata, usage, cost_usd, timestamp}`)
+- Writes: `<output>/manifest.json` (aggregate counts + total cost +
+  cache hit rate + per-template breakdown + `orphan_template_ids` +
+  `api_error` if applicable)
+- Consumed by: downstream tooling that ingests JSONL (training data
+  loaders, eval harnesses, dataset publishers). The manifest's
+  sha256 fields anchor reproducibility.
 
-## Validation
-
-`--validate-only` parses + validates the recipe without calling the
-API. Errors written to stderr; exit code 1 on any validation error.
-
-## Idempotency
-
-`samples.jsonl` is append-only. On re-run, the skill reads existing
-rows + per-template counts + only generates the remaining shortfall
-toward each template's `target_count`. Safe to interrupt + resume.
-
-## Anthropic SDK requirement
-
-This skill requires the `anthropic` Python SDK (optional dep:
-`pip install 'research_toolkit[synthesis]'`) plus the
-`ANTHROPIC_API_KEY` env var. `--validate-only` works without the SDK
-installed.
-
-## Closes
-
-brandon-behring/research_toolkit#1.
-
-## Cross-references
-
-- Anthropic prompt caching docs:
-  https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
-- `templates/dataset_synthesis_recipe.template.yml` — full schema +
-  field documentation
-- `scripts/dataset_synthesize.py` — implementation
-- `tests/test_dataset_synthesize.py` — unit tests (no live API calls)
+Closes brandon-behring/research_toolkit#1.
