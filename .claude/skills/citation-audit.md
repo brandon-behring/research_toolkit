@@ -70,13 +70,13 @@ Read `<project_dir>/citation_audit_report.md`. Surface to the user:
 For each substring failure:
 - **sha256_of_span mismatch**: the cached text drifted (the file was
   re-extracted or normalized differently). Re-fetch the source via
-  `scripts/cache_source.py` and recompute the offset + hash.
+  `scripts/cache_source.py --escalate-on-failure` and recompute the offset + hash.
 - **excerpt does not match span**: the excerpt in the evidence entry
   doesn't appear at the declared offset. Either the offset is wrong, or
   the excerpt was paraphrased. Either fix the offset or change
   `extraction_method` to `paraphrase` (and `link_confidence` to ≤0.85).
 - **text_path file does not exist**: the cache blob was deleted. Re-cache
-  via `scripts/cache_source.py`.
+  via `scripts/cache_source.py --escalate-on-failure`.
 
 ### Phase 5: re-run
 

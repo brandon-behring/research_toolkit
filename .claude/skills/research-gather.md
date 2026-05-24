@@ -128,9 +128,11 @@ For strict-live projects you MUST also write these companion artifacts as part o
 1. **`<output_dir>/cache_manifest.yml`** — read `templates/cache_manifest.template.yml`.
    For each reachable source, run:
    ```bash
-   python ~/Claude/research_toolkit/scripts/cache_source.py <url> --topic <topic_slug>
+   python ~/Claude/research_toolkit/scripts/cache_source.py <url> --topic <topic_slug> --escalate-on-failure
    ```
    The script prints a manifest entry; append it to `cache_manifest.yml`. The script writes the raw blob + extracted text + metadata JSON into `~/Claude/research_cache/` (gitignored). Record the returned `cache_id` on the bib_ledger entry's `cache_ids` list.
+
+   **Escalation is default-on**: pass `--escalate-on-failure` on every `cache_source.py` invocation (including the PDF path in Phase 5). It retries via headless Chromium (Playwright) when urllib hits HTTP 403/429 or returns a suspect JS-shell stub — so paywalled / SPA-rendered sources are captured rather than stubbed. Requires `pip install -e ".[dev]" && playwright install chromium`; if Playwright is absent the flag degrades gracefully (403/429 re-raises the HTTP error; suspect content falls back to a `stub` record) with a stderr WARN, so it is safe to pass unconditionally.
 
 2. **`<output_dir>/evidence_ledger.yml`** — read `templates/evidence_ledger.template.yml`.
    For each substantive claim that will appear in downstream synthesis (typically: the paper's headline result, key methodological choice, and any benchmark/scale numbers), create one evidence entry with `evidence_id`, `source_url`, `source_type`, `source_quality` (`primary` / `official` / `secondary` / `user_note`), `verification_method`, and `supports` (claim IDs + field paths). Record the `evidence_id` on the bib_ledger entry's `evidence_ids` list.

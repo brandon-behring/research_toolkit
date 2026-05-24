@@ -384,7 +384,7 @@ def _fetch(
     Returns (status_code, body_bytes, content_type, etag, last_modified).
     On a 304 Not Modified response, body_bytes is empty.
     """
-    headers = {"User-Agent": "research_toolkit/2.4.0 strict-live cache"}
+    headers = {"User-Agent": "research_toolkit/2.4.1 strict-live cache"}
     if if_etag:
         headers["If-None-Match"] = if_etag
     if if_last_modified:
@@ -422,6 +422,17 @@ def _content_is_suspect(raw: bytes, content_type: str) -> tuple[bool, str]:
     return False, ""
 
 
+class PlaywrightUnavailable(RuntimeError):
+    """Playwright escalation was requested but the package isn't installed.
+
+    Callers catch this to degrade gracefully (urllib stub / re-raised HTTP
+    error) instead of failing hard, preserving the "usable without
+    Playwright" contract even when escalation is default-on. Genuine
+    Playwright *runtime* failures (browser launch, navigation timeout) are
+    NOT this type and still propagate as errors.
+    """
+
+
 def _fetch_via_playwright(source_url: str) -> tuple[int, bytes, str, str | None, str | None]:
     """Render with headless Chromium. Lazy-imports playwright so the script
     stays usable without Playwright installed.
@@ -430,11 +441,14 @@ def _fetch_via_playwright(source_url: str) -> tuple[int, bytes, str, str | None,
     content_type, etag, last_modified). etag/last_modified are None
     because Playwright doesn't expose the conditional-GET headers from
     the response cleanly via its high-level API.
+
+    Raises ``PlaywrightUnavailable`` when the package is not installed so
+    callers can degrade gracefully.
     """
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as exc:
-        raise RuntimeError(
+        raise PlaywrightUnavailable(
             "Playwright escalation requested but the 'playwright' package is "
             "not installed. Run: pip install -e \".[dev]\" && playwright install chromium"
         ) from exc
@@ -443,7 +457,7 @@ def _fetch_via_playwright(source_url: str) -> tuple[int, bytes, str, str | None,
         browser = p.chromium.launch(headless=True)
         try:
             context = browser.new_context(
-                user_agent="research_toolkit/2.4.0 strict-live cache (Playwright)"
+                user_agent="research_toolkit/2.4.1 strict-live cache (Playwright)"
             )
             page = context.new_page()
             response = page.goto(source_url, wait_until="domcontentloaded", timeout=30_000)
@@ -509,6 +523,10 @@ def cache_one(
       marker) → retry via Playwright.
     - The resulting capture record carries ``fetch_method: playwright_rendered``
       so audits know JS rendering was needed.
+    - If Playwright is not installed, escalation degrades gracefully (the
+      403/429 case re-raises the original HTTP error; the suspect-content
+      case falls back to a ``stub`` record) with a stderr WARN — so callers
+      may pass this flag by default without requiring Playwright.
 
     v2.3:
     - JS-shell suspect detection now runs even without `escalate_on_failure`;
@@ -527,8 +545,18 @@ def cache_one(
     except HTTPError as exc:
         if escalate_on_failure and exc.code in ESCALATABLE_HTTP_STATUSES:
             escalation_reason = f"urllib HTTP {exc.code}"
-            status, raw, content_type, etag, last_modified = _fetch_via_playwright(source_url)
-            fetch_method = PLAYWRIGHT_FETCH_METHOD
+            try:
+                status, raw, content_type, etag, last_modified = _fetch_via_playwright(source_url)
+                fetch_method = PLAYWRIGHT_FETCH_METHOD
+            except PlaywrightUnavailable as pw_exc:
+                # Default-on escalation must not break installs without
+                # Playwright: degrade to the non-escalated behavior.
+                print(
+                    f"WARN: {source_url} HTTP {exc.code}; Playwright escalation "
+                    f"unavailable ({pw_exc}); degrading to non-escalated behavior",
+                    file=sys.stderr,
+                )
+                raise exc
         else:
             raise
 
@@ -542,8 +570,17 @@ def cache_one(
         if is_suspect:
             if escalate_on_failure:
                 escalation_reason = reason
-                status, raw, content_type, etag, last_modified = _fetch_via_playwright(source_url)
-                fetch_method = PLAYWRIGHT_FETCH_METHOD
+                try:
+                    status, raw, content_type, etag, last_modified = _fetch_via_playwright(source_url)
+                    fetch_method = PLAYWRIGHT_FETCH_METHOD
+                except PlaywrightUnavailable as pw_exc:
+                    # Degrade to the same stub outcome as no-escalation.
+                    print(
+                        f"WARN: {source_url} suspect content ({reason}); Playwright "
+                        f"escalation unavailable ({pw_exc}); degrading to stub",
+                        file=sys.stderr,
+                    )
+                    stub_reason = reason
             else:
                 stub_reason = reason
 

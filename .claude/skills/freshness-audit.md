@@ -52,10 +52,10 @@ Treat every strict failure as a blocker. Stale entries are not “mostly fine”
 For each stale / missing / weak entry:
 - Re-fetch the primary or official source with WebFetch or API access.
 - Cache everything reachable locally using the strict-live cache policy.
-- Prefer `scripts/cache_source.py` for simple public URLs:
+- Prefer `scripts/cache_source.py` for simple public URLs (escalation default-on — Playwright fallback on 403/429/JS-shell stubs; degrades gracefully if Playwright is absent):
 
 ```bash
-python ~/Claude/research_toolkit/scripts/cache_source.py <url> --topic <topic>
+python ~/Claude/research_toolkit/scripts/cache_source.py <url> --topic <topic> --escalate-on-failure
 ```
 
 - Update `cache_manifest.yml` with the new blob paths, hashes, extracted text paths, and metadata paths.

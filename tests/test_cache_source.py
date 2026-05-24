@@ -438,6 +438,60 @@ def test_v221_content_is_suspect_heuristics() -> None:
     assert is_suspect
 
 
+# ----- v2.4.1: graceful degradation when Playwright is unavailable (#18) -----
+# Escalation is default-on at the skill level in v2.4.1, so passing
+# --escalate-on-failure must NOT hard-crash installs that lack Playwright.
+
+
+def test_v241_403_degrades_when_playwright_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """403 + escalate, but Playwright not installed → re-raise the original
+    HTTPError (degrade to non-escalated) with a stderr WARN, not a crash."""
+    from urllib.error import HTTPError
+
+    def fake_urllib(*_a, **_kw):
+        raise HTTPError("https://example.com/sso", 403, "Forbidden", {}, None)
+
+    def raise_unavailable(_u):
+        raise cache_source.PlaywrightUnavailable("playwright not installed")
+
+    monkeypatch.setattr(cache_source, "_fetch", fake_urllib)
+    monkeypatch.setattr(cache_source, "_fetch_via_playwright", raise_unavailable)
+    with pytest.raises(HTTPError):
+        cache_source.cache_one(
+            "https://example.com/sso",
+            cache_root=tmp_path,
+            fetched_at="2026-05-24",
+            topic="test",
+            escalate_on_failure=True,
+        )
+    assert "Playwright escalation" in capsys.readouterr().err
+
+
+def test_v241_suspect_degrades_to_stub_when_playwright_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Suspect content + escalate, but Playwright not installed → fall back to a
+    stub record (same as no-escalation) with a stderr WARN."""
+    short_raw = b"<html><body>Loading</body></html>"  # < 500 chars trips suspect
+
+    def raise_unavailable(_u):
+        raise cache_source.PlaywrightUnavailable("playwright not installed")
+
+    _patch_fetch(monkeypatch, short_raw, "text/html")
+    monkeypatch.setattr(cache_source, "_fetch_via_playwright", raise_unavailable)
+    entry = cache_source.cache_one(
+        "https://example.com/spa",
+        cache_root=tmp_path,
+        fetched_at="2026-05-24",
+        topic="test",
+        escalate_on_failure=True,
+    )
+    assert entry["extraction_status"] == "stub"
+    assert "Playwright escalation" in capsys.readouterr().err
+
+
 # ----- v2.3 A2: PDF extraction cascade (#11) -----
 
 
