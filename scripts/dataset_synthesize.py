@@ -351,7 +351,6 @@ def synthesize(
     recipe: Recipe,
     output_dir: Path,
     bail_at_cost: float,
-    seed: int | None = None,
     client: Any | None = None,
 ) -> tuple[int, dict[str, Any]]:
     """Run the synthesis loop. Returns (exit_code, manifest).
@@ -363,6 +362,11 @@ def synthesize(
           ``api_error`` field; samples up to the failing call are
           preserved in JSONL (re-run resumes from there)
 
+    ``bail_at_cost`` is reactive (post-call): the first sample always
+    runs; subsequent samples halt once the running total crosses the
+    threshold. To cap pre-call, reduce max_tokens / pick a cheaper
+    model in the recipe.
+
     ``client`` is the Anthropic SDK client (or a test double with the same
     interface). If None, instantiated via ``anthropic.Anthropic()``.
     """
@@ -372,6 +376,23 @@ def synthesize(
 
     existing_rows, prior_counts = load_existing_samples(jsonl_path)
     per_template_actual = dict(prior_counts)
+    # Detect orphan rows — JSONL has rows for template_ids NOT in the
+    # current recipe. Surfaces in manifest so user sees the
+    # discrepancy after switching recipes.
+    recipe_template_ids = {t.id for t in recipe.templates}
+    orphan_template_ids = sorted(set(prior_counts) - recipe_template_ids)
+    orphan_row_count = sum(
+        prior_counts[tid] for tid in orphan_template_ids
+    )
+    if orphan_template_ids:
+        print(
+            f"dataset-synthesize: WARNING — samples.jsonl has "
+            f"{orphan_row_count} row(s) for template_id(s) not in current "
+            f"recipe: {orphan_template_ids}. Rows preserved; not counted "
+            f"against per-template targets. Inspect samples.jsonl + "
+            f"clean up if not intended.",
+            file=sys.stderr,
+        )
     per_template_cost = {t.id: 0.0 for t in recipe.templates}
     per_template_input = {t.id: 0 for t in recipe.templates}
     per_template_output = {t.id: 0 for t in recipe.templates}
@@ -482,13 +503,16 @@ def synthesize(
             }
             for t in recipe.templates
         },
-        "total_samples": sum(per_template_actual.values()),
+        "total_samples": sum(
+            per_template_actual.get(t.id, 0) for t in recipe.templates
+        ),
+        "orphan_template_ids": orphan_template_ids,
+        "orphan_row_count": orphan_row_count,
         "total_cost_usd": round(total_cost, 4),
         "cache_hit_rate": round(cache_hit_rate, 4),
         "bail_at_cost": bail_at_cost,
         "bail_fired": bail_fired,
         "api_error": api_error,
-        "seed": seed,
         "started_at": started_at,
         "ended_at": ended_at,
         "output_jsonl_sha256": jsonl_sha,
@@ -529,11 +553,10 @@ def _cli(argv: list[str]) -> int:
         "--bail-at-cost",
         type=float,
         default=80.0,
-        help="Hard $-cap; on threshold trip, write partial manifest + exit 2. "
-        "Default: 80.00.",
-    )
-    parser.add_argument(
-        "--seed", type=int, default=None, help="Optional seed (recorded in manifest)."
+        help="Reactive (post-call) $-cap. The first sample always runs; "
+        "subsequent samples halt once total_cost crosses the threshold "
+        "(write partial manifest + exit 2). To cap pre-call, reduce "
+        "max_tokens or pick a cheaper model in the recipe. Default: 80.00.",
     )
     parser.add_argument(
         "--validate-only",
@@ -578,7 +601,6 @@ def _cli(argv: list[str]) -> int:
         recipe=recipe,
         output_dir=args.output,
         bail_at_cost=args.bail_at_cost,
-        seed=args.seed,
     )
 
     print(

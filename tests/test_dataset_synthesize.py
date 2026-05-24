@@ -471,6 +471,44 @@ def test_synthesize_catches_api_exception_writes_partial_manifest(tmp_path: Path
     assert on_disk["total_samples"] == 2
 
 
+def test_synthesize_detects_orphan_rows_in_manifest(tmp_path: Path) -> None:
+    """If samples.jsonl has rows with template_id NOT in the current
+    recipe, synthesize should: preserve the rows, warn to stderr,
+    and surface orphan_template_ids + orphan_row_count in the manifest."""
+    samples_path = tmp_path / "samples.jsonl"
+    # 3 rows: 2 for current template "t1" + 1 for orphan "tX"
+    samples_path.write_text(
+        json.dumps({"id": "p1", "template_id": "t1", "content": "kept1"}) + "\n"
+        + json.dumps({"id": "p2", "template_id": "t1", "content": "kept2"}) + "\n"
+        + json.dumps({"id": "p3", "template_id": "tX", "content": "orphan"}) + "\n"
+    )
+    recipe = ds.Recipe(
+        model="claude-sonnet-4-7",
+        templates=[
+            ds.Template(id="t1", system="s", user_prompt="g", target_count=2),
+        ],
+        sha256="abc",
+    )
+    # t1 already at target (2 prior rows); no API calls needed.
+    client = _FakeClient(scenarios=[_make_scenario()])
+    exit_code, manifest = ds.synthesize(
+        recipe=recipe,
+        output_dir=tmp_path,
+        bail_at_cost=100.0,
+        client=client,
+    )
+    assert exit_code == 0
+    assert client.messages.call_count == 0  # no work needed
+    assert manifest["orphan_template_ids"] == ["tX"]
+    assert manifest["orphan_row_count"] == 1
+    # total_samples counts only recipe-relevant template_ids (excludes orphan)
+    assert manifest["total_samples"] == 2
+    # samples.jsonl is preserved unchanged (3 rows including orphan)
+    rows = [json.loads(line) for line in samples_path.read_text().strip().split("\n") if line]
+    assert len(rows) == 3
+    assert {r["id"] for r in rows} == {"p1", "p2", "p3"}
+
+
 def test_synthesize_resume_after_api_failure_continues(tmp_path: Path) -> None:
     """After an API failure, re-running with a working client should resume
     from existing JSONL + generate the remaining shortfall."""

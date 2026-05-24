@@ -34,9 +34,10 @@ examples should be cached once and reused across many generations.
   `templates/dataset_synthesis_recipe.template.yml` for the schema.
 - **Output directory** at `--output <dir>` — created if absent.
 - **Bail-at-cost threshold** at `--bail-at-cost <usd>` (default 80.00).
-- **Seed** (optional) at `--seed <int>` — recorded in manifest;
-  determinism depends on the underlying API (temperature > 0 is not
-  fully deterministic).
+  REACTIVE (post-call): the first sample always runs; subsequent
+  samples halt once the running total crosses the threshold. For
+  pre-call caps, tighten max_tokens / pick a cheaper model in the
+  recipe.
 
 ## Outputs
 
@@ -51,11 +52,27 @@ examples should be cached once and reused across many generations.
 
 ## Cost bounding
 
-`--bail-at-cost` is a hard $-cap. If the running total crosses the
-threshold during a generation loop, the in-progress sample completes,
-the partial manifest is written (with `bail_fired: true`), and the
-skill exits with code 2. The next re-run resumes from the existing
-JSONL — samples already produced are not regenerated.
+`--bail-at-cost` is a REACTIVE (post-call) $-cap, NOT proactive. The
+first sample always runs to completion regardless of expected cost.
+After each call, the running total is checked; if it crosses the
+threshold, the loop halts, the partial manifest is written (with
+`bail_fired: true`), and the skill exits with code 2. The next re-run
+resumes from the existing JSONL — samples already produced are not
+regenerated.
+
+**Implication**: with an expensive model + large max_tokens, the
+first call alone can exceed `--bail-at-cost`. To cap before the
+first call, reduce `max_tokens` or pick a cheaper model in the
+recipe. Pre-call cost estimation is a future enhancement.
+
+## Exit codes
+
+- `0` — all templates reached `target_count`
+- `1` — recipe validation error or missing recipe / API key
+- `2` — bail-at-cost tripped; partial manifest written
+- `3` — API call raised an exception; partial manifest written with
+  `api_error` field set; samples up to the failing call are preserved
+  in JSONL (re-run resumes from there)
 
 ## Recipe schema
 
