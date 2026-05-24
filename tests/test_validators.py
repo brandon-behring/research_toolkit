@@ -22,6 +22,7 @@ from validators import (
     bib_ledger,
     cache_manifest,
     dossier,
+    evidence_ledger,
     research_plan,
     url_check_report,
 )
@@ -561,3 +562,134 @@ def test_resolve_cache_path_prefers_cache_root_then_dossier_local(
         absolute, manifest_path=manifest_path, cache_root=str(cache_dir)
     )
     assert resolved == Path(absolute)
+
+
+def test_evidence_ledger_validates_dossier_local_body_anchor_with_cache_root(
+    tmp_path: Path,
+) -> None:
+    """Integration test for #14: evidence_ledger validation with cache_root
+    set + a verbatim_match anchor whose text_path lives DOSSIER-LOCAL.
+
+    Pairs with test_cache_manifest_falls_back_to_manifest_local_for_derived_artifacts
+    above (which exercises the same fallback through cache_manifest validation).
+    This test exercises the SAME fallback through verify_excerpt_anchor (used
+    by evidence_ledger.validate). Both paths share resolve_cache_path under
+    the hood; this test ensures the integration through verify_excerpt_anchor
+    survives any future refactor that drops the cache_root pass-through.
+    """
+    # Shared cache_root (unused by this test's body-anchored entry, but set
+    # to match the real-world mixed-cache scenario).
+    cache_dir = tmp_path / "shared_cache"
+    cache_dir.mkdir()
+
+    # Dossier directory (where the manifest + evidence_ledger live).
+    manifest_dir = tmp_path / "project" / "docs" / "research" / "topic-a"
+    manifest_dir.mkdir(parents=True)
+
+    # Body-quote-anchored text lives DOSSIER-LOCAL per ADR-049 discipline.
+    # The cache_id uses the "cache_body_<bibkey>" convention (non-sha256).
+    body_text_dir = manifest_dir / "cache" / "body_text"
+    body_text_dir.mkdir(parents=True)
+    # Use exact-byte content so we can compute the precise offset + hash.
+    body_text = b"The figure shows 91.2% accuracy on the held-out evaluation set."
+    body_text_path = body_text_dir / "demo_paper.txt"
+    body_text_path.write_bytes(body_text)
+
+    # Extract a verbatim span "91.2% accuracy" + compute its sha256.
+    span_start = body_text.index(b"91.2% accuracy")
+    span_end = span_start + len(b"91.2% accuracy")
+    span_bytes = body_text[span_start:span_end]
+    span_sha = hashlib.sha256(span_bytes).hexdigest()
+
+    # Companion PDF (raw_path target) + metadata (also dossier-local).
+    papers_dir = manifest_dir / "papers"
+    papers_dir.mkdir(parents=True)
+    pdf_bytes = b"%PDF-1.4 stub for body-anchored entry"
+    pdf_path = papers_dir / "demo_paper.pdf"
+    pdf_path.write_bytes(pdf_bytes)
+    body_meta_dir = manifest_dir / "cache" / "body_meta"
+    body_meta_dir.mkdir(parents=True)
+    body_meta_dir.joinpath("demo_paper.json").write_text(
+        json.dumps({"extraction_method": "pdftotext"}), encoding="utf-8"
+    )
+
+    pdf_sha = hashlib.sha256(pdf_bytes).hexdigest()
+    cache_manifest_payload = {
+        "schema_version": 2,
+        "topic": "integration_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "cache_root": str(cache_dir),
+        "entries": [
+            {
+                "cache_id": "cache_body_demo_paper",
+                "source_url": "https://example.com/demo_paper",
+                "fetched_at": "2026-05-23",
+                "content_type": "application/pdf",
+                "bytes": len(pdf_bytes),
+                "sha256": pdf_sha,
+                "raw_path": "papers/demo_paper.pdf",
+                "text_path": "cache/body_text/demo_paper.txt",
+                "metadata_path": "cache/body_meta/demo_paper.json",
+                "restricted": False,
+                "rights_status": "private_use",
+                "extraction_status": "ok",
+            }
+        ],
+    }
+    (manifest_dir / "cache_manifest.yml").write_text(
+        yaml.safe_dump(cache_manifest_payload, sort_keys=False), encoding="utf-8"
+    )
+
+    evidence_payload = {
+        "schema_version": 3,
+        "topic": "integration_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "entries": [
+            {
+                "evidence_id": "ev_integration_test_0001",
+                "source_url": "https://example.com/demo_paper",
+                "source_type": "paper",
+                "source_quality": "primary",
+                "retrieved_at": "2026-05-23",
+                "verification_method": "pdf",
+                "verified_at": "2026-05-23",
+                "verified_fields": ["source_url"],
+                "freshness_tier": "stable",
+                "stale_after_days": 365,
+                "cache_ids": ["cache_body_demo_paper"],
+                "evidence_ids": [],
+                "supports": [
+                    {
+                        "claim_id": "claim_integration_test_accuracy",
+                        "field_path": "bib_ledger.entries[0].title",
+                        "evidence_role": "supports",
+                        "evidence_role_strength": "full",
+                        "extraction_method": "verbatim_match",
+                        "link_confidence": 0.95,
+                        "excerpt_anchor": {
+                            "cache_id": "cache_body_demo_paper",
+                            "text_path_offset": [span_start, span_end],
+                            "sha256_of_span": span_sha,
+                        },
+                    }
+                ],
+                "excerpt": "91.2% accuracy",
+                "rights_status": "private_use",
+            }
+        ],
+    }
+    evidence_path = manifest_dir / "evidence_ledger.yml"
+    evidence_path.write_text(
+        yaml.safe_dump(evidence_payload, sort_keys=False), encoding="utf-8"
+    )
+
+    # Pre-fix behavior: would fail with "text_path file does not exist" because
+    # resolve_cache_path would only try cache_root.
+    # Post-fix: falls back to manifest_path.parent → finds the dossier-local
+    # body_text file → passes substring + hash check.
+    errors = evidence_ledger.validate(evidence_path)
+    assert errors == [], errors
