@@ -99,7 +99,6 @@ CACHE_WRITE_PREMIUM = 1.25
 @dataclass
 class Template:
     id: str
-    cache_key: str
     system: str
     user_prompt: str
     target_count: int
@@ -155,7 +154,6 @@ def validate_recipe(data: dict[str, Any]) -> tuple[Recipe | None, list[str]]:
 
     templates: list[Template] = []
     seen_ids: set[str] = set()
-    seen_cache_keys: set[str] = set()
     for idx, t in enumerate(templates_raw):
         loc = f"templates[{idx}]"
         if not isinstance(t, dict):
@@ -169,19 +167,12 @@ def validate_recipe(data: dict[str, Any]) -> tuple[Recipe | None, list[str]]:
             errors.append(f"{loc}.id: duplicate id {tid!r}")
         seen_ids.add(tid)
 
-        cache_key = t.get("cache_key", tid)
-        if not isinstance(cache_key, str) or not cache_key.strip():
-            errors.append(f"{loc}.cache_key: must be a non-empty string")
-        if cache_key in seen_cache_keys:
-            errors.append(f"{loc}.cache_key: duplicate cache_key {cache_key!r}")
-        seen_cache_keys.add(cache_key)
-
         system = t.get("system")
         if not isinstance(system, str) or not system.strip():
             errors.append(f"{loc}.system: must be a non-empty string")
             system = ""
 
-        user_prompt = t.get("user_prompt") or t.get("prompt")
+        user_prompt = t.get("user_prompt")
         if not isinstance(user_prompt, str) or not user_prompt.strip():
             errors.append(f"{loc}.user_prompt: must be a non-empty string")
             user_prompt = ""
@@ -218,7 +209,6 @@ def validate_recipe(data: dict[str, Any]) -> tuple[Recipe | None, list[str]]:
         templates.append(
             Template(
                 id=tid,
-                cache_key=cache_key,
                 system=system,
                 user_prompt=user_prompt,
                 target_count=target_count,
@@ -369,6 +359,9 @@ def synthesize(
     Exit codes:
       0 — all templates reached target_count
       2 — bail-at-cost tripped; partial manifest written
+      3 — API call raised an exception; partial manifest written with
+          ``api_error`` field; samples up to the failing call are
+          preserved in JSONL (re-run resumes from there)
 
     ``client`` is the Anthropic SDK client (or a test double with the same
     interface). If None, instantiated via ``anthropic.Anthropic()``.
@@ -387,6 +380,7 @@ def synthesize(
 
     total_cost = 0.0
     bail_fired = False
+    api_error: str | None = None
     started_at = datetime.now(timezone.utc).isoformat()
 
     # Lazy-init Anthropic client only if we need to call the API.
@@ -412,15 +406,26 @@ def synthesize(
                 if total_cost >= bail_at_cost:
                     bail_fired = True
                     break
-                # Defensive: any API failure raises; caller catches + logs +
-                # writes partial manifest below.
-                response = client.messages.create(
-                    model=recipe.model,
-                    system=system_blocks,
-                    messages=messages,
-                    max_tokens=recipe.max_tokens,
-                    temperature=recipe.temperature,
-                )
+                # API failures (network, rate limits, auth errors, etc.) are
+                # caught + persisted in the manifest as `api_error` so the
+                # partial state is recoverable. Re-runs resume from existing
+                # JSONL rows.
+                try:
+                    response = client.messages.create(
+                        model=recipe.model,
+                        system=system_blocks,
+                        messages=messages,
+                        max_tokens=recipe.max_tokens,
+                        temperature=recipe.temperature,
+                    )
+                except Exception as exc:
+                    api_error = f"{type(exc).__name__}: {exc}"
+                    print(
+                        f"dataset-synthesize: API error during template "
+                        f"{template.id!r}: {api_error}",
+                        file=sys.stderr,
+                    )
+                    break
                 text = _extract_text(response)
                 usage = _extract_usage(response)
                 cost = compute_call_cost(recipe.model, **usage)
@@ -443,7 +448,7 @@ def synthesize(
                 per_template_cache_read[template.id] += usage["cache_read_tokens"]
                 per_template_cache_write[template.id] += usage["cache_creation_tokens"]
                 total_cost += cost
-            if bail_fired:
+            if bail_fired or api_error is not None:
                 break
 
     ended_at = datetime.now(timezone.utc).isoformat()
@@ -482,6 +487,7 @@ def synthesize(
         "cache_hit_rate": round(cache_hit_rate, 4),
         "bail_at_cost": bail_at_cost,
         "bail_fired": bail_fired,
+        "api_error": api_error,
         "seed": seed,
         "started_at": started_at,
         "ended_at": ended_at,
@@ -492,7 +498,12 @@ def synthesize(
         encoding="utf-8",
     )
 
-    exit_code = 2 if bail_fired else 0
+    if api_error is not None:
+        exit_code = 3
+    elif bail_fired:
+        exit_code = 2
+    else:
+        exit_code = 0
     return exit_code, manifest
 
 

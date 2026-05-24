@@ -18,9 +18,10 @@ defaults:
 # At least one template required. Each template generates target_count
 # samples; the system prompt + few_shot are cached (Anthropic prompt
 # caching) so subsequent calls within the same template hit the cache.
+# Anthropic's cache key is content-addressed (computed from system +
+# few_shot content automatically); consumers do not pass a cache key.
 templates:
   - id: example-template            # unique within recipe
-    cache_key: example-template-v1  # unique; used in Anthropic cache key
     system: |
       You are a domain expert assistant. Generate realistic samples
       matching the pattern below. Output ONLY the sample content — no
@@ -53,9 +54,8 @@ templates:
 
 # Optional second template (delete if single-template):
 #  - id: another-template
-#    cache_key: another-v1
 #    system: |
-#      [different system prompt — gets its own cache key]
+#      [different system prompt — Anthropic caches per content hash]
 #    user_prompt: |
 #      Generate one sample.
 #    target_count: 50

@@ -85,7 +85,6 @@ def _minimal_recipe_dict() -> dict[str, Any]:
         "templates": [
             {
                 "id": "t1",
-                "cache_key": "t1-v1",
                 "system": "You are a generator.",
                 "user_prompt": "Generate one sample.",
                 "target_count": 3,
@@ -117,14 +116,6 @@ def test_validate_recipe_rejects_duplicate_template_id() -> None:
     recipe, errors = ds.validate_recipe(data)
     assert recipe is None
     assert any("duplicate id" in e for e in errors)
-
-
-def test_validate_recipe_rejects_duplicate_cache_key() -> None:
-    data = _minimal_recipe_dict()
-    data["templates"].append({**data["templates"][0], "id": "t2"})
-    recipe, errors = ds.validate_recipe(data)
-    assert recipe is None
-    assert any("duplicate cache_key" in e for e in errors)
 
 
 def test_validate_recipe_rejects_zero_target_count() -> None:
@@ -203,7 +194,6 @@ def test_compute_call_cost_unknown_model_zero() -> None:
 def test_build_messages_system_block_has_cache_control() -> None:
     template = ds.Template(
         id="t1",
-        cache_key="t1-v1",
         system="You are a generator.",
         user_prompt="Go.",
         target_count=1,
@@ -221,7 +211,6 @@ def test_build_messages_system_block_has_cache_control() -> None:
 def test_build_messages_few_shot_only_last_has_cache_control() -> None:
     template = ds.Template(
         id="t1",
-        cache_key="t1-v1",
         system="System.",
         user_prompt="Go.",
         target_count=1,
@@ -252,8 +241,7 @@ def test_synthesize_happy_path_3_samples(tmp_path: Path) -> None:
         templates=[
             ds.Template(
                 id="t1",
-                cache_key="t1-v1",
-                system="sys",
+                        system="sys",
                 user_prompt="gen",
                 target_count=3,
                 metadata={"domain": "test"},
@@ -298,8 +286,7 @@ def test_synthesize_bail_at_cost_fires(tmp_path: Path) -> None:
         templates=[
             ds.Template(
                 id="t1",
-                cache_key="t1-v1",
-                system="sys",
+                        system="sys",
                 user_prompt="gen",
                 target_count=100,
             )
@@ -342,8 +329,7 @@ def test_synthesize_resumes_from_existing_jsonl(tmp_path: Path) -> None:
         templates=[
             ds.Template(
                 id="t1",
-                cache_key="t1-v1",
-                system="sys",
+                        system="sys",
                 user_prompt="gen",
                 target_count=3,
             )
@@ -369,8 +355,8 @@ def test_synthesize_per_template_metrics_aggregate_correctly(tmp_path: Path) -> 
     recipe = ds.Recipe(
         model="claude-sonnet-4-7",
         templates=[
-            ds.Template(id="t1", cache_key="k1", system="s1", user_prompt="g1", target_count=2),
-            ds.Template(id="t2", cache_key="k2", system="s2", user_prompt="g2", target_count=1),
+            ds.Template(id="t1", system="s1", user_prompt="g1", target_count=2),
+            ds.Template(id="t2", system="s2", user_prompt="g2", target_count=1),
         ],
         sha256="abc",
     )
@@ -406,3 +392,120 @@ def test_recipe_sha256_is_deterministic(tmp_path: Path) -> None:
     sha_2 = ds.recipe_sha256(recipe_path)
     assert sha_1 == sha_2
     assert len(sha_1) == 64
+
+
+# ---------- API exception handling (PR #16 review feedback) ----------
+
+
+class _FailingMessages:
+    """Test-double messages that raises on the Nth call."""
+
+    def __init__(self, fail_at: int, exc: Exception, scenarios: list[_FakeMessage]) -> None:
+        self.fail_at = fail_at
+        self.exc = exc
+        self.scenarios = scenarios
+        self.call_count = 0
+
+    def create(self, **kwargs: Any) -> _FakeMessage:
+        if self.call_count == self.fail_at:
+            self.call_count += 1
+            raise self.exc
+        msg = self.scenarios[min(self.call_count, len(self.scenarios) - 1)]
+        self.call_count += 1
+        return msg
+
+
+class _FailingClient:
+    def __init__(self, fail_at: int, exc: Exception, scenarios: list[_FakeMessage]) -> None:
+        self.messages = _FailingMessages(fail_at, exc, scenarios)
+
+
+def test_synthesize_catches_api_exception_writes_partial_manifest(tmp_path: Path) -> None:
+    """API failure mid-loop: should write partial manifest with api_error
+    field set; samples up to the failing call are persisted; exit code 3."""
+    recipe = ds.Recipe(
+        model="claude-sonnet-4-7",
+        templates=[
+            ds.Template(
+                id="t1",
+                system="sys",
+                user_prompt="gen",
+                target_count=5,
+            )
+        ],
+        sha256="abc",
+    )
+    # Fail on the 3rd call (0-indexed: index 2). Samples 1 + 2 should land.
+    client = _FailingClient(
+        fail_at=2,
+        exc=RuntimeError("simulated rate limit"),
+        scenarios=[
+            _make_scenario(text="s1", input_tokens=10, output_tokens=20),
+            _make_scenario(text="s2", input_tokens=10, output_tokens=20),
+        ],
+    )
+    exit_code, manifest = ds.synthesize(
+        recipe=recipe,
+        output_dir=tmp_path,
+        bail_at_cost=100.0,
+        client=client,
+    )
+    assert exit_code == 3
+    assert manifest["bail_fired"] is False
+    assert manifest["api_error"] is not None
+    assert "RuntimeError" in manifest["api_error"]
+    assert "simulated rate limit" in manifest["api_error"]
+    assert manifest["total_samples"] == 2  # 2 samples landed before failure
+    assert manifest["templates"]["t1"]["actual"] == 2
+
+    # samples.jsonl has 2 rows
+    samples_path = tmp_path / "samples.jsonl"
+    rows = [json.loads(line) for line in samples_path.read_text().strip().split("\n") if line]
+    assert len(rows) == 2
+
+    # manifest.json was written despite exception
+    manifest_path = tmp_path / "manifest.json"
+    assert manifest_path.exists()
+    on_disk = json.loads(manifest_path.read_text())
+    assert on_disk["api_error"] is not None
+    assert on_disk["total_samples"] == 2
+
+
+def test_synthesize_resume_after_api_failure_continues(tmp_path: Path) -> None:
+    """After an API failure, re-running with a working client should resume
+    from existing JSONL + generate the remaining shortfall."""
+    # Pre-seed samples.jsonl with 2 rows (simulating prior failed run).
+    samples_path = tmp_path / "samples.jsonl"
+    samples_path.write_text(
+        json.dumps({"id": "p1", "template_id": "t1", "content": "prior1"}) + "\n"
+        + json.dumps({"id": "p2", "template_id": "t1", "content": "prior2"}) + "\n"
+    )
+    recipe = ds.Recipe(
+        model="claude-sonnet-4-7",
+        templates=[
+            ds.Template(
+                id="t1",
+                system="sys",
+                user_prompt="gen",
+                target_count=4,
+            )
+        ],
+        sha256="abc",
+    )
+    # Working client; should make 2 more calls (4 target - 2 prior).
+    client = _FakeClient(
+        scenarios=[
+            _make_scenario(text="s3", input_tokens=10, output_tokens=20),
+            _make_scenario(text="s4", input_tokens=10, output_tokens=20),
+        ]
+    )
+    exit_code, manifest = ds.synthesize(
+        recipe=recipe,
+        output_dir=tmp_path,
+        bail_at_cost=100.0,
+        client=client,
+    )
+    assert exit_code == 0
+    assert client.messages.call_count == 2
+    assert manifest["api_error"] is None
+    assert manifest["templates"]["t1"]["actual"] == 4

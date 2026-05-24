@@ -67,8 +67,9 @@ defaults:                       # optional
   batch_size: 1                 # reserved for future multi-sample-per-call
 templates:                      # required, non-empty
   - id: email-imperative        # unique within recipe
-    cache_key: email-imp-v1     # unique; appears in Anthropic cache key
     system: |                   # cacheable system prompt
+                                # (Anthropic caches by content hash;
+                                # no user-supplied cache key)
       You are generating ...
     few_shot:                   # optional; alternating user/assistant
       - role: user
