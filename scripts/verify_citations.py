@@ -49,10 +49,16 @@ def audit(project_dir: Path) -> dict[str, Any]:
 
     mdata, _ = load_yaml_mapping(manifest_path)
     cache_entries_by_id: dict[str, Any] = {}
+    cache_root_value: str | None = None
     if mdata is not None:
         for e in (mdata.get("entries") or []):
             if isinstance(e, dict) and isinstance(e.get("cache_id"), str):
                 cache_entries_by_id[e["cache_id"]] = e
+        # v2.3+: honor cache_root for portable manifests + mixed-cache-location
+        # dossiers (per ADR-049 body-quote anchoring discipline). Same pattern
+        # as validators/evidence_ledger.py.
+        if isinstance(mdata.get("cache_root"), str):
+            cache_root_value = mdata["cache_root"]
 
     is_v3 = is_v3_mapping(edata)
 
@@ -97,6 +103,7 @@ def audit(project_dir: Path) -> dict[str, Any]:
                     sha256_of_span=anchor.get("sha256_of_span", ""),
                     cache_entries_by_id=cache_entries_by_id,
                     manifest_path=manifest_path,
+                    cache_root=cache_root_value,
                     loc=f"{entry.get('evidence_id', '?')}.supports[?]",
                 )
                 if not anchor_errs:

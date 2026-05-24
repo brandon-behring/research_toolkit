@@ -22,6 +22,7 @@ from validators import (
     bib_ledger,
     cache_manifest,
     dossier,
+    evidence_ledger,
     research_plan,
     url_check_report,
 )
@@ -431,3 +432,264 @@ def test_cache_manifest_rejects_tilde_path(tmp_path: Path) -> None:
 
     errors = cache_manifest.validate(manifest)
     assert any("portable" in e and "text_path" in e for e in errors), errors
+
+
+# ---------- mixed-cache-location dossiers (v2.3.x / #14) ----------
+
+
+def test_cache_manifest_falls_back_to_manifest_local_for_derived_artifacts(
+    tmp_path: Path,
+) -> None:
+    """v2.3.x #14: when cache_root is set, fall back to manifest_path.parent
+    for entries whose files live dossier-local (derived artifacts per
+    ADR-049 body-quote anchoring discipline).
+
+    Mixed-cache scenario:
+    - Primary cache entries (sha256-keyed PDFs/HTML) live in cache_root
+    - Derived per-bibkey artifacts (pdftotext body_text + body_meta) live
+      under <manifest_dir>/cache/body_text/<bibkey>.txt
+    Both should validate cleanly under v2.3.x.
+    """
+    cache_dir = tmp_path / "shared_cache"
+    cache_dir.mkdir()
+
+    # Primary entry: lives in cache_root
+    primary_entry = _scaffold_cache(cache_dir, b"<html>primary content</html>")
+
+    # Derived entry: pdftotext output lives DOSSIER-LOCAL, not in cache_root.
+    # This mirrors the ADR-049 body-quote anchoring pattern.
+    manifest_dir = tmp_path / "project" / "docs" / "research" / "topic-a"
+    manifest_dir.mkdir(parents=True)
+    body_text_dir = manifest_dir / "cache" / "body_text"
+    body_text_dir.mkdir(parents=True)
+    body_text_dir.joinpath("debenedetti2025camel.txt").write_text(
+        "Sample body-quote anchored extraction from a published paper.\n",
+        encoding="utf-8",
+    )
+    # Also need raw_path + metadata_path to exist somewhere; use dossier-local
+    # for these too (the derived-artifact case).
+    papers_dir = manifest_dir / "papers"
+    papers_dir.mkdir(parents=True)
+    pdf_bytes = b"%PDF-1.4 stub"
+    pdf_path = papers_dir / "debenedetti2025camel.pdf"
+    pdf_path.write_bytes(pdf_bytes)
+    body_meta_dir = manifest_dir / "cache" / "body_meta"
+    body_meta_dir.mkdir(parents=True)
+    body_meta_dir.joinpath("debenedetti2025camel.json").write_text(
+        json.dumps({"extraction_method": "pdftotext"}), encoding="utf-8"
+    )
+
+    pdf_sha = hashlib.sha256(pdf_bytes).hexdigest()
+    derived_entry = {
+        "cache_id": "cache_body_debenedetti2025camel",
+        "source_url": "https://arxiv.org/abs/2503.18813",
+        "fetched_at": "2026-05-23",
+        "content_type": "application/pdf",
+        "bytes": len(pdf_bytes),
+        "sha256": pdf_sha,
+        "raw_path": "papers/debenedetti2025camel.pdf",
+        "text_path": "cache/body_text/debenedetti2025camel.txt",
+        "metadata_path": "cache/body_meta/debenedetti2025camel.json",
+        "restricted": False,
+        "rights_status": "private_use",
+        "extraction_status": "ok",
+    }
+
+    manifest = manifest_dir / "cache_manifest.yml"
+    payload = {
+        "schema_version": 2,
+        "topic": "mixed_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "cache_root": str(cache_dir),
+        "entries": [primary_entry, derived_entry],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    errors = cache_manifest.validate(manifest)
+    assert errors == [], errors
+
+
+def test_resolve_cache_path_prefers_cache_root_then_dossier_local(
+    tmp_path: Path,
+) -> None:
+    """Resolution order for v2.3.x #14:
+    1. cache_root / value (if exists)
+    2. manifest_path.parent / value (if cache_root candidate doesn't exist)
+    3. cache_root / value (for consistent error messages when neither exists)
+    """
+    from validators.v2_common import resolve_cache_path
+
+    cache_dir = tmp_path / "cache_root"
+    cache_dir.mkdir()
+    manifest_dir = tmp_path / "dossier"
+    manifest_dir.mkdir()
+    manifest_path = manifest_dir / "cache_manifest.yml"
+    manifest_path.write_text("# stub\n")
+
+    # Case 1: file in cache_root
+    (cache_dir / "shared.txt").write_text("shared")
+    resolved = resolve_cache_path(
+        "shared.txt", manifest_path=manifest_path, cache_root=str(cache_dir)
+    )
+    assert resolved == (cache_dir / "shared.txt").resolve()
+
+    # Case 2: file dossier-local only (cache_root candidate doesn't exist)
+    (manifest_dir / "local.txt").write_text("local")
+    resolved = resolve_cache_path(
+        "local.txt", manifest_path=manifest_path, cache_root=str(cache_dir)
+    )
+    assert resolved == (manifest_dir / "local.txt").resolve()
+
+    # Case 3: neither exists — return cache_root candidate for consistent
+    # error messages (caller's .exists() check will surface failure)
+    resolved = resolve_cache_path(
+        "missing.txt", manifest_path=manifest_path, cache_root=str(cache_dir)
+    )
+    assert resolved == (cache_dir / "missing.txt").resolve()
+
+    # Case 4: no cache_root — v2.0-v2.2 behavior (manifest-local only)
+    (manifest_dir / "legacy.txt").write_text("legacy")
+    resolved = resolve_cache_path(
+        "legacy.txt", manifest_path=manifest_path, cache_root=None
+    )
+    assert resolved == (manifest_dir / "legacy.txt").resolve()
+
+    # Case 5: absolute path passes through expanduser
+    absolute = str(cache_dir / "shared.txt")
+    resolved = resolve_cache_path(
+        absolute, manifest_path=manifest_path, cache_root=str(cache_dir)
+    )
+    assert resolved == Path(absolute)
+
+
+def test_evidence_ledger_validates_dossier_local_body_anchor_with_cache_root(
+    tmp_path: Path,
+) -> None:
+    """Integration test for #14: evidence_ledger validation with cache_root
+    set + a verbatim_match anchor whose text_path lives DOSSIER-LOCAL.
+
+    Pairs with test_cache_manifest_falls_back_to_manifest_local_for_derived_artifacts
+    above (which exercises the same fallback through cache_manifest validation).
+    This test exercises the SAME fallback through verify_excerpt_anchor (used
+    by evidence_ledger.validate). Both paths share resolve_cache_path under
+    the hood; this test ensures the integration through verify_excerpt_anchor
+    survives any future refactor that drops the cache_root pass-through.
+    """
+    # Shared cache_root (unused by this test's body-anchored entry, but set
+    # to match the real-world mixed-cache scenario).
+    cache_dir = tmp_path / "shared_cache"
+    cache_dir.mkdir()
+
+    # Dossier directory (where the manifest + evidence_ledger live).
+    manifest_dir = tmp_path / "project" / "docs" / "research" / "topic-a"
+    manifest_dir.mkdir(parents=True)
+
+    # Body-quote-anchored text lives DOSSIER-LOCAL per ADR-049 discipline.
+    # The cache_id uses the "cache_body_<bibkey>" convention (non-sha256).
+    body_text_dir = manifest_dir / "cache" / "body_text"
+    body_text_dir.mkdir(parents=True)
+    # Use exact-byte content so we can compute the precise offset + hash.
+    body_text = b"The figure shows 91.2% accuracy on the held-out evaluation set."
+    body_text_path = body_text_dir / "demo_paper.txt"
+    body_text_path.write_bytes(body_text)
+
+    # Extract a verbatim span "91.2% accuracy" + compute its sha256.
+    span_start = body_text.index(b"91.2% accuracy")
+    span_end = span_start + len(b"91.2% accuracy")
+    span_bytes = body_text[span_start:span_end]
+    span_sha = hashlib.sha256(span_bytes).hexdigest()
+
+    # Companion PDF (raw_path target) + metadata (also dossier-local).
+    papers_dir = manifest_dir / "papers"
+    papers_dir.mkdir(parents=True)
+    pdf_bytes = b"%PDF-1.4 stub for body-anchored entry"
+    pdf_path = papers_dir / "demo_paper.pdf"
+    pdf_path.write_bytes(pdf_bytes)
+    body_meta_dir = manifest_dir / "cache" / "body_meta"
+    body_meta_dir.mkdir(parents=True)
+    body_meta_dir.joinpath("demo_paper.json").write_text(
+        json.dumps({"extraction_method": "pdftotext"}), encoding="utf-8"
+    )
+
+    pdf_sha = hashlib.sha256(pdf_bytes).hexdigest()
+    cache_manifest_payload = {
+        "schema_version": 2,
+        "topic": "integration_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "cache_root": str(cache_dir),
+        "entries": [
+            {
+                "cache_id": "cache_body_demo_paper",
+                "source_url": "https://example.com/demo_paper",
+                "fetched_at": "2026-05-23",
+                "content_type": "application/pdf",
+                "bytes": len(pdf_bytes),
+                "sha256": pdf_sha,
+                "raw_path": "papers/demo_paper.pdf",
+                "text_path": "cache/body_text/demo_paper.txt",
+                "metadata_path": "cache/body_meta/demo_paper.json",
+                "restricted": False,
+                "rights_status": "private_use",
+                "extraction_status": "ok",
+            }
+        ],
+    }
+    (manifest_dir / "cache_manifest.yml").write_text(
+        yaml.safe_dump(cache_manifest_payload, sort_keys=False), encoding="utf-8"
+    )
+
+    evidence_payload = {
+        "schema_version": 3,
+        "topic": "integration_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "entries": [
+            {
+                "evidence_id": "ev_integration_test_0001",
+                "source_url": "https://example.com/demo_paper",
+                "source_type": "paper",
+                "source_quality": "primary",
+                "retrieved_at": "2026-05-23",
+                "verification_method": "pdf",
+                "verified_at": "2026-05-23",
+                "verified_fields": ["source_url"],
+                "freshness_tier": "stable",
+                "stale_after_days": 365,
+                "cache_ids": ["cache_body_demo_paper"],
+                "evidence_ids": [],
+                "supports": [
+                    {
+                        "claim_id": "claim_integration_test_accuracy",
+                        "field_path": "bib_ledger.entries[0].title",
+                        "evidence_role": "supports",
+                        "evidence_role_strength": "full",
+                        "extraction_method": "verbatim_match",
+                        "link_confidence": 0.95,
+                        "excerpt_anchor": {
+                            "cache_id": "cache_body_demo_paper",
+                            "text_path_offset": [span_start, span_end],
+                            "sha256_of_span": span_sha,
+                        },
+                    }
+                ],
+                "excerpt": "91.2% accuracy",
+                "rights_status": "private_use",
+            }
+        ],
+    }
+    evidence_path = manifest_dir / "evidence_ledger.yml"
+    evidence_path.write_text(
+        yaml.safe_dump(evidence_payload, sort_keys=False), encoding="utf-8"
+    )
+
+    # Pre-fix behavior: would fail with "text_path file does not exist" because
+    # resolve_cache_path would only try cache_root.
+    # Post-fix: falls back to manifest_path.parent → finds the dossier-local
+    # body_text file → passes substring + hash check.
+    errors = evidence_ledger.validate(evidence_path)
+    assert errors == [], errors
