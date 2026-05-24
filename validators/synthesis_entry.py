@@ -1,9 +1,10 @@
 """Validate synthesis_entry.yml schema.
 
 A synthesis_entry consolidates ≥3 primary sources into a single citation-ready
-note. Used by /research-gather Phase 4b (synthesis pass; v2.3+) or hand-authored
-when a single claim requires multi-source attribution that doesn't fit the
-per-source bib_ledger model.
+note. Used by /agent-index Phase 4c (synthesis pass; v2.4+) via
+scripts/scaffold_synthesis_entry.py, or hand-authored when a single claim
+requires multi-source attribution that doesn't fit the per-source
+bib_ledger model.
 
 Required fields per entry:
     synthesis_id | source_urls (≥3) | title | claim_family | volatility |

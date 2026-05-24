@@ -200,6 +200,85 @@ After appending, re-validate:
 python ~/Claude/research_toolkit/validators/evidence_ledger.py <evidence_ledger_path>
 ```
 
+### Phase 4c: consolidate synthesis_entry.yml (v2.4+ strict-live only)
+
+**Skip this entire phase** if `claim_graph.jsonl` contains no
+`claim_synthesis_*` atoms with `corroboration_count >= 3` (the
+synthesis_entry validator's bar). The vast majority of small dossiers
+won't qualify — most synthesis is implicit in 5-bullet prose, not
+materialized as cross-cutting claims with ≥3 distinct primary sources.
+
+When the project DOES have qualifying synthesis atoms, this phase
+consolidates them into `synthesis_entry.yml` so downstream tooling
+(dashboard, build_claim_graph attribution resolution) can render
+author-written synthesis text instead of falling back to the
+contributing-source excerpt tiebreak.
+
+**Step 1 — mechanical scaffold.** Run:
+
+```bash
+python ~/Claude/research_toolkit/scripts/scaffold_synthesis_entry.py \
+  <project_dir> --merge
+```
+
+This drafts skeleton `synthesis_entry.yml` entries for every qualifying
+atom: `synthesis_id`, `source_urls` (union of supporters), `title`
+(copied from claim text), `claim_family` (dominant from supporters'
+bib_ledger entries), `tier_summary` (computed via
+`scripts/source_tiers.assign_tier`), `volatility` (mapped from most-
+volatile freshness_tier), and `status: unverified`. `--merge` preserves
+any hand-authored entries already in the file.
+
+The scaffold deliberately leaves `attribution_map` absent — that field
+is the LLM-judgment payload.
+
+**Step 2 — write `attribution_map` (the LLM-judgment step).** For each
+new entry, open `synthesis_entry.yml` and add `attribution_map: {key:
+[source_urls]}` where:
+- **Keys** are short phrasings of the claim that should match what
+  `build_claim_graph.py` (v2.3 C2 resolver) sees in the claim_graph
+  claim text. The resolver does longest-substring-match against claim
+  text, so keys that overlap with the claim text bind cleanly.
+- **Values** are the subset of `source_urls` that specifically support
+  THAT phrasing (not the full union; not every source supports every
+  sub-claim).
+
+Worked example:
+
+```yaml
+- synthesis_id: syn_emergence_debate
+  # ...other fields populated by the scaffold...
+  attribution_map:
+    "Emergence is partly an artifact of measurement choices":
+    - https://arxiv.org/abs/2304.15004
+    - https://arxiv.org/abs/2505.01234
+    "Inverse-scaling phenomena disappear under metric reformulation":
+    - https://arxiv.org/abs/2304.15004
+```
+
+**Step 3 — wire into `pre_selection_manifest.yml`.** For each new
+`synthesis_id`, find the matching `claim_synthesis_*` selection in
+`<project_dir>/pre_selection_manifest.yml` and add the optional
+`synthesis_entry_ref: <synthesis_id>` field. The v2.3 Commit 3 resolver
+will then resolve claim text via this attribution chain instead of the
+fallback excerpt tiebreak.
+
+**Step 4 — verify.** Re-run `build_claim_graph.py` and `validators/synthesis_entry.py`:
+
+```bash
+python ~/Claude/research_toolkit/scripts/build_claim_graph.py <project_dir>
+python ~/Claude/research_toolkit/validators/synthesis_entry.py \
+  <project_dir>/synthesis_entry.yml
+```
+
+Watch for stderr `WARN: ... source_urls mismatch ...` messages from
+`build_claim_graph.py` — these indicate `attribution_map` source_urls
+drifted from the supporting evidence's source_urls. Fix at this stage
+(usually a typo in `attribution_map`), not later.
+
+After verifying, flip the `status` field to `verified` on each new
+entry.
+
 ### Phase 5: write the README
 
 Read `~/Claude/research_toolkit/templates/agent_index_README.template.md` for the canonical structure.

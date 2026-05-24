@@ -320,3 +320,16 @@ entries:
   status: applied
   fix_version: v2.3.0
   notes: 'BURN_IN Phase 5 Tier-2 promotion. At N<6 atoms dashboard now annotates "(corpus too small for synthesis metric — needs ≥6 atoms)" instead of the percentage. N≥6 behavior unchanged. 2 new tests.'
+
+# ---------------------------------------------------------------------------
+# v2.4.0 — synthesis producer + reextract integration (2026-05-24)
+# ---------------------------------------------------------------------------
+
+- id: v24-A-synthesis-producer
+  phase: v2.4.0
+  stage: scripts / agent-index / template / validator
+  finding: 'synthesis_entry.yml was hand-authored despite daf6699 template comment promising /research-gather Phase 4b — no producer existed'
+  severity: medium
+  status: applied
+  fix_version: v2.4.0
+  notes: 'Hybrid skill-body + helper-script design. New scripts/source_tiers.py (host→tier map, single source of truth extracted from citation_rules.md table). New scripts/scaffold_synthesis_entry.py (drafts synthesis_id, source_urls union, tier_summary, etc; leaves attribution_map for Claude to write). New /agent-index Phase 4c with 4-step skill body workflow. Template + validator docstrings corrected to point at agent-index Phase 4c (was /research-gather Phase 4b which never existed). 52 new tests. 339 passed + 2 xfailed (was 287 + 2).'

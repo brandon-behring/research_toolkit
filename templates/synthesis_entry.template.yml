@@ -1,6 +1,7 @@
 # Synthesis entry template
-# Maintained by /research-gather Phase 4b (synthesis pass; v2.3+) or by hand when
-# consolidating multiple sources into a single citation-ready note. Validated by
+# Maintained by /agent-index Phase 4c (synthesis pass; v2.4+) via
+# scripts/scaffold_synthesis_entry.py, or by hand when consolidating
+# multiple sources into a single citation-ready note. Validated by
 # validators/synthesis_entry.py.
 #
 # A synthesis_entry is the complement to a per-source bib_ledger entry: instead

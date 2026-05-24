@@ -10,6 +10,112 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.4.0 Commit 1: synthesis_entry producer — shipped 2026-05-24
+
+**Theme**: closes the v2.4 producer gap that's been a documented hole since
+daf6699 — synthesis_entry.yml was hand-authored despite the template
+comment promising "/research-gather Phase 4b". v2.3 Commit 3 wired the
+attribution layer (synthesis_entry_ref → claim_graph), but the
+synthesis_entry.yml itself stayed manual. This commit ships the producer
+as a hybrid skill-body + helper-script design.
+
+### Design
+
+**Group A1 — `scripts/source_tiers.py` (new helper module):**
+- Pure host-pattern → tier assignment. Single source of truth extracted
+  from `references/citation_rules.md` § Source-tier worked examples table.
+- API: `assign_tier(url) -> "T1" | "T2" | "T3"` + `tier_summary(urls)
+  -> "T1: N, T2: N, T3: N"` (matches `validators/synthesis_entry.py`
+  TIER_SUMMARY_PATTERN).
+- Ordered list of (regex, tier) tuples, first match wins. ~20 patterns
+  covering Anthropic-authored, arxiv abstract pages, major-vendor docs
+  (T1); Anthropic-managed academy + Anthropic-owned GitHub + vendor
+  blogs (T2); substack/medium/dev.to + tech press + generic GitHub (T3).
+- Default for unrecognized hosts: T3 (most conservative — doesn't count
+  toward the synthesis validator's ≥1 T1 requirement).
+
+**Group A2 — `scripts/scaffold_synthesis_entry.py` (new producer script):**
+- Reads `claim_graph.jsonl` + `evidence_ledger.yml` + `bib_ledger.yml`
+  from a project dir.
+- For each `claim_synthesis_*` atom with `corroboration_count >= 3`,
+  drafts a synthesis_entry block with: synthesis_id (derived from
+  atom_id), source_urls (union of supporters), title (copied from
+  claim_graph text), claim_family (dominant from supporters), volatility
+  (mapped from most-volatile freshness_tier), tier_summary (computed via
+  source_tiers), status: unverified.
+- `attribution_map` deliberately ABSENT — that's the LLM-judgment field
+  the skill body instructs Claude to write.
+- `--merge` preserves hand-authored entries (idempotent on re-run).
+- Default refuses to overwrite an existing file without --merge.
+- Validates output via `validators/synthesis_entry.py` before writing
+  (matches `scripts/build_claim_graph.py:write()` pattern).
+
+**Group A3 — `/agent-index` Phase 4c (new skill body section):**
+- New phase appended after Phase 4b (which appends synthesis evidence).
+- 4-step workflow: (1) mechanical scaffold via the helper script,
+  (2) write attribution_map by hand with worked example,
+  (3) wire `synthesis_entry_ref` into pre_selection_manifest selections,
+  (4) verify via build_claim_graph + validator.
+- Includes explicit skip-condition at the top: skip the whole phase
+  when no atom has `corroboration_count >= 3`. Avoids tool-call burn on
+  small dossiers (most projects).
+
+**Group A4 — Template + validator docstring fixes:**
+- `templates/synthesis_entry.template.yml` comment updated from
+  "/research-gather Phase 4b (synthesis pass; v2.3+)" to "/agent-index
+  Phase 4c (synthesis pass; v2.4+) via scripts/scaffold_synthesis_entry.py".
+- `validators/synthesis_entry.py` module docstring same fix.
+
+### Modified surfaces
+
+- `scripts/source_tiers.py` (NEW) — ~90 LOC.
+- `scripts/scaffold_synthesis_entry.py` (NEW) — ~280 LOC.
+- `tests/test_source_tiers.py` (NEW) — 42 cases (T1/T2/T3 canonical
+  URLs from citation_rules.md table + defaults + tier_summary format +
+  validator-pattern compatibility).
+- `tests/test_scaffold_synthesis_entry.py` (NEW) — 10 cases (happy
+  path, skip-on-low-corroboration, refuse-overwrite, --merge
+  preservation, --merge idempotency, validator-passes output, volatility
+  inheritance, atom_id→synthesis_id helper).
+- `.claude/skills/agent-index.md` — new Phase 4c section between
+  existing Phase 4b and Phase 5.
+- `templates/synthesis_entry.template.yml` — comment fix.
+- `validators/synthesis_entry.py` — module docstring fix.
+
+### End-state metrics
+
+- 339 passed + 2 xfailed (was 287 + 2 after v2.3.0 release).
+- +52 new tests in this commit (42 source_tiers + 10 scaffold).
+- v2-smoke + freshness audit-strict green.
+- No schema changes; existing synthesis_entry.yml files (hand-authored)
+  continue to validate.
+
+### Friction items (1 surfaced, 1 deferred)
+
+**1. attribution_map author burden remains (status: surfaced — by
+   design)**
+- The scaffold deliberately leaves attribution_map empty so Claude can
+  write it by hand during /agent-index Phase 4c. This is the
+  "LLM-judgment" step the user explicitly chose in planning.
+- Risk: authors may forget to fill it in, leaving synthesis_entry.yml
+  entries that don't drive the v2.3 C2 resolver (it needs attribution_map
+  or falls back to title). Mitigation: build_claim_graph.py already
+  emits "source_urls mismatch" WARNs for incomplete wiring; the Phase 4c
+  Step 4 verification step calls these out.
+- **Deferred**: a follow-up could lint synthesis_entry.yml for missing
+  attribution_map and surface in dashboard. Wait for friction.
+
+### v2.4 Commit 1 conclusion
+
+Synthesis-claim production now has end-to-end tooling: scaffold drafts
+the mechanical parts (synthesis_id, source_urls union, tier_summary);
+skill body instructs Claude to write attribution_map; v2.3 resolver
+binds the result to claim_graph text. Template comment finally matches
+reality (was wrong since daf6699). Next: Commit 2 (Group B reextract
+integration + version bump + tag).
+
+---
+
 ## v2.3.0 release summary — shipped 2026-05-23
 
 v2.3.0 = Phase 1 (daf6699, claude-books external-dogfood lessons) + Phase 2
