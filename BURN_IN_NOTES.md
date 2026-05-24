@@ -10,6 +10,134 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.4.0 release summary — shipped 2026-05-24
+
+v2.4.0 closes the two items explicitly deferred from v2.3.0's release
+summary: the synthesis_entry.yml producer (template-promised since
+daf6699 but never implemented) and the reextract auto-integration in
+`/research-gather --cache-pdfs` (scripted in v2.3 Commit 2 but not
+wired into the gather flow).
+
+### What shipped
+
+**Commit 1 (`3ab8dfb`)** — synthesis_entry producer (Group A):
+- `scripts/source_tiers.py` (NEW) — single-source-of-truth host →
+  tier helper extracted from `references/citation_rules.md` table.
+- `scripts/scaffold_synthesis_entry.py` (NEW) — drafts synthesis_entry
+  blocks for `claim_synthesis_*` atoms with `corroboration_count >= 3`;
+  leaves attribution_map for the LLM-judgment step.
+- `/agent-index` Phase 4c (NEW) — 4-step skill body workflow (scaffold
+  → write attribution_map → wire synthesis_entry_ref → verify) with
+  explicit skip-condition + worked example.
+- Template + validator docstrings corrected: `/research-gather Phase 4b`
+  → `/agent-index Phase 4c`.
+
+**Commit 2 (this commit)** — reextract integration + release (Group B):
+- `/research-gather` Phase 5 Step 5.0 (NEW) — auto-scans existing
+  manifest for `extraction_status: raw_only` PDFs and runs
+  `scripts/reextract_pdfs.py` before fetching new URLs. Pure skill-body
+  orchestration; no code change needed in `reextract_pdfs.py`.
+- `pyproject.toml` 2.3.0 → 2.4.0; user-agent strings bumped.
+- Local tag `v2.4.0` + GitHub release.
+
+### Metrics
+
+| | Tests | Net change | Files | LOC |
+|---|---|---|---|---|
+| v2.3.0 baseline | 287 | — | — | — |
+| v2.4.0 Commit 1 | 339 | +52 | 9 | +1,260 |
+| v2.4.0 Commit 2 | 339 | +0 | this commit | this commit |
+
+Group B is pure skill-body orchestration of an existing script — no new
+test cases needed (`test_reextract_pdfs.py` already covers the
+`reextract_pdfs.py` behavior end-to-end).
+
+### Issues closed in v2.4.0
+
+None. v2.4 is the planned v2.3 follow-on with no new external issues
+driving it — both items were documented as deferred in v2.3.0's
+release summary.
+
+### Scope explicitly deferred (still)
+
+- All remaining v2_2 backlog items (4, 4b, 4c, 5b-5f, 6, 6b-6e). Still
+  no friction-driven evidence.
+- SROM 4-tuple atomic structure (v2.2 backlog Item 1 v2.3 follow-on).
+- research-kb integration Path 5 (retrieval convergence) — kb-repo work.
+- attribution_map completeness linter — surfaced as a v2.4 friction
+  item but deferred (mitigation in place via existing
+  `build_claim_graph.py` source_urls mismatch WARNs).
+
+### v2.4.0 → next
+
+Returns to USE posture. No design cycle scheduled. v2.5 candidate list
+is empty pending fresh friction.
+
+---
+
+## v2.4.0 Commit 2: reextract auto-integration + version bump — shipped 2026-05-24
+
+**Theme**: closes Group B from the v2.4 plan. `scripts/reextract_pdfs.py`
+shipped in v2.3 Commit 2 as a standalone one-shot; v2.3 release notes
+explicitly deferred the `/research-gather --cache-pdfs` auto-integration
+to "next cycle." This commit ships that integration as pure skill-body
+orchestration + bumps to v2.4.0.
+
+### Design
+
+**Group B1 — `/research-gather` Phase 5 Step 5.0 (NEW skill body
+section).** Inserted at the start of Phase 5's `--cache-pdfs` branch,
+before Step 5.1 (the existing fresh-cache flow):
+
+> Scan the existing `cache_manifest.yml` for `application/pdf` entries
+> with `extraction_status: raw_only`. If any exist, run
+> `python ~/Claude/research_toolkit/scripts/reextract_pdfs.py
+> <output_dir>/cache_manifest.yml` before fetching new URLs. This
+> upgrades v2.2-era cached PDFs to v2.3+ extraction in place (no
+> re-download). Idempotent: no-op when zero raw_only PDFs exist.
+
+WARNs from this step append to the same per-host
+`extraction_log_<hostname>.jsonl` that fresh-cache calls write to, so the
+end-of-run extraction summary covers both reextract + fresh-cache
+outcomes in one aggregated table.
+
+**No code change** to `scripts/reextract_pdfs.py` needed — it's already
+idempotent, already integrates with the per-host extraction log, already
+produces WARNs that the existing end-of-run summary block captures.
+
+**Version bump** to 2.4.0 in `pyproject.toml` + UA strings in
+`scripts/cache_source.py`.
+
+### Modified surfaces
+
+- `.claude/skills/research-gather.md` — Phase 5 Step 5.0 insertion + Step
+  5.1 wrapper around the existing flow.
+- `pyproject.toml` — `version = "2.4.0"`.
+- `scripts/cache_source.py` — UA strings `research_toolkit/2.3.0` →
+  `research_toolkit/2.4.0` (2 occurrences).
+- `BURN_IN_NOTES.md` — release summary at top + this section.
+- `burn_in.yml` — structured entry.
+
+### End-state metrics
+
+- 339 passed + 2 xfailed (unchanged from Commit 1; pure orchestration
+  added no tests).
+- v2-smoke + freshness audit-strict green.
+- Local tag `v2.4.0` + GitHub release published.
+
+### Friction items (none)
+
+Pure skill-body orchestration of an existing, well-tested script.
+
+### v2.4 Commit 2 conclusion
+
+v2.4.0 ships. Synthesis-claim curation has end-to-end tooling (Commit
+1); legacy raw_only PDFs upgrade silently on the next `/research-gather
+--cache-pdfs` run (Commit 2). Both items deferred from v2.3.0 release
+summary now closed. Toolkit returns to USE posture.
+
+---
+
 ## v2.4.0 Commit 1: synthesis_entry producer — shipped 2026-05-24
 
 **Theme**: closes the v2.4 producer gap that's been a documented hole since

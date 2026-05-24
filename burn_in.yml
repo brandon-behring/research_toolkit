@@ -333,3 +333,12 @@ entries:
   status: applied
   fix_version: v2.4.0
   notes: 'Hybrid skill-body + helper-script design. New scripts/source_tiers.py (host→tier map, single source of truth extracted from citation_rules.md table). New scripts/scaffold_synthesis_entry.py (drafts synthesis_id, source_urls union, tier_summary, etc; leaves attribution_map for Claude to write). New /agent-index Phase 4c with 4-step skill body workflow. Template + validator docstrings corrected to point at agent-index Phase 4c (was /research-gather Phase 4b which never existed). 52 new tests. 339 passed + 2 xfailed (was 287 + 2).'
+
+- id: v24-B-reextract-integration
+  phase: v2.4.0
+  stage: research-gather skill body
+  finding: 'scripts/reextract_pdfs.py shipped in v2.3 Commit 2 as a standalone one-shot; auto-detect-on-rerun integration was deferred to v2.4 per the v2.3 release summary'
+  severity: low
+  status: applied
+  fix_version: v2.4.0
+  notes: 'Pure skill-body orchestration. /research-gather Phase 5 Step 5.0 (new) scans existing manifest for raw_only PDFs and runs reextract_pdfs.py before fetching new URLs. WARNs append to the same per-host extraction_log_<hostname>.jsonl so the end-of-run summary covers both reextract + fresh-cache. No code change to reextract_pdfs.py — it was already idempotent + log-integrated.'

@@ -157,6 +157,29 @@ Validate each artifact before exit (see Phase 6).
 ### Phase 5 (optional): cache PDFs
 
 If `--cache-pdfs` was passed:
+
+**Step 5.0 (v2.4+ pre-cache scan).** BEFORE fetching new URLs, scan the
+existing `<output_dir>/cache_manifest.yml` for entries where
+`content_type == "application/pdf"` AND `extraction_status == "raw_only"`.
+If any exist, run:
+
+```bash
+python ~/Claude/research_toolkit/scripts/reextract_pdfs.py \
+  <output_dir>/cache_manifest.yml
+```
+
+This upgrades v2.2-era cached PDFs to v2.3+ extraction in place (no
+re-download — reads from the existing cached blob). Idempotent: no-op
+when zero raw_only PDFs exist (the script's first action prints
+`OK: ... has 0 raw_only PDF entries to re-extract` and exits 0 in that
+case, so skipping the script when the manifest has no raw_only PDFs is
+fine but not required).
+
+WARNs from this step append to the same per-host
+`<cache_root>/extraction_log_<hostname>.jsonl` that fresh-cache runs use,
+so the end-of-run extraction summary (below) covers both.
+
+**Step 5.1 — fresh cache:**
 - Create `<output_dir>/papers/`
 - For each arXiv entry, download the PDF (`https://arxiv.org/pdf/<id>.pdf`) and save as `<slug>_<firstauthor>_<year>.pdf`
 - Create `<output_dir>/cache/bib_primary_source_cache.yml` with metadata (authors list, source, title, url, year). Read `templates/bib_primary_source_cache.template.yml` for schema.
