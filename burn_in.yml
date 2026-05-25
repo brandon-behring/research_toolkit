@@ -342,3 +342,16 @@ entries:
   status: applied
   fix_version: v2.4.0
   notes: 'Pure skill-body orchestration. /research-gather Phase 5 Step 5.0 (new) scans existing manifest for raw_only PDFs and runs reextract_pdfs.py before fetching new URLs. WARNs append to the same per-host extraction_log_<hostname>.jsonl so the end-of-run summary covers both reextract + fresh-cache. No code change to reextract_pdfs.py — it was already idempotent + log-integrated.'
+
+# ---------------------------------------------------------------------------
+# Topic-batch friction — skill loading (2026-05-25)
+# ---------------------------------------------------------------------------
+
+- id: cc-skills-paths-hides-pipeline
+  phase: cross-cutting
+  stage: multi-stage
+  finding: '7 pipeline skills (research-gather/agent-index/citation-audit/freshness-audit/research-kb-export/dossier-audit/url-freshness-check) carried a paths: frontmatter glob, so they auto-loaded only when a matching file was in context — read as "not loaded / broken" from any other cwd and a restart there never surfaced them'
+  severity: high
+  status: applied
+  fix_version: unreleased
+  notes: 'Ships on branch feat/19-topic-discovery. paths is a supported Claude Code field but scopes auto-load to matching files; explicit /slash invocation always works. Removed the paths: line from all 7 files (now load unconditionally, matching dataset-*/research-plan/dossier-build); verified all 7 appeared in the live skill list mid-session with no restart. Added a "Footgun — omit on pipeline skills" caution to docs/conventions/skill-spec.md § paths. Symlink layout was never the problem.'

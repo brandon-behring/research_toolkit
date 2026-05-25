@@ -10,6 +10,43 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## Topic-batch friction: `paths:` frontmatter hides pipeline skills — applied 2026-05-25
+
+**Theme**: a topic-discovery batch run stalled because 5 batch-critical
+skills (`research-gather`, `agent-index`, `citation-audit`,
+`freshness-audit`, `research-kb-export`) "weren't loading." A prior
+session diagnosed it as partial mid-session symlink loading and advised
+quitting + restarting in `~/Claude` or the toolkit repo. The restart
+didn't help.
+
+**Root cause**: those 5 skills (plus `dossier-audit` and
+`url-freshness-check` — 7 total) carried a `paths:` frontmatter field
+(written as a quoted comma-string, e.g.
+`paths: '**/bib_ledger.yml'`). `paths` is a *supported* Claude Code
+field, but it scopes the skill to **auto-load only when a file matching
+the globs is in context**. A session opened in `~/Claude` or the repo
+root (no matching files) correctly omits these skills from the
+model's available-skills list — so they read as "broken / not loaded,"
+and no restart in a non-matching directory will ever surface them. The
+symlink layout (`~/.claude/skills/<name>/SKILL.md` → repo
+`.claude/skills/<name>.md`) was fine all along; the memory note about
+inert flat symlinks did not apply.
+
+**Verification**: explicit `/slash` invocation works regardless of
+`paths`, and path matching re-evaluates mid-session. Removing the
+`paths:` line from all 7 files made every one of them appear in the
+live skill list immediately, mid-session, with no restart — confirming
+the field was the sole cause.
+
+**Fix (applied)**: removed the `paths:` line from the 7 pipeline skills
+so they load unconditionally (matching `dataset-*`, `research-plan`,
+`dossier-build`, which never had it). Added a "Footgun — omit on
+pipeline skills" caution to `docs/conventions/skill-spec.md` § `paths`.
+Rule: never put `paths` on a skill that a runbook or orchestrator
+invokes by name.
+
+---
+
 ## v2.4.0 release summary — shipped 2026-05-24
 
 v2.4.0 closes the two items explicitly deferred from v2.3.0's release

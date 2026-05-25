@@ -2,7 +2,6 @@
 name: citation-audit
 description: Use when the user has a strict-live v3 project with evidence_ledger.yml at schema_version 3 and asks to audit citations, verify claim grounding, or check that quoted excerpts actually appear in cached sources. Runs scripts/verify_citations.py to produce a mechanical FACT-framework citation audit report (substring check + per-method breakdown + per-claim grounding strength). No LLM required for the verification step itself.
 allowed-tools: Read, Bash
-paths: '**/evidence_ledger.yml'
 ---
 
 # /citation-audit — Mechanical citation verification (v3 strict-live)

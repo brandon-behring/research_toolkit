@@ -2,7 +2,6 @@
 name: freshness-audit
 description: Use when the user asks to audit a v2 strict-live research project for staleness, refresh outdated entries, validate trust state, or before running /research-kb-export. Checks stale blockers, evidence_id and cache_id referential integrity, cache hashes (and v3 substring anchors), URL liveness; refreshes stale primary sources; rebuilds dashboard.md via scripts/build_dashboard.py.
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
-paths: '**/cache_manifest.yml, **/evidence_ledger.yml'
 ---
 
 # /freshness-audit — strict-live v2 trust audit

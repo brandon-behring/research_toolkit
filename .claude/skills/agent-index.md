@@ -2,7 +2,6 @@
 name: agent-index
 description: Synthesize a dossier into a dual-audience indexed folder. For v2.2+ strict-live projects, runs Attribute-First atomic decomposition (Phase 2a-2c span-select → plan → generate), emitting `pre_selection_manifest.yml` and atomic claim_ids before any bullet prose is written — making post-hoc rationalization structurally impossible. Renders entries as 5-bullet blocks (Source/Code/Mechanism/Result/Status), writes an AGENT-INDEX README with scope-boundary callout, lookup recipes, and glossary. For v1-era projects without `evidence_ledger.yml`, falls back to legacy rendering.
 allowed-tools: Read, Write, Edit, Bash
-paths: '**/bib_ledger.yml'
 ---
 
 # /agent-index — Synthesize dossier as agent-ready indexed folder

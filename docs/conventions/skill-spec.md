@@ -68,6 +68,19 @@ privilege).
 YAML list of glob patterns where the skill is relevant. Most skills
 omit this; some use it for context-scoping.
 
+**Footgun — omit on pipeline skills.** A skill with `paths` is
+*auto-loaded only when a file matching one of the globs is in context*.
+It will not appear in the model's available-skills list (and the model
+cannot invoke it via the Skill tool) from a session opened anywhere the
+globs don't match — so it reads as "not loaded / broken," even though
+explicit `/slash` invocation by the user still works. Reserve `paths`
+for skills that should *never* auto-fire outside a specific context.
+**Do not put `paths` on pipeline skills that a runbook or orchestrator
+invokes by name** (`research-gather`, `agent-index`, `citation-audit`,
+`freshness-audit`, `research-kb-export`, `dossier-audit`,
+`url-freshness-check` had it removed for exactly this reason — see
+`BURN_IN_NOTES.md`, 2026-05-25).
+
 ## Section structure (H2 order)
 
 Dominant pattern across the 12 existing skills:
