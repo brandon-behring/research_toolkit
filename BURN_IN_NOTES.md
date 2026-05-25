@@ -10,6 +10,35 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## Topic-batch friction: no v3 excerpt-anchor producer + PDF-cache deviation — surfaced 2026-05-25
+
+**Theme**: running the topic batch end-to-end exposed two execution gaps
+(the dossiers themselves are fine; this is about producer tooling).
+
+1. **No mechanical v3 `excerpt_anchor` producer (status: surfaced).**
+   `/research-gather` and `/agent-index` instruct the agent to hand-author
+   `evidence_ledger.yml` / `pre_selection_manifest.yml` byte-offset +
+   sha256 anchors, but there is no script that, given a cached `text_path`
+   and a verbatim excerpt, emits `text_path_offset` + `sha256_of_span`.
+   `verify_citations.py` only *checks* anchors. During the batch I wrote a
+   throwaway local helper (`~/Claude/_anchor_tmp.py`) + assembler/renderer
+   (`_assemble.py`, `_render.py`) to produce schema-correct artifacts
+   deterministically. Candidate fix: ship a
+   `scripts/build_excerpt_anchor.py` (and have the two skills call it) so
+   strict-live anchoring isn't hand-rolled per run.
+
+2. **`--cache-pdfs` vs abstract-page anchoring (status: deferred).**
+   The batch anchored evidence against cached HTML abstract pages
+   (extraction_status `ok`), which is what `/agent-index` Phase 2a
+   consumes — so the v2 contract is satisfied without the multi-hour bulk
+   PDF download `--cache-pdfs` implies. Bulk PDF caching adds body-claim
+   span coverage but was not needed for abstract-level claims. Deferred:
+   either make `--cache-pdfs` lazy (only when a claim anchors into PDF
+   body text) or document that abstract-only anchoring is a valid
+   strict-live mode.
+
+---
+
 ## Topic-batch friction: `paths:` frontmatter hides pipeline skills — applied 2026-05-25
 
 **Theme**: a topic-discovery batch run stalled because 5 batch-critical
