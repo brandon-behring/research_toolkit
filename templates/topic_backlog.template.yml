@@ -1,0 +1,85 @@
+# Topic backlog template (v1)
+# Maintained by /topic-discovery. Validated by validators/topic_backlog.py.
+#
+# A living, append-only list of candidate research topics mined from a corpus.
+# Each entry hands off to /research-plan "<title>". scripts/backlog_stamp.py
+# flips status -> researched (and sets dossier_path/researched_at) once a topic
+# has been run through the pipeline, so the next /topic-discovery run dedups it.
+#
+# Required fields per entry:
+#   topic_id           (str, unique, kebab-case) — stable handle, e.g. dml-heterogeneous-effects
+#   title              (str, non-empty) — the free-text topic passed to /research-plan
+#   kind               (str, enum) — deepen | adjacent
+#                                    deepen   = frontier subtopic of a covered volume
+#                                    adjacent = uncovered white-space related to the corpus
+#   track              (int | str) — source volume's track (int) or "cross" for adjacency
+#   priority           (str, enum) — P0 | P1 | P2  (P0 = research first)
+#   rationale          (str, non-empty) — one line: why research-worthy + how it relates to the corpus
+#   claim_family_seeds (list[str], >= 3) — seed taxonomy categories for /research-plan
+#   status             (str, enum) — proposed | planned | researched | dropped
+#
+# Conditional:
+#   source_volume      (str) — REQUIRED when kind == deepen (names the parent volume dir).
+#                              OMIT for adjacent topics (no single parent).
+#
+# Optional (omit when unknown — do NOT fabricate corpus identifiers or URLs):
+#   source_los         (list[str]) — LOS IDs the topic clusters from, e.g. [CI-15.2, CI-15.4]
+#   seed_sources       (list[str]) — landmark http(s) URLs (e.g. from a volume's reading_list.yml)
+#   notes              (str) — free-form
+#
+# Lifecycle (absent or null = not yet set; written by scripts/backlog_stamp.py):
+#   dossier_path       (str | null) — set when status -> researched
+#   researched_at      (str | null) — YYYY-MM-DD, set when status -> researched
+
+schema_version: 1
+source_corpus: interview_prep_series
+generated_at: <YYYY-MM-DD>
+
+entries:
+# deepen — frontier subtopic of an existing volume (cites source_volume + LOS)
+- topic_id: dml-heterogeneous-effects
+  title: Double machine learning for heterogeneous treatment effects at platform scale
+  kind: deepen
+  track: 2
+  priority: P0
+  rationale: vol02 ch15 frontier (DML/causal forests/TMLE); deepens causal-inference interest beyond interview depth
+  claim_family_seeds:
+  - identification
+  - estimation
+  - inference
+  status: proposed
+  source_volume: vol02_causal_inference
+  source_los:
+  - CI-15.2
+  - CI-15.4
+  seed_sources:
+  - https://arxiv.org/abs/1608.00060
+
+# adjacent — uncovered white-space (scaffold volume); no source_volume, track "cross"
+- topic_id: behavioral-econ-for-product
+  title: Behavioral economics levers for product experimentation and pricing
+  kind: adjacent
+  track: cross
+  priority: P1
+  rationale: vol21_behavioral is a scaffold placeholder; bridges experimentation (vol01) and pricing (vol13) with no covering volume
+  claim_family_seeds:
+  - choice-architecture
+  - field-experiments
+  - welfare
+  status: proposed
+
+# researched — lifecycle fields set by backlog_stamp.py after the pipeline ran
+- topic_id: rlhf-reward-model-overoptimization
+  title: Reward model over-optimization and Goodharting in RLHF
+  kind: deepen
+  track: 4
+  priority: P0
+  rationale: vol08 LLM frontier; matches AI-safety interest (oversight, reward hacking)
+  claim_family_seeds:
+  - reward-modeling
+  - over-optimization
+  - mitigations
+  status: researched
+  source_volume: vol08_llm_foundations
+  dossier_path: ~/Claude/research_rlhf_reward_overoptimization/agent_index/
+  researched_at: 2026-05-24
