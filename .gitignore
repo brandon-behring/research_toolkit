@@ -17,6 +17,7 @@ scratch/
 research_cache/
 research-kb/inbox/
 .claude/*.lock
+.claude/settings.local.json
 
 # BURN_IN_NOTES is committed but tweak diffs aren't
 BURN_IN_NOTES.local.md
