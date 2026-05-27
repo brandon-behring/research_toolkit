@@ -206,7 +206,9 @@ Extraction summary: 22 of 25 PDFs ok, 2 ok_text_only, 1 degraded
 ```
 
 This catches consumer-visible extraction problems before the user notices
-them downstream in `/agent-index` Phase 2a span-anchoring. For batch debug
+them downstream in `/agent-index` Phase 2a span-anchoring (now mechanized by
+`scripts/build_excerpt_anchor.py`, which turns a verbatim excerpt + cache_id into a
+self-verified `text_path_offset` + `sha256_of_span`). For batch debug
 runs add `--strict-extraction` to `cache_source.py` so any non-ideal
 status surfaces as exit-1 immediately.
 

@@ -3230,3 +3230,23 @@ Items 10 and 11 are **`surfaced 2026-05-23`** — local resolutions applied in `
 5. **Permanent, never-reused atom IDs from birth (status: `surfaced` — `ctxasm-5`).** A living program revises/merges atoms; without an ID discipline, future book citations dangle on re-cluster. Discipline (Decision D5): IDs permanent + never-reused; a revision creates a **new** atom and tombstones the old via `superseded_by`/`supersedes` — never mutate-in-place. Pilot IDs are already deterministic, so this is ~free; forwarding/validation tooling is deferred to the first book citation.
 
 6. **Cross-project KG-compose merge — generalize `_merge_tracks.py` (status: `deferred` — `ctxasm-6`).** Scaling to many topics needs one source cited by N topics to resolve to one KG entity. Generalize the within-project track merge one scope up: dedup bib + cache by `primary_url` + `sha256` across project exports, union claim-graphs, remap aliases — mirroring `rl_and_control/scripts/build_graph_export.py`. Build/finalize at first Wave-1 use (context-rot shares Liu/Chroma with the pilot — the real test). Deferred until then, per the program's *cheap-discipline-now / machinery-on-a-trigger* meta-pattern.
+
+---
+
+## v2.5.0 — excerpt-anchor producer — applied 2026-05-26
+
+**Friction (surfaced 2026-05-25, topic batch):** strict-live v3 `excerpt_anchor`s had a
+verifier (`verify_citations.py` / `validators.v2_common.verify_excerpt_anchor`) but no
+*producer* — `text_path_offset` + `sha256_of_span` were hand-computed with a throwaway helper
+(`~/Claude/_anchor_tmp.py`). Error-prone for every verbatim claim.
+
+**Fix (applied v2.5.0, commit `1d0cd28`):** `scripts/build_excerpt_anchor.py`. Given a
+`cache_manifest.yml` + `--cache-id` (or `--text-path`) and a verbatim excerpt, it resolves the
+cached text via the **same** `resolve_cache_path()` the verifier uses, finds the span (exact byte
+match, else whitespace-tolerant token match mirroring the verifier's normalized equality; byte
+offsets correct across multi-byte chars), and emits the anchor — **self-verified through
+`verify_excerpt_anchor` before printing**, so a zero exit guarantees `/citation-audit` passes.
+`--occurrence N` disambiguates excerpts that repeat (HTML abstract pages duplicate the abstract in
+`<meta>` + body — 41 of 61 detector-landscape anchors hit this). Reproduced all 61 real
+detector-landscape anchors exactly. 14 tests; wired into `/agent-index` Phase 2a + `/research-gather`
+Phase 5.
