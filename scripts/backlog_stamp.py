@@ -68,6 +68,7 @@ def stamp(
         print(f"error: topic_id {topic_id!r} not found in {backlog_path}", file=sys.stderr)
         return 2
 
+    # validate() rejects duplicate topic_id, so there is exactly one match.
     entry = matches[0]
     entry["status"] = status
     if dossier is not None:

@@ -246,7 +246,7 @@ def _validate_entry(entry: dict, loc: str, seen: set[str]) -> list[str]:
     return errors
 
 
-def _validate_research_program_backlog(data: dict, *, strict: bool = False) -> list[str]:
+def _validate_research_program_backlog(data: dict) -> list[str]:
     """Validate the research-program's hand-authored topic-backlog.
 
     A different, lenient schema from /topic-discovery output: a living list of
@@ -332,7 +332,7 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
     if data.get("kind") == "topic-backlog" or (
         "candidates" in data and "entries" not in data
     ):
-        return _validate_research_program_backlog(data, strict=strict)
+        return _validate_research_program_backlog(data)
 
     if "entries" not in data:
         return ["top-level must be a mapping with key 'entries:'"]
