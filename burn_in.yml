@@ -488,3 +488,66 @@ entries:
   fix_version: v2.5.0
   fix_commit: 1d0cd28
   notes: 'New scripts/build_excerpt_anchor.py. Manifest mode resolves cached text via the SAME resolve_cache_path() the verifier uses (honors cache_root); whitespace-tolerant token matching mirrors verify_excerpt_anchor normalized equality; byte offsets correct across multi-byte chars; --occurrence N disambiguates repeated excerpts (HTML abstract pages duplicate the abstract in meta + body). Self-verifies output through verify_excerpt_anchor before printing, so a zero exit guarantees /citation-audit passes. Reproduced all 61 real detector-landscape stored anchors exactly (41 needed --occurrence), 0 mismatches. 14 tests, ruff clean. Wired into /agent-index Phase 2a + /research-gather Phase 5.'
+
+# ---------------------------------------------------------------------------
+# Wave 3 — claude-books research-program (ops-security + eval-harnesses) — 2026-05-27
+# ---------------------------------------------------------------------------
+
+- id: w3-gather-enum-drift
+  phase: wave-3
+  stage: research-gather
+  finding: 'Gather agents used non-canonical enums (source_type spec/academic, source_quality tertiary) -> 19 errors at canonical evidence_ledger validate; semantics right, strings wrong (-> standard/paper/secondary)'
+  severity: medium
+  status: surfaced
+  notes: 'ops-security tracks drifted; deterministic perl-swap fix on canonical + track files, rebuilt claim_graph (source_quality feeds claim confidence). PINNING the allowed enums in the eval-harnesses gather brief produced a first-try-clean evidence_ledger. Toolkit candidate: list allowed source_type {api,benchmark,blog,dataset,leaderboard,other,paper,policy,repo,standard,vendor} + source_quality {official,primary,secondary,user_note} in the /research-gather brief/template.'
+
+- id: w3-merge-projects-not-wave-parameterized
+  phase: wave-3
+  stage: cross-project-merge
+  finding: '~/Claude/_merge_projects.py hardcodes the wave2_ output prefix + 2026-05-26 date in 6 sites; running as-is for Wave 3 would clobber the wave2_* composed snapshot with a mislabeled 9-wide result'
+  severity: high
+  status: applied
+  fix_version: unreleased
+  notes: 'Caught by the wave plan pre-flight; first mitigated by backup + wave2->wave3 string-swap. RESOLVED: parameterized _merge_projects.py via WAVE + MERGE_DATE env vars (WAVE_LABEL derived) across all 6 hardcoded sites; defaults reproduce wave3 (re-ran idempotent: 608->595 records, wave2_* byte-identical), a future wave runs `WAVE=wave4 MERGE_DATE=2026-... _merge_projects.py ...`. Forced by tests/test_v1_5_artifacts.py (no unresolved high-severity items): a snapshot-clobber is a data-loss risk, so fix > defer (cheap-discipline half of the D3 meta-pattern, not speculative machinery). The script is unversioned ~/Claude scratch -> no commit of the script itself; backup removed.'
+
+- id: w3-cove-real-world-fact-drift
+  phase: wave-3
+  stage: dossier-audit
+  finding: 'Decoupled CoVe verifier caught a real-world attribution drift the gather agent could not infer from the cached page: UK AI Safety Institute -> AI Security Institute (renamed 2025-02-14; AISI acronym kept), the Inspect docs publisher'
+  severity: low
+  status: applied
+  fix_version: unreleased
+  notes: '1 CORRECT applied across eval-harnesses (publisher field; the anchored --epochs excerpt + byte offsets + claim_graph left untouched). Positive lesson: decoupled live-WebFetch verification is the catch for attribution/recency drift -> the substring-clean guarantee cannot catch a stale-but-verbatim publisher name.'
+
+- id: w3-audit-verification-method-enum
+  phase: wave-3
+  stage: dossier-audit
+  finding: '/dossier-audit SKILL v2-propagation example suggests verification_method: webfetch_<date>, but validators/evidence_ledger.py enforces an enum {api,inaccessible,manual,pdf,webfetch,websearch_snippet} and rejects dated variants'
+  severity: low
+  status: surfaced
+  notes: 'Mitigation: kept verification_method: webfetch + recorded the re-verification date in confidence.factors. Toolkit candidate: reconcile the skill example with the validator enum.'
+
+- id: w3-yaml-leading-quote
+  phase: wave-3
+  stage: research-gather
+  finding: 'A confidence.factors block-sequence string beginning with a double-quoted token broke PyYAML parsing in a track ledger'
+  severity: low
+  status: surfaced
+  notes: 'Gather agent rephrased to recover. Cheap gather-brief convention: avoid a leading double-quote in block-sequence factor strings.'
+
+- id: w3-bibkey-year-vs-verified
+  phase: wave-3
+  stage: research-gather
+  finding: 'Seed-guessed bibkey anthropic2026statevals carried the wrong year; verified pub date was 2024-11-19 -> renamed anthropic2024statevals'
+  severity: low
+  status: applied
+  fix_version: unreleased
+  notes: 'Gather agent recorded year: 2024 truthfully but kept the 2026 bibkey to preserve the merge key; lead renamed it pre-merge. Reinforces verify-then-key: the bibkey year must match the verified primary, not the seed guess.'
+
+- id: w3-anchor-producer-scratch-vs-toolkit
+  phase: wave-3
+  stage: research-gather
+  finding: 'Wave-3 gather briefs pointed agents at the ~/Claude/_build_excerpt_anchor.py scratch twin, though the toolkit already ships scripts/build_excerpt_anchor.py (v2.5.0, v25-A)'
+  severity: low
+  status: surfaced
+  notes: 'Both self-verify before printing; produced 41/41 clean anchors (30 ops-security + 11 eval-harnesses, 0 citation-audit rejects). The 2026-05-25 no-producer gap is doubly closed. Minor follow-up: redirect the gather brief to scripts/build_excerpt_anchor.py and retire the scratch twin.'
