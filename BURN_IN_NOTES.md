@@ -10,6 +10,86 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## Wave 2 dogfood — claude-books research-program (guardrails + cross-domain + memory) — 2026-05-26
+
+**Theme**: the three Wave-2 strict-live dossiers (`research_agent_{guardrails,cross_domain,memory}`) ran the battle-tested 8-step recipe to all-gates-green, then composed into a **7-wide** cross-project KG (464→451 records, **0 atom-ID collisions**). The pipeline is robust; the friction below is producer/process polish. Structured entries: `burn_in.yml` ids `w2-*`.
+
+1. **`w2-one-excerpt-per-evidence` (high, applied).** The single most useful catch. An evidence entry must carry exactly ONE verbatim excerpt — a gather agent that bundled two non-contiguous spans under one `excerpt:` field (joined with `[...]`) failed `validators/evidence_ledger.py`'s excerpt-vs-span check (guardrails `ev_0208`; 5 more LangMem/Mem0 entries in memory, where JS-rendered pages also produced run-together text and stray HTML in the picked spans). Fix discipline: two spans → two evidence entries on the SAME `claim_id`. Baked into the cross-domain + memory gather briefs (held). Toolkit candidate: flag multi-span/HTML-bearing excerpts at gather time, not at canonical-validate.
+
+2. **`w2-cove-batched-verifiers` (low, applied) + `w2-cove-verifier-byte-vs-char` (medium, surfaced).** The CoVe-factored audit ran as ~3 batched decoupled verifiers partitioned by source, each blind to the index/synthesis prose — proportionate and effective (caught the real chen pub-date error). BUT one verifier raised a **false** "all offsets drifted" alarm by recomputing offsets as *character* indices (`text.find`) and comparing to the manifest's *byte* offsets — the drift equalled the multibyte-char (em-dash/curly-quote) count. Refuted by a byte-level recheck (0 mismatches). The toolkit already asserts byte+sha equality; mitigation: tell verifiers NOT to recompute offsets and to confirm with a byte-level sha recheck first.
+
+3. **`w2-cross-track-fetch-id` (low, applied).** A source fetched by ≥2 parallel tracks (cross-domain's `pan2026monorepo`) made `_merge_tracks.py` union two `gather_trace` fetches with identical `fetch_id`s → `validators/gather_trace.py` duplicate-id failure. Workaround: distinctive `fetch_<bibkey>` ids per track (held in memory). Toolkit candidate: `_merge_tracks.py` could de-dup/suffix.
+
+4. **`w2-bake-forward` (medium, applied)** + **`w2-merge-projects-7wide` (medium, applied)** + **`w2-topic-backlog-validator` (low, applied, unreleased).** Carrying each dossier's enum/tiering corrections forward kept all three first-merge-clean; the cross-project merge held at 7-wide; and `validators/topic_backlog.py` now discriminates the research-program `candidates:` schema from the `/topic-discovery` `entries:` schema (+9 tests, `make test` 389 passed + 2 xfailed). Verify-then-cache reproduced again: `.claudeignore`, `INTERFACE.md`, and "shallow index, deeply linked" were all caught as **folk coinages** and generalized/escalated rather than laundered.
+
+---
+
+## Topic-batch friction: no v3 excerpt-anchor producer + PDF-cache deviation — surfaced 2026-05-25
+
+**Theme**: running the topic batch end-to-end exposed two execution gaps
+(the dossiers themselves are fine; this is about producer tooling).
+
+1. **No mechanical v3 `excerpt_anchor` producer (status: surfaced).**
+   `/research-gather` and `/agent-index` instruct the agent to hand-author
+   `evidence_ledger.yml` / `pre_selection_manifest.yml` byte-offset +
+   sha256 anchors, but there is no script that, given a cached `text_path`
+   and a verbatim excerpt, emits `text_path_offset` + `sha256_of_span`.
+   `verify_citations.py` only *checks* anchors. During the batch I wrote a
+   throwaway local helper (`~/Claude/_anchor_tmp.py`) + assembler/renderer
+   (`_assemble.py`, `_render.py`) to produce schema-correct artifacts
+   deterministically. Candidate fix: ship a
+   `scripts/build_excerpt_anchor.py` (and have the two skills call it) so
+   strict-live anchoring isn't hand-rolled per run.
+
+2. **`--cache-pdfs` vs abstract-page anchoring (status: deferred).**
+   The batch anchored evidence against cached HTML abstract pages
+   (extraction_status `ok`), which is what `/agent-index` Phase 2a
+   consumes — so the v2 contract is satisfied without the multi-hour bulk
+   PDF download `--cache-pdfs` implies. Bulk PDF caching adds body-claim
+   span coverage but was not needed for abstract-level claims. Deferred:
+   either make `--cache-pdfs` lazy (only when a claim anchors into PDF
+   body text) or document that abstract-only anchoring is a valid
+   strict-live mode.
+
+---
+
+## Topic-batch friction: `paths:` frontmatter hides pipeline skills — applied 2026-05-25
+
+**Theme**: a topic-discovery batch run stalled because 5 batch-critical
+skills (`research-gather`, `agent-index`, `citation-audit`,
+`freshness-audit`, `research-kb-export`) "weren't loading." A prior
+session diagnosed it as partial mid-session symlink loading and advised
+quitting + restarting in `~/Claude` or the toolkit repo. The restart
+didn't help.
+
+**Root cause**: those 5 skills (plus `dossier-audit` and
+`url-freshness-check` — 7 total) carried a `paths:` frontmatter field
+(written as a quoted comma-string, e.g.
+`paths: '**/bib_ledger.yml'`). `paths` is a *supported* Claude Code
+field, but it scopes the skill to **auto-load only when a file matching
+the globs is in context**. A session opened in `~/Claude` or the repo
+root (no matching files) correctly omits these skills from the
+model's available-skills list — so they read as "broken / not loaded,"
+and no restart in a non-matching directory will ever surface them. The
+symlink layout (`~/.claude/skills/<name>/SKILL.md` → repo
+`.claude/skills/<name>.md`) was fine all along; the memory note about
+inert flat symlinks did not apply.
+
+**Verification**: explicit `/slash` invocation works regardless of
+`paths`, and path matching re-evaluates mid-session. Removing the
+`paths:` line from all 7 files made every one of them appear in the
+live skill list immediately, mid-session, with no restart — confirming
+the field was the sole cause.
+
+**Fix (applied)**: removed the `paths:` line from the 7 pipeline skills
+so they load unconditionally (matching `dataset-*`, `research-plan`,
+`dossier-build`, which never had it). Added a "Footgun — omit on
+pipeline skills" caution to `docs/conventions/skill-spec.md` § `paths`.
+Rule: never put `paths` on a skill that a runbook or orchestrator
+invokes by name.
+
+---
+
 ## v2.4.0 release summary — shipped 2026-05-24
 
 v2.4.0 closes the two items explicitly deferred from v2.3.0's release
@@ -3132,3 +3212,21 @@ The Phase A 4-agent + Phase 05 focused-agent rounds surfaced two additional lint
 ### Status verdicts
 
 Items 10 and 11 are **`surfaced 2026-05-23`** — local resolutions applied in `claude-books/docs/research/`. Toolkit-side analogous fixes are a clear next step but not yet ported; consumer of toolkit's `validators/cross_stage.py` would benefit immediately. Promoting to `applied:` when the toolkit's validators are extended with the same patterns.
+
+---
+
+## Context-assembly pilot + post-pilot review — surfaced 2026-05-26
+
+**Theme**: the first strict-live dossier built with parallel per-track gather + a merge step (the `context_assembly` pilot — 15 sources / 21 atoms / 22-of-22 citation-clean), plus the co-drive review that resolved the research program's six parked decisions. The dossier itself passed all gates; these are producer / skill / scaling lessons. Full decision rationale: `claude-books/docs/research-program/decisions.md`.
+
+1. **Dedup cross-source on `primary_url`, not `bibkey` (status: `applied` — `ctxasm-1`).** Two parallel gather agents assigned the same Anthropic "effective context" post two bibkeys. `_merge_tracks.py` dedups by `primary_url`, unions `evidence_ids`/`cache_ids` into the canonical entry, and remaps `assigned_bibkey` in `gather_trace` via an alias map. This is the load-bearing merge invariant — and it generalizes one scope up to the cross-*project* KG-compose (item 6).
+
+2. **Slate / JS-rendered blogs need sub-sentence anchors (status: `surfaced` — `ctxasm-2`).** Manus's blog fragments prose across `<span>` nodes, so the cached text has no sentence-length contiguous span. Only sub-sentence verbatim anchors substring-match. Workaround: reuse the gather-time anchor (what was actually found in the cached render) at agent-index time rather than re-selecting a longer, "nicer" quote that won't verify.
+
+3. **`cache_source.py` is content-addressed — same URL, different render → different `cache_id`, both valid (status: `surfaced` — `ctxasm-3`).** urllib vs Playwright renders differ; this is by-design, not a duplicate to "fix." Worth a one-liner in `references/url_check_protocol.md` so a future run doesn't collapse two valid renders.
+
+4. **`verification_method: cross_reference` predates v3 → synthesis is a typed layer, not an evidence-ledger row (status: `surfaced` — `ctxasm-4`).** A cross-cutting synthesis claim has no single verbatim anchor and fails citation-audit if forced into the evidence ledger. Resolution (Decision D4): keep the audited atom layer pure; bind relationship/convergence claims as extra `supports[]` in contributing primaries (reuse verified anchors); put interpretive synthesis in a typed `synthesis` class — cites atom IDs, **grounded-not-substring-audited** — living in a `synthesis.md` + `00_overview`. The agent-index skill prompt still needs the `cross_reference` line updated to match.
+
+5. **Permanent, never-reused atom IDs from birth (status: `surfaced` — `ctxasm-5`).** A living program revises/merges atoms; without an ID discipline, future book citations dangle on re-cluster. Discipline (Decision D5): IDs permanent + never-reused; a revision creates a **new** atom and tombstones the old via `superseded_by`/`supersedes` — never mutate-in-place. Pilot IDs are already deterministic, so this is ~free; forwarding/validation tooling is deferred to the first book citation.
+
+6. **Cross-project KG-compose merge — generalize `_merge_tracks.py` (status: `deferred` — `ctxasm-6`).** Scaling to many topics needs one source cited by N topics to resolve to one KG entity. Generalize the within-project track merge one scope up: dedup bib + cache by `primary_url` + `sha256` across project exports, union claim-graphs, remap aliases — mirroring `rl_and_control/scripts/build_graph_export.py`. Build/finalize at first Wave-1 use (context-rot shares Liu/Chroma with the pilot — the real test). Deferred until then, per the program's *cheap-discipline-now / machinery-on-a-trigger* meta-pattern.

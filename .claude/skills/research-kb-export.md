@@ -2,7 +2,6 @@
 name: research-kb-export
 description: Use when the user has a complete v2 strict-live project with passing /freshness-audit and asks to export it for ~/Claude/research-kb ingestion. Wraps each claim_graph record verbatim in an envelope (export_schema_version 2), writes to ~/Claude/research-kb/inbox/research_toolkit/. Lossless — preserves every payload field. Should not run while /citation-audit reports substring failures (v3 projects).
 allowed-tools: Read, Write, Bash
-paths: '**/claim_graph.jsonl'
 ---
 
 # /research-kb-export — emit research-kb ingestion JSONL

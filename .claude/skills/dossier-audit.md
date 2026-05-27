@@ -2,7 +2,6 @@
 name: dossier-audit
 description: Use when the user asks to audit, verify, or fact-check a previously-built indexed folder of research entries, or invokes /dossier-audit on a project. Runs one round of complementary-scope independent verification. Spawns a fresh general-purpose sub-agent with WebSearch + WebFetch; receives a DROP/CORRECT/FLAG/SPOT-CHECK report; applies fixes inline; appends round-N audit-trail note. Single-round — user re-invokes per round. v1.6: also runs against /dataset-index outputs — use focus areas like "license risks + access stability" for dataset dossiers. For v2 strict-live projects, propagates findings to evidence_ledger.yml + claim_graph.jsonl alongside Markdown.
 allowed-tools: Read, Edit, Write, Bash, WebSearch, WebFetch
-paths: '**/agent_index/README.md, **/docs/*_research/README.md, **/0K_*.md'
 ---
 
 # /dossier-audit — One round of independent audit

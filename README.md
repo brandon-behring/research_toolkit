@@ -91,7 +91,7 @@ make test                 # full validator/regression suite
 
 # Make skills discoverable from any project:
 mkdir -p ~/.claude/skills
-for skill in research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export; do
+for skill in topic-discovery research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export; do
   ln -s ~/Claude/research_toolkit/.claude/skills/$skill.md ~/.claude/skills/$skill.md
 done
 ```
@@ -110,6 +110,16 @@ Then in any Claude Code session:
 For a 5-minute walkthrough: [`docs/getting_started.md`](docs/getting_started.md). For common failures: [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ## The skills
+
+### Topic discovery (v2.5)
+
+The front door, upstream of both pipelines: mine a knowledge corpus (e.g. an interview-prep series) into a prioritized, deduplicated backlog of research topics — both `deepen` (frontier subtopics of what the corpus already covers) and `adjacent` (uncovered white-space) — each handing off to `/research-plan`.
+
+| Skill | Stage | Input | Output | Validator |
+|---|---|---|---|---|
+| `/topic-discovery` | -1 | Knowledge corpus (volumes + learning objectives) | `topic_backlog.yml` | `validators/topic_backlog.py` |
+
+Corpus-internal (no web access). The backlog is append-only and *living*: `scripts/backlog_stamp.py` flips an entry to `status: researched` once its dossier is built, so re-runs dedup. See `references/topic_discovery_protocol.md` for the deepen/adjacent signals + scoring rubric.
 
 ### Paper-synthesis pipeline (v1.0+)
 
@@ -185,10 +195,10 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 ├── burn_in.yml                      # structured BURN_IN index (v1.5)
 ├── Makefile                         # install / test / audit / burn-in / metrics targets
 ├── pyproject.toml
-├── .claude/skills/                  # 11 skill bodies (source of truth)
-├── templates/                       # 6 schema/structure templates
-├── references/                      # 6 protocol docs (audit_protocol, url_check_protocol, ...)
-├── validators/                      # 7 schema validators (cross_stage added v1.2)
+├── .claude/skills/                  # 14 skill bodies (source of truth)
+├── templates/                       # 18 schema/structure templates
+├── references/                      # 12 protocol docs (audit_protocol, url_check_protocol, ...)
+├── validators/                      # 17 schema validators (cross_stage added v1.2)
 ├── scripts/                         # backfill_ledger, build_medium_fixture, burn_in_query
 ├── docs/
 │   ├── getting_started.md           # onboarding (paper + dataset pipelines)

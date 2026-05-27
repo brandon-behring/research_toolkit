@@ -1,4 +1,4 @@
-.PHONY: install symlinks test smoke dataset-smoke v2-smoke builders-smoke audit audit-strict burn-in metrics lint clean help
+.PHONY: install symlinks test smoke dataset-smoke backlog-smoke v2-smoke builders-smoke audit audit-strict burn-in metrics lint clean help
 
 PYTHON ?= python3
 VENV   ?= .venv
@@ -7,7 +7,7 @@ PY     := $(VENV)/bin/python
 # Real-world projects under ~/Claude/research_<topic>/ that exist on this machine.
 # `make audit` runs cross_stage --strict against any that exist.
 REAL_TOPICS := eval_methodology peft calibration rlhf
-SKILLS := research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export citation-audit
+SKILLS := research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export citation-audit topic-discovery
 
 help:
 	@echo "Targets:"
@@ -16,6 +16,7 @@ help:
 	@echo "  test            run pytest against tests/"
 	@echo "  smoke           run a single validator against the mini fixture"
 	@echo "  dataset-smoke   run dataset_ledger validator against the dataset smoke fixture (v1.6)"
+	@echo "  backlog-smoke   run topic_backlog validator against the template (v2.5)"
 	@echo "  v2-smoke        run strict-live v2 validators against the v2 fixture"
 	@echo "  builders-smoke  run build_claim_graph + build_dashboard against the v2 fixture (output to /tmp)"
 	@echo "  audit           run cross_stage --strict against all real-world projects"
@@ -51,6 +52,9 @@ dataset-smoke:
 		echo "=== _handcrafted_dataset_smoke (Phase A handcrafted) ==="; \
 		$(PY) validators/dataset_ledger.py tests/fixtures/_handcrafted_dataset_smoke/dataset_ledger.yml; \
 	fi
+
+backlog-smoke:
+	$(PY) validators/topic_backlog.py templates/topic_backlog.template.yml
 
 v2-smoke:
 	$(PY) validators/bib_ledger.py tests/fixtures/v2_strict_live_ai_agents/bib_ledger.yml
