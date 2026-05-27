@@ -419,6 +419,7 @@ entries:
   finding: "Carrying the prior dossier's vocab/tiering corrections into the next dossier's gather-agent prompts produces first-merge-clean, audit-clean dossiers"
   severity: medium
   status: applied
+  fix_version: unreleased
   notes: 'High value, ~free. Pre-stating controlled enums (bib status; cache_manifest schema_version 2; source_quality primary/official/secondary/user_note — never "tertiary"; escalations stay out of bib_ledger) + honest tiering in each gather brief made all three Wave-2 dossiers validate cleanly. Carry into Wave 3.'
 
 - id: w2-merge-projects-7wide
@@ -427,6 +428,7 @@ entries:
   finding: 'Cross-project KG-compose (~/Claude/_merge_projects.py) holds at 7-wide: 464->451 records, 5 shared sources, 4 shared caches, 0 claim/evidence ID collisions'
   severity: medium
   status: applied
+  fix_version: unreleased
   notes: 'D2/D5 proven at wave scale. Keys on record id (recurring ent_/src_/graph_cache_ ids ARE the shared nodes; asserts no claim/evidence id recurs). The handoff''s rl_and_control build_graph_export.py "mirror" does NOT exist — _merge_projects.py is the canonical cross-project merge (written fresh in Wave 1). Output prefix relabeled wave1_->wave2_ for the 7-wide compose; the 4-wide wave1_ snapshot is preserved.'
 
 - id: w2-topic-backlog-validator
@@ -444,6 +446,7 @@ entries:
   finding: 'CoVe-factored audit run as ~3 batched decoupled verifiers partitioned by source (each blind to the index + synthesis prose) preserves the anti-post-rationalization property at a fraction of one-agent-per-question cost'
   severity: low
   status: applied
+  fix_version: unreleased
   notes: 'Proportionate. Verifiers re-derive support from live primaries + cached text, then compare to the ledger — they never see the agent_index/synthesis conclusions. Caught a real issue (the chen pub-date) and correctly cleared the rest across all three Wave-2 dossiers.'
 
 - id: w2-one-excerpt-per-evidence
@@ -452,6 +455,7 @@ entries:
   finding: 'A single evidence_ledger entry must carry ONE verbatim excerpt; bundling two non-contiguous spans under one excerpt field (joined with "[...]") fails the evidence_ledger excerpt-vs-span check'
   severity: high
   status: applied
+  fix_version: unreleased
   notes: 'Caught at validate-canonical in guardrails (ev_0208) and 5 LangMem/Mem0 entries in memory. Discipline: when a claim rests on two spans, mint TWO evidence entries supporting the SAME claim_id. Baked into the cross-domain + memory gather briefs (held). Toolkit candidate: flag multi-span excerpts at gather time, not at canonical-validate.'
 
 - id: w2-cove-verifier-byte-vs-char
@@ -468,4 +472,5 @@ entries:
   finding: 'When one source is fetched by >=2 parallel gather tracks, _merge_tracks.py unions the gather_trace fetches but identical fetch_ids collide (gather_trace validator: duplicate fetch_id)'
   severity: low
   status: applied
+  fix_version: unreleased
   notes: 'Hit in cross-domain (pan2026monorepo fetched by Track A + Track C). Workaround: renamed one fetch_id post-merge; then baked "make every fetch_id distinctive (fetch_<bibkey> / suffix per track)" into the memory gather briefs (held). Toolkit candidate: _merge_tracks.py could de-dup/suffix duplicate fetch_ids automatically.'
