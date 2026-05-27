@@ -355,3 +355,117 @@ entries:
   status: applied
   fix_version: unreleased
   notes: 'Ships on branch feat/19-topic-discovery. paths is a supported Claude Code field but scopes auto-load to matching files; explicit /slash invocation always works. Removed the paths: line from all 7 files (now load unconditionally, matching dataset-*/research-plan/dossier-build); verified all 7 appeared in the live skill list mid-session with no restart. Added a "Footgun — omit on pipeline skills" caution to docs/conventions/skill-spec.md § paths. Symlink layout was never the problem.'
+
+# ---------------------------------------------------------------------------
+# Context-assembly pilot + post-pilot review (2026-05-26)
+# ---------------------------------------------------------------------------
+
+- id: ctxasm-1
+  phase: context-assembly-pilot
+  stage: multi-stage
+  finding: 'Cross-source dedup must key on primary_url, not bibkey — two parallel gather agents gave the same Anthropic post two bibkeys (rajasekaran2025effectivecontext vs anthropic2025context); only a primary_url merge caught it'
+  severity: high
+  status: applied
+  fix_version: unreleased
+  notes: '_merge_tracks.py dedups bib by primary_url, unions evidence_ids/cache_ids into the canonical entry, builds a bibkey alias map, and remaps assigned_bibkey in gather_trace. Generalizes one scope up to cross-PROJECT KG-compose (dedup bib+cache by primary_url+sha256 across projects) — see ctxasm-6. Decision D2.'
+
+- id: ctxasm-2
+  phase: context-assembly-pilot
+  stage: research-gather
+  finding: 'Slate/JS-rendered blogs (Manus) fragment prose across <span> nodes, so cached text has no sentence-length contiguous span — only sub-sentence verbatim anchors verify'
+  severity: medium
+  status: surfaced
+  notes: 'Workaround: reuse the gather-time anchor (the span actually found in the cached render) at agent-index time rather than re-selecting a longer quote that will not substring-match. Candidate doc: references/citation_rules.md, as a known render class.'
+
+- id: ctxasm-3
+  phase: context-assembly-pilot
+  stage: research-gather
+  finding: 'cache_source.py is content-addressed: the same URL via urllib vs Playwright yields different cache_id (different render) — both anchors stay valid; not a bug'
+  severity: low
+  status: surfaced
+  notes: 'By-design, but surprised the run. One-liner candidate for references/url_check_protocol.md so a future run does not collapse two valid renders as a perceived duplicate.'
+
+- id: ctxasm-4
+  phase: context-assembly-pilot
+  stage: agent-index
+  finding: 'agent-index SKILL literal "verification_method: cross_reference" predates schema v3; a cross-cutting synthesis claim has no single verbatim anchor and fails citation-audit if forced into the evidence ledger'
+  severity: medium
+  status: surfaced
+  notes: 'Resolution (Decision D4): keep the audited atom layer pure; bind relationship/convergence claims as extra supports[] in contributing primaries (reuse verified anchors); put interpretive synthesis in a typed `synthesis` class (cites atom IDs, grounded-not-substring-audited) in synthesis.md + 00_overview. Skill prompt still needs the cross_reference line updated.'
+
+- id: ctxasm-5
+  phase: context-assembly-pilot
+  stage: agent-index
+  finding: 'Living program revises/merges atoms over time; without an ID discipline, future book citations to atoms would dangle on re-cluster'
+  severity: medium
+  status: surfaced
+  notes: 'Discipline adopted (Decision D5): atom IDs permanent + never-reused from creation; a revision creates a NEW atom and tombstones the old via existing superseded_by/supersedes — never mutate-in-place. Pilot IDs are already structured/deterministic (claim_ctxasm_b1_a1_kvcache_metric), so the discipline is ~free. Forwarding/validation tooling deferred to the first book citation.'
+
+- id: ctxasm-6
+  phase: post-pilot-review
+  stage: multi-stage
+  finding: 'Scaling to many topics needs a cross-PROJECT merge (one source cited by N topics → one KG entity), which the within-project track merge does not cover'
+  severity: medium
+  status: deferred
+  notes: 'Decision D2: generalize _merge_tracks.py into a cross-project KG-compose step (dedup bib+cache by primary_url+sha256 across project exports; union claim-graphs; remap aliases), mirroring rl_and_control/scripts/build_graph_export.py. Build/finalize at first use in Wave 1 (context-rot shares Liu/Chroma with the pilot — the real test). Deferred until then per the cheap-discipline-now / machinery-on-a-trigger meta-pattern.'
+
+# ---------------------------------------------------------------------------
+# Wave 2 — claude-books research-program (guardrails + cross-domain + memory)
+# ---------------------------------------------------------------------------
+
+- id: w2-bake-forward
+  phase: wave-2
+  stage: research-gather
+  finding: "Carrying the prior dossier's vocab/tiering corrections into the next dossier's gather-agent prompts produces first-merge-clean, audit-clean dossiers"
+  severity: medium
+  status: applied
+  notes: 'High value, ~free. Pre-stating controlled enums (bib status; cache_manifest schema_version 2; source_quality primary/official/secondary/user_note — never "tertiary"; escalations stay out of bib_ledger) + honest tiering in each gather brief made all three Wave-2 dossiers validate cleanly. Carry into Wave 3.'
+
+- id: w2-merge-projects-7wide
+  phase: wave-2
+  stage: cross-project-merge
+  finding: 'Cross-project KG-compose (~/Claude/_merge_projects.py) holds at 7-wide: 464->451 records, 5 shared sources, 4 shared caches, 0 claim/evidence ID collisions'
+  severity: medium
+  status: applied
+  notes: 'D2/D5 proven at wave scale. Keys on record id (recurring ent_/src_/graph_cache_ ids ARE the shared nodes; asserts no claim/evidence id recurs). The handoff''s rl_and_control build_graph_export.py "mirror" does NOT exist — _merge_projects.py is the canonical cross-project merge (written fresh in Wave 1). Output prefix relabeled wave1_->wave2_ for the 7-wide compose; the 4-wide wave1_ snapshot is preserved.'
+
+- id: w2-topic-backlog-validator
+  phase: wave-2
+  stage: validators
+  finding: 'validators/topic_backlog.py hard-failed on the research-program hand-authored backlog (kind: topic-backlog / candidates:) because it only knew the /topic-discovery schema (entries:)'
+  severity: low
+  status: applied
+  fix_version: unreleased
+  notes: 'Fixed: top-level schema discriminator — kind=="topic-backlog" OR (candidates without entries) routes to a compact _validate_research_program_backlog() (schema_version str-or-int, kind, generated_at; per-candidate kebab-unique id + non-empty label, optional parent/seed/note/status); the /topic-discovery entries: path unchanged. +9 tests; make test 389 passed + 2 xfailed. Neither file migrated.'
+
+- id: w2-cove-batched-verifiers
+  phase: wave-2
+  stage: dossier-audit
+  finding: 'CoVe-factored audit run as ~3 batched decoupled verifiers partitioned by source (each blind to the index + synthesis prose) preserves the anti-post-rationalization property at a fraction of one-agent-per-question cost'
+  severity: low
+  status: applied
+  notes: 'Proportionate. Verifiers re-derive support from live primaries + cached text, then compare to the ledger — they never see the agent_index/synthesis conclusions. Caught a real issue (the chen pub-date) and correctly cleared the rest across all three Wave-2 dossiers.'
+
+- id: w2-one-excerpt-per-evidence
+  phase: wave-2
+  stage: research-gather
+  finding: 'A single evidence_ledger entry must carry ONE verbatim excerpt; bundling two non-contiguous spans under one excerpt field (joined with "[...]") fails the evidence_ledger excerpt-vs-span check'
+  severity: high
+  status: applied
+  notes: 'Caught at validate-canonical in guardrails (ev_0208) and 5 LangMem/Mem0 entries in memory. Discipline: when a claim rests on two spans, mint TWO evidence entries supporting the SAME claim_id. Baked into the cross-domain + memory gather briefs (held). Toolkit candidate: flag multi-span excerpts at gather time, not at canonical-validate.'
+
+- id: w2-cove-verifier-byte-vs-char
+  phase: wave-2
+  stage: dossier-audit
+  finding: 'A CoVe verifier recomputing excerpt offsets via text.find (CHARACTER index) and comparing to the manifest BYTE offsets reported false "anchor drift" (+2..+57) on multibyte-heavy (em-dash/curly-quote) pages'
+  severity: medium
+  status: surfaced
+  notes: 'False positive — refuted by a byte-level recheck (0/25 mismatches; sha256(bytes[s:e])==stored). The toolkit already asserts byte+sha (validators/evidence_ledger.py caught the real guardrails ev_0208 case; verify_citations re-checks). Mitigation: memory audit briefs instruct verifiers NOT to recompute byte offsets and to confirm with a byte-level sha recheck before alleging drift.'
+
+- id: w2-cross-track-fetch-id
+  phase: wave-2
+  stage: research-gather
+  finding: 'When one source is fetched by >=2 parallel gather tracks, _merge_tracks.py unions the gather_trace fetches but identical fetch_ids collide (gather_trace validator: duplicate fetch_id)'
+  severity: low
+  status: applied
+  notes: 'Hit in cross-domain (pan2026monorepo fetched by Track A + Track C). Workaround: renamed one fetch_id post-merge; then baked "make every fetch_id distinctive (fetch_<bibkey> / suffix per track)" into the memory gather briefs (held). Toolkit candidate: _merge_tracks.py could de-dup/suffix duplicate fetch_ids automatically.'
