@@ -81,6 +81,13 @@ spans that will become evidence for the entry's atomic claims. A
 single entry usually decomposes into 2–5 atomic claims (FActScore /
 AtomEval lesson — bullet-level claims hide mixed support). Each atomic
 claim binds to one span; record byte offsets + sha256 + excerpt.
+**Do not hand-compute the offsets/hash** — run
+`scripts/build_excerpt_anchor.py <cache_manifest.yml> --cache-id <id> --excerpt "<verbatim text>"`
+(add `--occurrence N` when the excerpt repeats, e.g. an abstract duplicated in an HTML
+page's `<meta>` + body). It resolves the cached text via the manifest's `cache_root`,
+emits `text_path_offset` + `sha256_of_span`, and self-verifies them through
+`verify_excerpt_anchor` before printing — so a successful run is guaranteed to pass
+`/citation-audit`.
 
 **Phase 2b — plan.** Emit `<output_dir>/pre_selection_manifest.yml`
 with one `selections[]` entry per (bullet, atom) pair. Schema is in
