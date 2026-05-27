@@ -88,6 +88,21 @@ def _verify_inline(text_bytes: bytes, excerpt: str, anchor: dict) -> list[str]:
     return errs
 
 
+def test_build_anchor_whitespace_divergent_excerpt_passes_real_verifier(tmp_path: Path) -> None:
+    """Ws-tolerant path round-trips the REAL verify_excerpt_anchor (the exact check
+    /citation-audit runs), not just the inline re-check: a single-space excerpt against
+    cached text with newlines/runs still yields an anchor the verifier accepts."""
+    text_file = tmp_path / "body.txt"
+    text_file.write_text("preamble\nthe  quick\nbrown   fox jumps over", encoding="utf-8")
+    excerpt = "the quick brown fox"
+    anchor = bea.build_anchor(text_file.read_bytes(), excerpt)
+    start, end = anchor["text_path_offset"]
+    span = text_file.read_bytes()[start:end].decode("utf-8")
+    assert span != excerpt  # span keeps the cached text's whitespace ...
+    assert span.split() == excerpt.split()  # ... but the tokens match
+    assert _verify(text_file, excerpt, anchor) == []  # the real verifier accepts it
+
+
 # ---------- find_span: rejection cases ----------
 
 def test_find_span_rejects_absent_excerpt() -> None:
