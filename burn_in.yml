@@ -486,7 +486,7 @@ entries:
   severity: medium
   status: applied
   fix_version: v2.5.0
-  fix_commit: 1d0cd28
+  fix_commit: b42f649
   notes: 'New scripts/build_excerpt_anchor.py. Manifest mode resolves cached text via the SAME resolve_cache_path() the verifier uses (honors cache_root); whitespace-tolerant token matching mirrors verify_excerpt_anchor normalized equality; byte offsets correct across multi-byte chars; --occurrence N disambiguates repeated excerpts (HTML abstract pages duplicate the abstract in meta + body). Self-verifies output through verify_excerpt_anchor before printing, so a zero exit guarantees /citation-audit passes. Reproduced all 61 real detector-landscape stored anchors exactly (41 needed --occurrence), 0 mismatches. 14 tests, ruff clean. Wired into /agent-index Phase 2a + /research-gather Phase 5.'
 
 # ---------------------------------------------------------------------------

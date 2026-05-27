@@ -10,6 +10,32 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.5.0 release summary — shipped 2026-05-27
+
+v2.5.0 bundles the two features merged since v2.4.1: the `/topic-discovery` skill
+and the mechanical v3 excerpt-anchor producer.
+
+### What shipped
+- **`/topic-discovery`** (PR #20, closes #19) — mines a knowledge corpus into a
+  prioritized, deduplicated `topic_backlog.yml`. Ships `validators/topic_backlog.py`
+  (with a discriminator that also accepts the research-program `candidates:` schema),
+  `templates/topic_backlog.template.yml`, `references/topic_discovery_protocol.md`, and
+  `scripts/backlog_stamp.py`. Also removes the `paths:` frontmatter footgun from 7
+  pipeline skills so they load unconditionally.
+- **`scripts/build_excerpt_anchor.py`** (PR #28, `v25-A`) — the previously-missing v3
+  excerpt-anchor *producer*: emits `text_path_offset` + `sha256_of_span` from cached
+  text + an excerpt, byte-correct across multi-byte chars, self-verified through the
+  same `verify_excerpt_anchor` the citation audit runs. Closes the 2026-05-25
+  no-producer gap; wired into `/agent-index` Phase 2a + `/research-gather` Phase 5.
+
+### Version bump
+- `pyproject.toml` 2.4.1 → 2.5.0.
+- `scripts/cache_source.py` user-agent strings 2.4.1 → 2.5.0.
+
+End-state: `make test` 404 passed + 2 xfailed. Local annotated tag `v2.5.0` + push follow.
+
+---
+
 ## Wave 3 dogfood — claude-books research-program (ops-security + eval-harnesses) — 2026-05-27
 
 **Theme**: two strict-live dossiers (`research_agent_{ops_security,eval_harnesses}`) ran the 8-step recipe to all-gates-green (ops-security 18 sources / 26 atoms / 30 anchors, 30/30 citation-clean, CoVe round-1 clean; eval-harnesses 4 / 11 / 11, 11/11 citation-clean, CoVe round-1 = 1 CORRECT), then composed into a **9-wide** cross-project KG (608→595 records, **0 atom-ID collisions** — D2/D5 hold at 9-wide; `wave2_*` snapshot preserved). The pipeline is robust at five-times-plus scale; the friction below is process/producer polish. Structured entries: `burn_in.yml` ids `w3-*`.
