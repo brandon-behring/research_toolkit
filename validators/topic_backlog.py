@@ -246,6 +246,76 @@ def _validate_entry(entry: dict, loc: str, seen: set[str]) -> list[str]:
     return errors
 
 
+def _validate_research_program_backlog(data: dict, *, strict: bool = False) -> list[str]:
+    """Validate the research-program's hand-authored topic-backlog.
+
+    A different, lenient schema from /topic-discovery output: a living list of
+    candidate sub-topics (kind: topic-backlog + candidates:). Top-level uses a
+    STRING schema_version (e.g. "1.0"). Each candidate needs only a kebab-case
+    unique `id` and a non-empty `label`; parent/seed/note/status are optional.
+    The deepen/adjacent/priority/claim_family_seeds rules do NOT apply here.
+    """
+    errors: list[str] = []
+
+    schema_version = data.get("schema_version")
+    if "schema_version" not in data:
+        errors.append("missing top-level field 'schema_version'")
+    elif isinstance(schema_version, bool) or not isinstance(schema_version, (str, int)):
+        errors.append("top-level 'schema_version' must be a string or int")
+    elif isinstance(schema_version, str) and not schema_version.strip():
+        errors.append("top-level 'schema_version' must be a non-empty string")
+
+    if data.get("kind") != "topic-backlog":
+        errors.append("top-level 'kind' must equal 'topic-backlog'")
+
+    if "generated_at" not in data:
+        errors.append("missing top-level field 'generated_at'")
+    elif not _is_date_or_nonempty_str(data["generated_at"]):
+        errors.append("top-level 'generated_at' must be a date or non-empty string")
+
+    if "note" in data and (not isinstance(data["note"], str) or not data["note"].strip()):
+        errors.append("top-level 'note': when present, must be a non-empty string")
+
+    candidates = data.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        return errors + ["'candidates' must be a non-empty list"]
+
+    seen: set[str] = set()
+    for idx, cand in enumerate(candidates):
+        loc = f"candidates[{idx}]"
+        if not isinstance(cand, dict):
+            errors.append(f"{loc}: must be a mapping")
+            continue
+
+        cid = cand.get("id")
+        if "id" not in cand:
+            errors.append(f"{loc}: missing required field 'id'")
+        elif not isinstance(cid, str):
+            errors.append(f"{loc}.id: must be a string")
+        else:
+            if not KEBAB_RE.match(cid):
+                errors.append(f"{loc}.id: {cid!r} is not kebab-case")
+            if cid in seen:
+                errors.append(f"{loc}: duplicate id {cid!r}")
+            seen.add(cid)
+
+        label = cand.get("label")
+        if "label" not in cand:
+            errors.append(f"{loc}: missing required field 'label'")
+        elif not isinstance(label, str) or not label.strip():
+            errors.append(f"{loc}.label: must be a non-empty string")
+
+        for field in ("parent", "seed", "note", "status"):
+            if field in cand and (
+                not isinstance(cand[field], str) or not cand[field].strip()
+            ):
+                errors.append(
+                    f"{loc}.{field}: when present, must be a non-empty string"
+                )
+
+    return errors
+
+
 def validate(path: Path, *, strict: bool = False) -> list[str]:
     errors: list[str] = []
     try:
@@ -253,7 +323,18 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
     except yaml.YAMLError as exc:
         return [f"YAML parse error: {exc}"]
 
-    if not isinstance(data, dict) or "entries" not in data:
+    if not isinstance(data, dict):
+        return ["top-level must be a mapping with key 'entries:'"]
+
+    # Schema discriminator: the research-program's hand-authored backlog
+    # (kind: topic-backlog + candidates:) is a legitimately different artifact
+    # from /topic-discovery output (entries:). Route it to its own validator.
+    if data.get("kind") == "topic-backlog" or (
+        "candidates" in data and "entries" not in data
+    ):
+        return _validate_research_program_backlog(data, strict=strict)
+
+    if "entries" not in data:
         return ["top-level must be a mapping with key 'entries:'"]
 
     for field in TOP_LEVEL_REQUIRED:
