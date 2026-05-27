@@ -3296,3 +3296,16 @@ offsets correct across multi-byte chars), and emits the anchor — **self-verifi
 `<meta>` + body — 41 of 61 detector-landscape anchors hit this). Reproduced all 61 real
 detector-landscape anchors exactly. 14 tests; wired into `/agent-index` Phase 2a + `/research-gather`
 Phase 5.
+
+---
+
+## Wave 4 dogfood — Tools & Extensibility trio (2026-05-27)
+
+Three strict-live dossiers (`env_skills` 7src/22atoms, `tool_minimization` 6/18, `mcp_design` 12/32) ran the 8-step recipe to all-gates-green (verify_citations 22/22 + 18/18 + 32/32; CoVe round-1 all **0/0/0**; freshness --strict OK), then composed into a **12-wide** cross-project KG (828->813 records, **0 atom-ID collisions**; D2/D5 held at 12-wide). Four `w4-*` entries:
+
+1. **`w4-dual-layer-spec-in-transition` (medium, applied as convention).** MCP is mid-transition (current `2025-11-25` spec + an announced `2026-07-28` breaking-change RC). Adopted the **dual-layer convention**: anchor *what is* and *what's coming* as **distinct atoms**, each verbatim to a dated primary; the coming-layer is phrased *"the RC announces X"* (never asserted as current) and carries `stale_after_days` keyed to the transition date so `/freshness-audit` auto-flags the recheck when the RC lands (`supersedes` wires the replacement). Reuses existing fields — cheap discipline, the durable answer to recurring spec-churn. **Toolkit candidate:** document the pattern in `references/`.
+2. **`w4-freshness-tier-no-fast-moving` (medium, surfaced).** The `freshness_tier` enum has no "fast-moving" and `volatile` caps `stale_after_days` at 30 — too aggressive for a ~62-day *known* transition. Convention: `freshness_tier: active` + a dated `stale_after_days`. **Toolkit candidate:** add a tier for known dated transitions or document the convention.
+3. **`w4-roadmap-folk-figures` (low, applied).** Verify-against-primary corrected the *roadmap*'s case-study figures (the real Vercel/Block numbers differ from the planned "16->1 / 30->2"). Roadmap/plan figures are leads-to-verify, not facts.
+4. **`w4-cross-wave-source-overlap` (low, applied).** First cross-wave shared sources (Agent Skills <-> claudemd_discipline; writing-tools <-> context_assembly); the merge resolved them by `primary_url`+`sha256`, both framings kept — a stronger D2 proof than the disjoint Waves 1-3.
+
+**Process note:** the wave ran autonomously with a single human checkpoint (the user-signed-off `mcp_design` scope), confirming the per-dossier recipe is robust at 11-dossier scale. Branch `wave4-burn-in` (unmerged, per the Wave-3 norm).

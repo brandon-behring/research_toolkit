@@ -551,3 +551,32 @@ entries:
   severity: low
   status: surfaced
   notes: 'Both self-verify before printing; produced 41/41 clean anchors (30 ops-security + 11 eval-harnesses, 0 citation-audit rejects). The 2026-05-25 no-producer gap is doubly closed. Minor follow-up: redirect the gather brief to scripts/build_excerpt_anchor.py and retire the scratch twin.'
+
+- id: w4-dual-layer-spec-in-transition
+  phase: wave-4
+  stage: research-plan
+  finding: 'A topic can be mid-transition — a current authoritative spec (MCP 2025-11-25) plus an announced breaking-change RC (2026-07-28); both "what is" and "what is coming" matter. No documented convention for representing them honestly in one v3 dossier.'
+  severity: medium
+  status: applied
+  notes: 'Adopted the dual-layer convention (mcp_design Wave 4): anchor BOTH layers as DISTINCT atoms, each verbatim to a dated primary — "what is" cites the current spec; "what is coming" cites the RC blog/changelog that ANNOUNCES it and is phrased "the 2026-07-28 RC announces X" (never asserted as current). Coming-atoms carry stale_after_days keyed to the transition date (62 -> 2026-07-28) so /freshness-audit auto-flags the recheck the moment the RC lands; supersedes/superseded_by wire the replacement (D5). Reuses existing volatility/stale_after_days/supersedes fields — cheap discipline, not new machinery (the user framing of the durable answer to recurring spec-churn). Toolkit candidate: document this pattern in references/.'
+- id: w4-freshness-tier-no-fast-moving
+  phase: wave-4
+  stage: research-gather
+  finding: 'freshness_tier enum is {volatile, active, stable, historical} — no "fast-moving" value, and volatile caps stale_after_days at 30, too aggressive for a ~62-day KNOWN transition (the 2026-07-28 RC). Two gather agents independently tried freshness_tier: fast-moving (rejected) then adapted.'
+  severity: medium
+  status: surfaced
+  notes: 'Convention adopted: freshness_tier: active + a stale_after_days keyed to the transition date (62), which passes --strict (active cap 90) and still encodes "recheck sooner than stable". The fast-moving intent rides the dated stale_after, not a tier label. Toolkit candidate: add a tier between active(90) and volatile(30) for known dated transitions, OR document the active+dated-stale_after convention; reconcile the gather-brief wording.'
+- id: w4-roadmap-folk-figures
+  phase: wave-4
+  stage: research-gather
+  finding: 'The program roadmap stated the tool-minimization case studies as "Vercel 16->1, Copilot 40->13, Block 30->2"; the strict-live gather found the real first-party numbers differ (Vercel removed 80% -> a single bash tool, 100% vs 80%; Block 30+ APIs/200+ endpoints -> 3 MCP tools, consolidation-only; only Copilot 40->13 matched).'
+  severity: low
+  status: applied
+  notes: 'Confirms verify-against-primary catches ROADMAP-level folk approximations, not just launchpad-seed ones. Treat figures in the wave plan / roadmap as leads-to-verify, never facts. All real numbers anchored verbatim from the first-party posts; nothing laundered.'
+- id: w4-cross-wave-source-overlap
+  phase: wave-4
+  stage: multi-stage
+  finding: 'First wave whose new corpus SHARED sources with prior waves: the Agent Skills post (env_skills) recurs in claudemd_discipline; the writing-effective-tools post (tool_minimization) recurs in context_assembly. Waves 1-3 were cleanly disjoint.'
+  severity: low
+  status: applied
+  notes: '_merge_projects.py resolved both by primary_url+sha256, preserving both claim_family framings (D2/D6); shared-source count 5 -> 7; 0 atom-ID collisions at 12-wide (828->813). A STRONGER D2 proof than the disjoint earlier waves — the merge handles genuine overlap, not just disjoint corpora.'
