@@ -1466,3 +1466,81 @@ def test_v23_b3_corroboration_percentage_at_n6plus(tmp_path: Path) -> None:
     assert "corroborated (≥2 independent sources): 0/6 (0%)" in text, text
     # And the small-N annotation does NOT appear at N=6
     assert "corpus too small" not in text, text
+
+
+# ----- Content Age section: published_online content-age freshness -----
+
+
+def _run_dashboard(project: Path, out: Path, today: str = "2026-05-19") -> str:
+    """Run build_dashboard.py via subprocess and return the rendered text."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_dashboard.py"),
+            str(project),
+            "--output",
+            str(out),
+            "--today",
+            today,
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    return out.read_text(encoding="utf-8")
+
+
+def _set_bib_published_online(project: Path, value: str) -> None:
+    """Add ``published_online: <value>`` to the first bib_ledger entry in-place."""
+    bib_path = project / "bib_ledger.yml"
+    data = yaml.safe_load(bib_path.read_text(encoding="utf-8"))
+    data["entries"][0]["published_online"] = value
+    bib_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+def test_build_dashboard_reports_content_age_when_published_online_present(
+    tmp_path: Path,
+) -> None:
+    """When an entry carries published_online, the Content Age section reports the
+    oldest content date + a computed age in days/years."""
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    _set_bib_published_online(project, "2017-06-12")
+    text = _run_dashboard(project, tmp_path / "dash.md")
+    assert "## Content Age" in text, text
+    assert "entries with published_online: 1/" in text, text
+    assert "oldest content: 2017-06-12" in text, text
+    assert "yrs old" in text, text
+
+
+def test_build_dashboard_content_age_renders_dash_when_field_absent(
+    tmp_path: Path,
+) -> None:
+    """No entry has published_online → section still renders with em-dashes,
+    never crashing on the missing field."""
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    text = _run_dashboard(project, tmp_path / "dash.md")
+    assert "## Content Age" in text, text
+    assert "oldest content: —" in text, text
+    assert "newest content: —" in text, text
+
+
+def test_build_dashboard_content_age_tolerates_year_only_value(
+    tmp_path: Path,
+) -> None:
+    """A year-only published_online (e.g. 2011) is normalized to Jan 1 and does
+    not crash the dashboard. The bib_ledger is written directly so the year-only
+    value survives to the builder (the validator enforces full ISO on write, but
+    the dashboard must stay robust to legacy/partial data)."""
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    bib_path = project / "bib_ledger.yml"
+    data = yaml.safe_load(bib_path.read_text(encoding="utf-8"))
+    # Year-only int value (legacy/partial data the dashboard must tolerate).
+    data["entries"][0]["published_online"] = 2011
+    bib_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    text = _run_dashboard(project, tmp_path / "dash.md")
+    assert "## Content Age" in text, text
+    assert "oldest content: 2011-01-01" in text, text

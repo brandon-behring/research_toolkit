@@ -13,6 +13,12 @@
 #   to it. Absolute / ~-prefixed paths in raw_path et al still work for
 #   backward compat but are rejected as writer output (use migrate_manifest_paths.py
 #   to fix legacy manifests).
+#
+# Optional per-entry field:
+# - published_online (str, ISO YYYY-MM-DD) — the date the content first appeared
+#   online (arXiv v1 submission / Crossref issued / page publish date), distinct
+#   from fetched_at (when this cache copy was captured). Display-only content-age
+#   anchor; omit when unknown.
 
 schema_version: 2
 topic: '<topic slug>'
@@ -34,3 +40,6 @@ entries:
   restricted: false
   rights_status: private_use
   extraction_status: ok       # ok | partial | raw_only | failed
+  published_online: 2025-01-02  # ISO YYYY-MM-DD; date the content first appeared
+                                # online (arXiv v1 / Crossref issued / page publish
+                                # date); omit when unknown

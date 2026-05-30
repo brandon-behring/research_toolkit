@@ -48,6 +48,7 @@ if __package__ in (None, ""):
 from validators._common import URL_RE, cli_main
 from validators.v2_common import (
     is_v2_mapping,
+    parse_iso_date,
     validate_strict_live_entry,
     validate_strict_live_top,
 )
@@ -55,6 +56,14 @@ from validators.v2_common import (
 ALLOWED_STATUS = {"unverified", "verified", "mismatched"}
 REQUIRED_FIELDS = ("bibkey", "primary_url", "title", "status", "claim_family")
 OPTIONAL_STRING_FIELDS = ("authors", "venue", "code_url")
+# Optional date fields validated as ISO YYYY-MM-DD when present (never required).
+# These are date-checked rather than string-checked because PyYAML deserializes
+# unquoted ``2017-06-12`` to a ``datetime.date`` — parse_iso_date accepts both
+# str and date, mirroring how retrieved_at / verified_at are handled in v2_common.
+#   published_online — date the content first appeared online (arXiv v1 /
+#                      Crossref issued / page publish date). Display-only
+#                      freshness anchor for judging content age vs cache age.
+OPTIONAL_DATE_FIELDS = ("published_online",)
 URL_PATTERN = re.compile(rf"^{URL_RE}$")
 ARXIV_ABS_PATTERN = re.compile(
     r"^https?://(?:www\.)?arxiv\.org/abs/\d{4}\.\d{4,5}(?:v\d+)?/?$"
@@ -149,6 +158,12 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
                         f"{loc}.{field}: when present, must be non-empty "
                         f"(use a dash field omission rather than empty string)"
                     )
+
+        for field in OPTIONAL_DATE_FIELDS:
+            if field in entry and entry[field] is not None:
+                _, err = parse_iso_date(entry[field], f"{loc}.{field}")
+                if err:
+                    errors.append(err)
 
         bibkey = entry.get("bibkey")
         if isinstance(bibkey, str):
