@@ -51,9 +51,10 @@ ALREADY_RECOVERED = {"accept", "accept_via_wayback", "accept_via_playwright",
                      "accept_via_crossref", "accept_via_arxiv_abs",
                      "accept_via_arxiv_vanity", "accept_via_https"}
 
-ARXIV_ID_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)", re.I)
-ARXIV_OLD_ID_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([a-z\-]+/\d{7})", re.I)
-DOI_RE = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b", re.I)
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from validators._common import ARXIV_ID_RE, ARXIV_OLD_ID_RE, DOI_RE
 
 
 # Reuse cache_source

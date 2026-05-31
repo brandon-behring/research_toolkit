@@ -21,15 +21,15 @@ from __future__ import annotations
 import argparse
 import collections
 import json
-import re
 import sys
 from pathlib import Path
 
 import yaml
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-ARXIV_ID_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})", re.I)
-DOI_RE = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b", re.I)
+from validators._common import ARXIV_ID_RE, DOI_RE
 
 
 def canonicalize_url(url: str) -> str:

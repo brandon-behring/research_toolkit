@@ -27,6 +27,11 @@ import uuid
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from validators._common import ARXIV_ID_RE, ARXIV_OLD_ID_RE, DOI_RE
+
 
 # Detection heuristics for when urllib's result is suspect and Playwright
 # might do better. Tuned conservatively: a 500-char minimum catches blank
@@ -427,13 +432,11 @@ def _content_is_suspect(raw: bytes, content_type: str) -> tuple[bool, str]:
 
 
 # v2.6 source provenance: best-effort publication-date capture + arXiv stub
-# recovery. Id-extraction regexes mirror scripts/retry_escalations_v2.py so the
-# two stay in lockstep. Every network lookup here is timeout-bounded and
+# recovery. The arXiv/DOI id-extraction regexes (ARXIV_ID_RE, ARXIV_OLD_ID_RE,
+# DOI_RE) are imported from validators._common so every cache/dossier script
+# stays in lockstep. Every network lookup here is timeout-bounded and
 # failure-tolerant — a date lookup that errors or times out must NEVER break
 # caching (the field is optional).
-ARXIV_ID_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)", re.I)
-ARXIV_OLD_ID_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([a-z\-]+/\d{7}(?:v\d+)?)", re.I)
-DOI_RE = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b", re.I)
 PUBDATE_TIMEOUT = 20
 ARXIV_ABS_FALLBACK_REASON = "arxiv_abs_fallback"
 
