@@ -18,6 +18,9 @@ from validators import bib_ledger, dataset_ledger
 from validators import cache_manifest, claim_graph, evidence_ledger, freshness, gather_trace, pre_selection_manifest, research_kb_export
 from validators.v2_common import content_age_warning_for_entry
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+import verify_citations  # type: ignore[import-not-found]
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_ai_agents"
 MULTI_FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_multi_entry"
@@ -802,6 +805,99 @@ def test_v3_manual_override_requires_user_note_source(tmp_path: Path) -> None:
     _write_yaml(path, data)
     errors = evidence_ledger.validate(path)
     assert any("manual_override" in e and "user_note" in e for e in errors), errors
+
+
+# ----- verify_citations: claim-excerpt relevance heuristic (WARNING) -----
+
+
+def _set_v3_claim_graph(project: Path, claim_id: str, claim_text: str) -> None:
+    """Overwrite the project's claim_graph.jsonl with a single claim record in
+    the canonical id/text schema (record_type=claim)."""
+    (project / "claim_graph.jsonl").write_text(
+        json.dumps({"record_type": "claim", "id": claim_id, "text": claim_text}) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_verify_citations_no_relevance_warning_when_on_topic(tmp_path: Path) -> None:
+    # The V3 fixture excerpt is "91.2% accuracy"; an on-topic claim sharing its
+    # salient terms (accuracy, 91.2) -> no relevance warning.
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    _set_v3_claim_graph(
+        project,
+        "claim_v3_demo_accuracy",
+        "The model reaches 91.2% accuracy on the benchmark.",
+    )
+    audit_data = verify_citations.audit(project)
+    assert audit_data["relevance_warnings"] == [], audit_data["relevance_warnings"]
+
+
+def test_verify_citations_warns_on_off_topic_excerpt(tmp_path: Path) -> None:
+    # Same (substring-valid) excerpt/anchor, but the claim is about an unrelated
+    # subject -> low overlap -> relevance warning.
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    _set_v3_claim_graph(
+        project,
+        "claim_v3_demo_accuracy",
+        "Photosynthesis converts sunlight into chemical energy stored in glucose.",
+    )
+    audit_data = verify_citations.audit(project)
+    assert any("overlap" in w for w in audit_data["relevance_warnings"]), audit_data["relevance_warnings"]
+
+
+def test_verify_citations_relevance_warning_does_not_fail_audit(tmp_path: Path) -> None:
+    # An off-topic claim warns, but the substring check still passes and the
+    # audit's pass/fail (exit semantics) is unchanged.
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    _set_v3_claim_graph(
+        project,
+        "claim_v3_demo_accuracy",
+        "Volcanic eruptions release sulfur dioxide that cools the stratosphere.",
+    )
+    audit_data = verify_citations.audit(project)
+    assert audit_data["relevance_warnings"]  # warning present
+    assert audit_data["substring_failures"] == []  # but audit not failed
+    assert audit_data["substring_pass"] == audit_data["substring_attempt"]
+    report = verify_citations.render_report(audit_data, "demo", date(2026, 1, 1))
+    assert "Relevance warnings (heuristic" in report
+
+
+def test_verify_citations_relevance_skips_when_no_claim_text(tmp_path: Path) -> None:
+    # No claim_graph -> no real claim_text -> heuristic stays silent (the thin
+    # field_path+claim_id fallback is too weak to judge). No warning, no crash.
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    (project / "claim_graph.jsonl").unlink()
+    audit_data = verify_citations.audit(project)
+    assert audit_data["relevance_warnings"] == [], audit_data["relevance_warnings"]
+
+
+def test_relevance_helper_overlap_thresholds() -> None:
+    # Direct unit cases for the salient-token + overlap helper.
+    claim = "transformer attention mechanism weights input tokens"
+    on_topic = "the transformer attention mechanism weights tokens by relevance"
+    off_topic = "the cat sat on a warm mat beside the kitchen window"
+    assert verify_citations._relevance_warning(
+        claim_id="c", field_path="f", excerpt=on_topic,
+        claim_texts={"c": claim}, loc="loc",
+    ) is None
+    assert verify_citations._relevance_warning(
+        claim_id="c", field_path="f", excerpt=off_topic,
+        claim_texts={"c": claim}, loc="loc",
+    ) is not None
+
+
+def test_relevance_helper_skips_without_claim_text() -> None:
+    # No claim_text for the id -> skip (return None) regardless of excerpt; the
+    # thin field_path+claim_id fallback must not produce a warning.
+    assert verify_citations._relevance_warning(
+        claim_id="c", field_path="results.accuracy",
+        excerpt="entirely unrelated text about gardening and soil",
+        claim_texts={}, loc="loc",
+    ) is None
 
 
 # ----- Cache manifest revisit-record tests (v2.1.0 Tier-1 #7) -----

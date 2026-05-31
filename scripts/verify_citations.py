@@ -16,6 +16,7 @@ from collections import defaultdict
 from datetime import date
 import json
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -37,6 +38,132 @@ METHOD_BUCKETS = {
     "propagated_from_child": "weak",
     "manual_override": "partial",
 }
+
+# --- Claim-excerpt relevance heuristic (WARNING-only) -----------------------
+# The substring/hash check proves an excerpt EXISTS byte-exact in the cache; it
+# does NOT prove the excerpt is ON-TOPIC for the claim it supports, so a real
+# but tangential span ("quote-mining") passes the audit. This heuristic flags
+# POSSIBLE quote-mining for HUMAN REVIEW by measuring keyword overlap between
+# the claim text and the excerpt. It is explicitly NOT a correctness verdict and
+# NEVER changes the audit's pass/fail (exit code) — relevance is heuristic.
+#
+# Metric: fraction of the claim's salient (stopworded, len>=3) tokens that also
+# appear in the excerpt (recall of claim terms). Below RELEVANCE_MIN_OVERLAP ->
+# warning. The heuristic ONLY runs when a real natural-language claim_text is
+# available for the claim (from the sibling claim_graph.jsonl); without it the
+# only claim-side descriptors are identifier-shaped (field_path + claim_id), too
+# thin to judge, so the link is skipped rather than flagged. Claims whose
+# claim_text has fewer than RELEVANCE_MIN_CLAIM_TOKENS salient tokens are also
+# skipped (too short to judge). FALSE-POSITIVE EXPECTATION: short/technical
+# excerpts, heavy acronym use, or claims phrased with different vocabulary than
+# the source may flag despite being on-topic; that is why this is review-only,
+# not a gate. Threshold 0.20 chosen so that on the shipped dossiers (whose
+# claim_graphs do not yet populate claim_text) zero links are flagged — i.e. the
+# check is silent until a project supplies real claim text to judge against.
+RELEVANCE_MIN_OVERLAP = 0.2
+RELEVANCE_MIN_CLAIM_TOKENS = 4
+
+_RELEVANCE_STOPWORDS = frozenset({
+    "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "for", "with",
+    "as", "by", "at", "from", "is", "are", "was", "were", "be", "been", "being",
+    "that", "this", "these", "those", "it", "its", "which", "who", "whom", "whose",
+    "can", "may", "must", "should", "would", "could", "will", "shall", "not", "no",
+    "into", "over", "under", "than", "then", "such", "via", "per", "also", "where",
+    "when", "while", "they", "them", "their", "there", "here", "between", "each",
+    "any", "all", "some", "more", "most", "other", "using", "use", "used", "based",
+    "how", "what", "if", "so", "do", "does", "has", "have", "had", "we", "you",
+})
+_RELEVANCE_TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+
+def _salient_tokens(text: str | None) -> set[str]:
+    """Lowercase alnum tokens of length >= 3 with stopwords removed."""
+    return {
+        w
+        for w in _RELEVANCE_TOKEN_RE.findall((text or "").lower())
+        if len(w) >= 3 and w not in _RELEVANCE_STOPWORDS
+    }
+
+
+def _load_claim_texts(project_dir: Path) -> dict[str, str]:
+    """Best-effort map of claim_id -> claim text from a sibling claim_graph.jsonl.
+
+    The canonical claim_graph claim record (record_type == "claim") carries the
+    claim id under ``id`` and the natural-language statement under ``text`` — and
+    a support link's ``claim_id`` references that ``id``. We key on ``id``/``text``
+    and also accept the alternate ``claim_id``/``claim_text`` spelling for
+    robustness. Returns {} if the file is absent or unreadable; malformed lines
+    are skipped so a partial file still yields what it can.
+    """
+    path = project_dir / "claim_graph.jsonl"
+    out: dict[str, str] = {}
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return out
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(rec, dict):
+            continue
+        # Only claim records carry claim text; skip entity/source/evidence/etc.
+        if rec.get("record_type") not in (None, "claim"):
+            continue
+        cid = rec.get("id") if isinstance(rec.get("id"), str) else rec.get("claim_id")
+        ct = rec.get("text") if isinstance(rec.get("text"), str) else rec.get("claim_text")
+        if isinstance(cid, str) and isinstance(ct, str) and ct.strip():
+            out[cid] = ct
+    return out
+
+
+def _relevance_warning(
+    *,
+    claim_id: str | None,
+    field_path: str | None,
+    excerpt: str,
+    claim_texts: dict[str, str],
+    loc: str,
+) -> str | None:
+    """Return a relevance WARNING if claim/excerpt keyword overlap is low, else None.
+
+    The heuristic only runs when a real natural-language ``claim_text`` is
+    available for ``claim_id`` from the sibling claim_graph.jsonl. If it is not
+    (no claim_graph, or that claim carries no claim_text), this returns None:
+    the only claim-side descriptors otherwise on the support link are
+    ``field_path`` + ``claim_id``, which are identifier-shaped (e.g.
+    ``results.jailbreak_rate`` / ``claim_v3_demo_accuracy``) and too thin to
+    judge topical overlap without producing noise. Staying silent beats flagging
+    spuriously: this is a review aid, and a false alarm on every link would make
+    it useless. (``field_path`` is accepted for signature stability but is not
+    used as a claim-text substitute.)
+    """
+    if not (isinstance(claim_id, str) and claim_id in claim_texts):
+        return None
+    claim_side = claim_texts[claim_id]
+
+    claim_tokens = _salient_tokens(claim_side)
+    if len(claim_tokens) < RELEVANCE_MIN_CLAIM_TOKENS:
+        return None
+    excerpt_tokens = _salient_tokens(excerpt)
+    if not excerpt_tokens:
+        # An excerpt with no salient tokens cannot substantiate a multi-term
+        # claim; flag for review.
+        overlap = 0.0
+    else:
+        overlap = len(claim_tokens & excerpt_tokens) / len(claim_tokens)
+    if overlap >= RELEVANCE_MIN_OVERLAP:
+        return None
+    shared = sorted(claim_tokens & excerpt_tokens)
+    return (
+        f"{loc}: low claim-excerpt overlap {overlap:.2f} "
+        f"(< {RELEVANCE_MIN_OVERLAP}); shared salient terms: {shared or 'none'} "
+        f"(claim_id={claim_id!r}) — possible off-topic excerpt, review manually"
+    )
 
 
 def audit(project_dir: Path) -> dict[str, Any]:
@@ -62,12 +189,16 @@ def audit(project_dir: Path) -> dict[str, Any]:
 
     is_v3 = is_v3_mapping(edata)
 
+    # Best-effort claim text for the relevance heuristic (sibling claim_graph).
+    claim_texts = _load_claim_texts(project_dir)
+
     total_links = 0
     method_counts: dict[str, int] = defaultdict(int)
     method_sum_conf: dict[str, float] = defaultdict(float)
     substring_pass = 0
     substring_attempt = 0
     substring_failures: list[str] = []
+    relevance_warnings: list[str] = []
     per_claim_methods: dict[str, list[str]] = defaultdict(list)
     per_claim_confs: dict[str, list[float]] = defaultdict(list)
 
@@ -92,6 +223,18 @@ def audit(project_dir: Path) -> dict[str, Any]:
                     per_claim_confs[claim_id].append(float(link_conf))
             if isinstance(claim_id, str) and isinstance(method, str):
                 per_claim_methods[claim_id].append(method)
+
+            # Heuristic claim-excerpt relevance (WARNING-only; never affects exit).
+            field_path = support.get("field_path")
+            rel = _relevance_warning(
+                claim_id=claim_id if isinstance(claim_id, str) else None,
+                field_path=field_path if isinstance(field_path, str) else None,
+                excerpt=excerpt,
+                claim_texts=claim_texts,
+                loc=f"{entry.get('evidence_id', '?')}.supports[claim={claim_id}]",
+            )
+            if rel:
+                relevance_warnings.append(rel)
 
             anchor = support.get("excerpt_anchor")
             if method == "verbatim_match" and isinstance(anchor, dict) and is_v3:
@@ -139,6 +282,7 @@ def audit(project_dir: Path) -> dict[str, Any]:
         "substring_attempt": substring_attempt,
         "substring_pass": substring_pass,
         "substring_failures": substring_failures,
+        "relevance_warnings": relevance_warnings,
         "per_claim_health": per_claim_health,
     }
 
@@ -204,6 +348,24 @@ def render_report(audit_data: dict[str, Any], project_name: str, today: date) ->
         for f in audit_data["substring_failures"]:
             lines.append(f"- {f}")
 
+    relevance = audit_data.get("relevance_warnings") or []
+    lines.extend([
+        "",
+        "## Relevance warnings (heuristic — review manually)",
+        "",
+        "These flag support links where the excerpt shares few salient keywords "
+        "with the claim it supports — a possible sign of an off-topic excerpt "
+        "(\"quote-mining\"). This is a HEURISTIC for human review, NOT a "
+        "correctness verdict, and does NOT affect the audit's pass/fail. Short, "
+        "technical, or differently-phrased excerpts may flag while still being "
+        "on-topic.",
+        "",
+        f"- Links flagged: {len(relevance)} "
+        f"(overlap threshold {RELEVANCE_MIN_OVERLAP})",
+    ])
+    for w in relevance:
+        lines.append(f"- {w}")
+
     lines.append("")
     return "\n".join(lines)
 
@@ -235,9 +397,16 @@ def main(argv: list[str]) -> int:
     print(output)
 
     if args.json:
-        # Strip non-serializable items
-        serializable = {k: v for k, v in audit_data.items() if k != "substring_failures"}
+        # Replace verbose string lists with counts for a compact metrics block.
+        serializable = {
+            k: v
+            for k, v in audit_data.items()
+            if k not in ("substring_failures", "relevance_warnings")
+        }
         serializable["substring_failure_count"] = len(audit_data["substring_failures"])
+        serializable["relevance_warning_count"] = len(
+            audit_data.get("relevance_warnings") or []
+        )
         print(json.dumps(serializable, sort_keys=True))
 
     # Exit code: 0 if no substring failures (or no v3), 1 if failures
