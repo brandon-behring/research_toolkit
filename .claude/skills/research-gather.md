@@ -68,6 +68,17 @@ Use `WebSearch` for each query. For results that look promising, use `WebFetch` 
 - Is the URL canonical? (arXiv `/abs/` not `/pdf/`; GitHub repo root not subdir)
 - Can you assign a bibkey from the authors + year + a 1-3 word slug?
 
+**Prefer open-access canonical sources (v2.6).** When a paper is on arXiv,
+cite and cache the `arxiv.org/abs/<id>` page rather than a paywalled-journal
+HTML page or a JS-rendered stub. `cache_source.py` reinforces this: on a
+suspect/stub fetch of an arXiv URL it auto-fetches the plain-HTML abs page
+(no Playwright needed) and records `escalation_reason: arxiv_abs_fallback`.
+Only fall back to a paywalled / HTML snapshot when no open version exists
+(then set `rights_status: restricted` per `references/citation_rules.md`).
+Source-tier rules (T1 `arxiv.org/abs/*`; third-party-citing-T1 ≠ T1) live in
+`references/citation_rules.md`; the primary-first posture is in
+`references/strict_live_v2.md`.
+
 Known landmark papers still require live verification in strict-live v2. Do not
 trust memory or a plan annotation for title, first author, year, venue, code, or
 current status.
@@ -103,6 +114,7 @@ When you have already WebFetched the source page during this phase, populate the
 - `authors`: e.g., "Hu et al. (2021)" / "Brier (1950)" — directly from the abstract page's author list
 - `venue`: e.g., "ICLR 2022", "NeurIPS 2024 Spotlight", or "arXiv preprint" — based on the abstract page's published-in field. **If you do not know the venue, write "arXiv preprint" — do not guess from memory.**
 - `code_url`: ONLY if the abstract page or the project page links to a code repository. Common locations: arXiv "Code" tab, abstract page footer, paper PDF first-page footnote. **Do NOT guess `<firstauthor>/<paper-slug>` GitHub patterns** — PEFT/calibration dogfood produced ~3% hard-404 rate from this pattern. Omit the field entirely when uncertain; downstream stages render `—`.
+- `published_online` (v2.6): the original online publication date (`YYYY-MM-DD`) when determinable. `cache_source.py` captures it automatically (arXiv API / Crossref / HTML `<meta>` tags) into the cache metadata + the manifest entry it prints — carry that value onto the bib_ledger entry. **Why:** it lets `/freshness-audit` judge *content* age, not just cache age (a paper cached today may be five years old). Omit when the cache step didn't resolve one — never the server `Last-Modified` (that's file mod time, not pub date).
 
 Populating these three optional fields here means `/dossier-build` and `/agent-index` render from data instead of guessing — the highest-leverage v1.1 improvement.
 
