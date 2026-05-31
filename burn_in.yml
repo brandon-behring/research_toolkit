@@ -627,9 +627,9 @@ entries:
   stage: assemble / render / cross-project-merge
   finding: 'the artifact assembler (~/Claude/_assemble.py) + per-topic renderers (~/Claude/_render_topic{,2,3,4}.py, ~200 lines each) + cross-project merge (_merge_projects.py / _merge_tracks.py) are uncommitted, outside git, and re-authored per topic'
   severity: high
-  status: surfaced
-  target_fix_version: v2.6.0
-  notes: 'The deterministic spine of the pipeline has no version control + no tests. Phase 1 commits them as scripts/assemble_artifacts.py, scripts/render_agent_index.py (+ sidecar render_config.yml schema), scripts/compose_cross_project_kg.py; parity-tested against a shipped topic at citation-audit 100%.'
+  status: applied
+  fix_version: v2.6.0
+  notes: 'The deterministic spine of the pipeline now has version control + tests. Phase 1 committed them as scripts/assemble_artifacts.py, scripts/render_agent_index.py (+ sidecar render_config.yml schema), scripts/compose_cross_project_kg.py; parity-tested against a shipped topic at citation-audit 100%.'
 
 - id: v26-no-cli
   phase: v2.6 Planning
@@ -653,9 +653,10 @@ entries:
   stage: agent-index / validators
   finding: 'the display!=evidence discipline (rendered Mechanism sentence must be a verbatim raw-byte cache substring) is documented in dossier READMEs + applied only by the uncommitted local renderers, NOT enforced by any committed validator'
   severity: high
-  status: surfaced
-  target_fix_version: v2.6.0
-  notes: 'The #1 trust hole: a documented-but-unenforced guarantee on the claim graph an AI consumes. Phase 2 adds validators/agent_index_display.py (raw-byte substring check, wired into cross_stage / citation-audit) — enforceable once the renderer is committed (depends on Phase 1).'
+  status: applied
+  fix_version: v2.6.0
+  fix_commit: '346fd86'
+  notes: 'The #1 trust hole: a documented-but-unenforced guarantee on the claim graph an AI consumes. Phase 2a adds validators/agent_index_display.py (whitespace-normalized raw-byte substring check; resolves each Mechanism bullet to its cached text via inline Evidence bullet -> evidence_ledger cache_ids -> cache_manifest text_path, falling back to Source-bibkey + family-file -> pre_selection; skips v1-era dossiers with no cache to ground against), wired into cross_stage as a hard check. 11 tests incl. a real-data oracle against the shipped mcp_server_security dossier (0 violations). The audit-time complement to the renderer verify_display write-time guard committed in Phase 1.'
 
 - id: v26-published-online-not-in-staleness
   phase: v2.6 Planning
@@ -694,8 +695,9 @@ entries:
   stage: validators / scripts
   finding: 'ARXIV_ID_RE / ARXIV_OLD_ID_RE / DOI_RE are duplicated across ~4 scripts'
   severity: low
-  status: surfaced
-  notes: 'Phase 1 extracts them into validators/_common.py (single source of truth).'
+  status: applied
+  fix_version: v2.6.0
+  notes: 'Phase 1 extracted them into validators/_common.py (single source of truth).'
 
 - id: v26-export-contract-redesign
   phase: v2.6 Planning
