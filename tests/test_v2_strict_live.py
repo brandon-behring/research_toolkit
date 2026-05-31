@@ -695,6 +695,63 @@ def test_v3_rejects_link_confidence_above_cap(tmp_path: Path) -> None:
     assert any("exceeds cap" in e for e in errors), errors
 
 
+def test_v3_rejects_llm_inferred_above_cap(tmp_path: Path) -> None:
+    """llm_inferred caps at 0.60; 0.99 inverts the strong/weak hierarchy -> hard
+    error (the inversion this check exists to catch)."""
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    support = data["entries"][0]["supports"][0]
+    support["extraction_method"] = "llm_inferred"
+    support["link_confidence"] = 0.99
+    support["inference_chain"] = ["ev_some_parent"]  # llm_inferred requires it
+    del support["excerpt_anchor"]
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert any("exceeds cap" in e for e in errors), errors
+
+
+def test_v3_accepts_verbatim_match_at_098(tmp_path: Path) -> None:
+    """The shipped assemblers use verbatim_match @ 0.98; it must NOT trip the cap
+    (verbatim cap is 1.0). The fixture's verbatim_match anchor still validates."""
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"][0]["supports"][0]["link_confidence"] = 0.98
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert not any("exceeds cap" in e for e in errors), errors
+
+
+def test_v3_accepts_paraphrase_at_cap(tmp_path: Path) -> None:
+    """paraphrase cap is 0.85; exactly at the cap is allowed (cap is inclusive)."""
+    project = tmp_path / "project"
+    shutil.copytree(V3_FIXTURE, project)
+    path = project / "evidence_ledger.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    support = data["entries"][0]["supports"][0]
+    support["extraction_method"] = "paraphrase"
+    support["link_confidence"] = 0.85
+    del support["excerpt_anchor"]
+    _write_yaml(path, data)
+    errors = evidence_ledger.validate(path)
+    assert not any("exceeds cap" in e for e in errors), errors
+
+
+def test_max_link_confidence_preserves_strong_partial_weak_hierarchy() -> None:
+    # The whole point of the caps: weak methods cannot out-rank partial, and
+    # partial cannot out-rank strong, on confidence ceiling alone. (manual_override
+    # is the documented user-note-gated carve-out and is excluded here.)
+    caps = evidence_ledger.MAX_LINK_CONFIDENCE
+    assert caps["llm_inferred"] < caps["paraphrase"] < caps["verbatim_match"]
+    assert caps["propagated_from_child"] < caps["paraphrase"]
+    assert caps["paraphrase"] < caps["user_asserted"]
+    # Alias kept for backward compatibility with pre-v2.6 importers.
+    assert evidence_ledger.EXTRACTION_METHOD_CAPS is caps
+
+
 def test_v3_substring_check_catches_mismatched_excerpt(tmp_path: Path) -> None:
     """If the excerpt doesn't match the bytes at text_path_offset, validation fails."""
     project = tmp_path / "project"
