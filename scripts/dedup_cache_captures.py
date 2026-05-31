@@ -20,11 +20,15 @@ from __future__ import annotations
 
 import argparse
 import collections
-import re
 import sys
 from pathlib import Path
 
 import yaml
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from validators._common import ARXIV_ID_RE, DOI_RE
 
 HOME = Path.home()
 SHARED_CACHE = HOME / "Claude" / "research_cache"
@@ -34,9 +38,6 @@ ROOTS = [
     HOME / "guides-experimentation", HOME / "eval-toolkit",
     HOME / "rl_and_control", HOME / "double_ml_time_series", HOME / "prompt-injection-v4",
 ]
-
-ARXIV_ID_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})(?:v\d+)?", re.I)
-DOI_RE = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b", re.I)
 
 
 def find_dossier_dirs() -> list[Path]:

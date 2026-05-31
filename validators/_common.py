@@ -73,3 +73,21 @@ def cli_main(argv: list[str], validate_fn: Callable[[Path], list[str]]) -> int:
 
 
 URL_RE = r"https?://[^\s\)\]]+"
+
+# Shared URL-identifier regexes used by cache/dossier scripts to canonicalize
+# arXiv and DOI references. The version suffix (``vN``) sits OUTSIDE each
+# capture group so ``group(1)`` is always the bare identifier — callers that
+# additionally strip ``vN`` (``re.sub(r"v\d+$", "", ...)``) get an identical
+# result. These match the ``arxiv.org/abs|pdf`` URL family; text-matching
+# variants that also accept the bare ``arxiv:`` prefix live with their callers.
+
+# New-style arXiv IDs, e.g. ``arxiv.org/abs/2401.01234`` (abs or pdf path).
+ARXIV_ID_RE = re.compile(
+    r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})(?:v\d+)?", re.I
+)
+# Old-style arXiv IDs, e.g. ``arxiv.org/abs/hep-th/9901001``.
+ARXIV_OLD_ID_RE = re.compile(
+    r"arxiv\.org/(?:abs|pdf)/([a-z\-]+/\d{7})(?:v\d+)?", re.I
+)
+# DOI strings, e.g. ``10.1145/3292500.3330701`` (capture group is the DOI).
+DOI_RE = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b", re.I)

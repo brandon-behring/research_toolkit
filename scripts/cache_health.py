@@ -42,6 +42,11 @@ except ImportError:
     print("  ~/Claude/research_toolkit/.venv/bin/python", file=sys.stderr)
     sys.exit(2)
 
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from validators._common import DOI_RE
+
 HOME = Path.home()
 DEFAULT_CACHE_ROOT = HOME / "Claude" / "research_cache"
 DEFAULT_OUT = HOME / "Claude" / "cache_health.md"
@@ -63,8 +68,11 @@ HEALTHY_EXTRACTION = {"ok", "ok_text_only", "rich"}
 # Decisions considered "successful" in gather_trace — anything else flagged.
 HEALTHY_DECISIONS = {"accept"}
 
+# DOI_RE is imported from validators._common (identical to the shared pattern).
+# ARXIV_ID_RE is kept local and abs-ONLY (no pdf path) on purpose: section 9's
+# duplicate-suspect detection groups cache entries by arXiv id, and widening to
+# the shared abs|pdf pattern would change which URLs are grouped here.
 ARXIV_ID_RE = re.compile(r"arxiv\.org/abs/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)", re.I)
-DOI_RE = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b", re.I)
 
 
 def find_dossier_dirs() -> list[Path]:

@@ -1,0 +1,86 @@
+# render_config schema reference
+# Maintained by hand; consumed by scripts/render_agent_index.py (the committed
+# successor to the per-topic ~/Claude/_render_topicN.py scratch renderers). There is
+# no dedicated validator yet — the renderer self-validates required keys and the
+# pre_selection_manifest/agent_index validators check its OUTPUT.
+#
+# A render_config.yml carries the PER-TOPIC DATA that used to be hardcoded as Python
+# literals in each scratch renderer (RESULT, FAMILIES, GLOSSARY, LOOKUP, scope text,
+# title/blurb, MECH_DISPLAY overrides). The renderer is the stable ENGINE; this file
+# is the only thing that changes per topic. The sources themselves (bibkey, excerpt,
+# sha, claim_family, published_online, ...) live in the separate sources.json the
+# gather step produces — NOT here.
+#
+# This file documents every field. Do not fill it in directly; copy
+# render_config.example.yml and adapt it. Lives at <project_dir>/render_config.yml.
+
+schema_version: 1            # int, required; bumped on breaking schema changes
+
+#
+# Identity + cache
+topic: <topic-slug>          # str, required; e.g. incrementality_geo_lift. Used in
+                             #   atom_id (claim_<topic>_<n>) + manifest top-matter.
+today: 'YYYY-MM-DD'          # str, optional; ISO date. CLI --today overrides it; if
+                             #   neither is set the renderer falls back to sources.json's
+                             #   "today". Written as generated_at/current_as_of.
+cache_root: <path>           # str, optional; root of the content-addressed cache (text
+                             #   blobs at <cache_root>/text/sha256/<sha>.txt). Optional
+                             #   because sources.json also carries cache_root; CLI
+                             #   --cache-root > config > sources.json.
+
+#
+# Index front matter (per-topic prose)
+title: <human title>         # str, required; H1 of the README; default 00_overview H1.
+blurb: <one paragraph>       # str, required; overview paragraph (emitted verbatim — put
+                             #   any markdown emphasis you want, e.g. *causal*, in here).
+overview_heading: <heading>  # str, optional; H1 for 00_overview.md if it should differ
+                             #   from title (else title is used).
+family_blurb: <one line>     # str, optional; the descriptive line under each family
+                             #   heading, rendered as "_<family_blurb> N entries._". If
+                             #   unset, defaults to "Topic: <topic>.".
+
+#
+# Families: source grouping + per-family output files (ordered).
+# Sources are grouped by claim_family into these files, in this order. A family with
+# no matching sources is skipped (no empty file is written).
+families:                    # list, required
+  - file: <NN_name.md>       #   str, required; output filename under agent_index/
+    claim_family: <key>      #   str, required; matches sources[].claim_family
+    heading: <H1 heading>    #   str, required; H1 for the family file
+
+#
+# Results: one-line qualitative summary per source (the Result bullet).
+# Map of bibkey -> summary. Every rendered source's bibkey must be present, else the
+# renderer aborts (MISSING RESULT) — matching the scratch engine's invariant.
+results:                     # dict[str, str], required
+  <bibkey>: <one-line summary>
+
+#
+# Glossary: terms shown in 00_overview.md (optional).
+glossary:                    # list[{term, definition}], optional
+  - term: <term>
+    definition: <one-line definition>
+
+#
+# Lookup recipes: analyst-question -> where to look, shown in the README (optional).
+lookup_recipes:              # list[{question, file, ref}], optional
+  - question: <question text>
+    file: <NN_name.md>       #   file (or "00_overview.md") that answers it
+    ref: <bibkey or pointer> #   the answering source(s) / section
+
+#
+# README scope text (optional). scope_in/scope_out render as the IN/OUT scope-boundary
+# bullets; readme_scope is an optional freeform paragraph rendered before them.
+scope_in: <what IS in scope>     # str, optional
+scope_out: <what is OUT of scope> # str, optional
+readme_scope: <freeform scope>   # str, optional
+
+#
+# Mechanism display overrides (optional, GUARD-VERIFIED).
+# Map of bibkey -> cleaner display sentence shown in the Mechanism bullet INSTEAD of
+# the raw evidence excerpt (used when the anchored excerpt is title/meta/footnote
+# markup). GUARD: each display string MUST be a verbatim raw-byte substring of that
+# source's cached text, else the renderer aborts (DISPLAY ERROR, non-zero exit). The
+# anchored excerpt/offset in pre_selection_manifest.yml is unchanged — display != evidence.
+mechanism_display:           # dict[str, str], optional
+  <bibkey>: <verbatim substring of the cached source>
