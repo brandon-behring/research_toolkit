@@ -1,0 +1,70 @@
+# render_config example (filled toy: 2 families, 3 sources)
+# Maintained by hand; consumed by scripts/render_agent_index.py. Schema reference:
+# render_config.schema.yml. This small filled example demonstrates every field and is
+# the shape exercised by tests/test_render_agent_index.py.
+#
+# The renderer pairs this PER-TOPIC DATA with a sources.json (one entry per bibkey,
+# carrying excerpt/sha/claim_family/published_online/...). cache_root + today may come
+# from here, from sources.json, or from the CLI (CLI > config > sources.json).
+
+schema_version: 1
+
+#
+# Identity + cache
+topic: synthetic_control_demo
+today: '2026-05-30'
+cache_root: ~/Claude/research_cache   # optional; sources.json also carries one
+
+#
+# Index front matter
+title: Synthetic Control Methods (demo)
+blurb: This demo dossier covers *counterfactual* estimation via weighted donor pools and a debiased extension.
+overview_heading: Synthetic control methods (demo)      # optional; H1 of 00_overview.md
+family_blurb: 'Topic: synthetic control methods (demo).' # optional; line under each family heading (quoted: contains a colon)
+
+#
+# Families (ordered; one output file each)
+families:
+  - file: 01_synthetic_control.md
+    claim_family: synthetic_control
+    heading: Synthetic control
+  - file: 02_extensions.md
+    claim_family: sc_extensions
+    heading: Synthetic control extensions
+
+#
+# Results: bibkey -> one-line summary (every rendered bibkey must be present)
+results:
+  abadie2010synthetic: Reconstructs the counterfactual from a donor pool weighted to match pre-treatment outcomes; applied to California's tobacco program.
+  benmichael2021augmented: Augmented SCM de-biases the synthetic-control estimate with an outcome model when exact pre-treatment fit is infeasible.
+  arkhangelsky2021synthetic: Synthetic difference-in-differences combines unit and time weights for a doubly-robust estimate.
+
+#
+# Glossary (shown in 00_overview.md)
+glossary:
+  - term: synthetic control
+    definition: A weighted combination of untreated units approximating the treated unit's pre-treatment trajectory.
+  - term: donor pool
+    definition: The set of untreated units eligible to contribute weight to a synthetic control.
+
+#
+# Lookup recipes (shown in README)
+lookup_recipes:
+  - question: '"How is a synthetic control constructed?"'
+    file: 01_synthetic_control.md
+    ref: abadie2010synthetic
+  - question: '"What if pre-treatment fit is poor?"'
+    file: 02_extensions.md
+    ref: benmichael2021augmented
+
+#
+# README scope text
+scope_in: synthetic-control methods and their modern debiased extensions.
+scope_out: design-based RCT analysis; classical panel methods without a synthetic counterfactual.
+readme_scope: Focuses on weighted-donor counterfactual estimators; excludes pure design-based experimentation.
+
+#
+# Mechanism display overrides (guard-verified: each value must be a verbatim
+# raw-byte substring of that source's cached text)
+mechanism_display:
+  abadie2010synthetic: the synthetic control is constructed as a weighted average of control units
