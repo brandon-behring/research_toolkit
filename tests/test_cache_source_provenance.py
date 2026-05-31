@@ -86,6 +86,61 @@ class _FakeFetcher:
         raise OSError(f"no canned response for {url}")
 
 
+# ---------- Fake urllib boundary (exercises the REAL _fetch) ----------
+
+class _FakeHeaders:
+    """Stand-in for ``http.client.HTTPMessage`` used by ``_fetch``."""
+
+    def __init__(self, content_type: str):
+        self._content_type = content_type
+
+    def get_content_type(self):
+        return self._content_type
+
+    def get(self, key, default=None):
+        return default  # no ETag / Last-Modified in these canned responses
+
+
+class _FakeResponse:
+    """Context-manager response with the surface ``_fetch`` reads."""
+
+    def __init__(self, status: int, body: bytes, content_type: str):
+        self.status = status
+        self._body = body
+        self.headers = _FakeHeaders(content_type)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return self._body
+
+
+class _FakeUrlopen:
+    """Replacement for ``cache_source.urlopen`` — does NOT inject ``_fetch``.
+
+    Lets a test drive the genuine production path (``fetch=None``) so the
+    ``_fetch(api, timeout=...)`` call shape is exercised end-to-end. Keyed by
+    URL substring; records every (url, timeout) pair seen. The real ``_fetch``
+    passes a ``Request`` object, so the URL is read off ``.full_url``.
+    """
+
+    def __init__(self, responses: dict[str, tuple[int, bytes, str]]):
+        self.responses = responses
+        self.calls: list[tuple[str, int | None]] = []
+
+    def __call__(self, req, timeout=None):
+        url = req.full_url if hasattr(req, "full_url") else str(req)
+        self.calls.append((url, timeout))
+        for needle, (status, body, ctype) in self.responses.items():
+            if needle in url:
+                return _FakeResponse(status, body, ctype)
+        raise OSError(f"no canned response for {url}")
+
+
 # ---------- arXiv publication-date lookup ----------
 
 def test_arxiv_published_date_extracts_date_part():
@@ -326,3 +381,41 @@ def test_cache_one_succeeds_when_date_lookup_raises(tmp_path, monkeypatch):
     assert "published_online" not in entry
     assert entry["record_type"] == "capture"
     assert (tmp_path / "metadata" / "sha256" / f"{entry['sha256']}.json").exists()
+
+
+# ---------- DEFAULT-path date lookup (the REAL _fetch, no fetch= injection) ----------
+#
+# The injected-fetch tests above pass a fake that accepts ``timeout=``; they do
+# NOT prove the production path (``fetch=None`` -> real ``_fetch``) works. These
+# tests monkeypatch only the urllib boundary (``cache_source.urlopen``) so the
+# genuine ``_fetch(api, timeout=PUBDATE_TIMEOUT)`` call shape is exercised. They
+# would fail if ``_fetch`` lacked a ``timeout`` parameter (the regressed bug).
+
+def test_arxiv_published_date_default_path_uses_real_fetch(monkeypatch):
+    fake = _FakeUrlopen({"export.arxiv.org": (200, ARXIV_API_XML, "text/xml")})
+    monkeypatch.setattr(cache_source, "urlopen", fake)
+    # No fetch= argument -> exercises the real _fetch via the urlopen boundary.
+    assert cache_source._arxiv_published_date("1506.00356") == "2019-08-08"
+    assert any("id_list=1506.00356" in url for url, _ in fake.calls)
+    # The shorter pubdate timeout actually reaches urlopen (proves _fetch
+    # accepted and forwarded timeout= rather than raising TypeError).
+    assert any(t == cache_source.PUBDATE_TIMEOUT for _, t in fake.calls)
+
+
+def test_crossref_published_date_default_path_uses_real_fetch(monkeypatch):
+    fake = _FakeUrlopen(
+        {"api.crossref.org": (200, _crossref_json([[2020, 6, 15]]), "application/json")}
+    )
+    monkeypatch.setattr(cache_source, "urlopen", fake)
+    assert cache_source._crossref_published_date("10.1/x") == "2020-06-15"
+    assert any(t == cache_source.PUBDATE_TIMEOUT for _, t in fake.calls)
+
+
+def test_published_online_for_default_path_resolves_arxiv_date(monkeypatch):
+    # Whole resolver, default path: arXiv id -> real _fetch -> arXiv API -> date.
+    fake = _FakeUrlopen({"export.arxiv.org": (200, ARXIV_API_XML, "text/xml")})
+    monkeypatch.setattr(cache_source, "urlopen", fake)
+    got = cache_source._published_online_for(
+        "https://arxiv.org/abs/1506.00356", ARXIV_ABS_HTML, "text/html"
+    )
+    assert got == "2019-08-08"

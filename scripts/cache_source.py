@@ -378,11 +378,14 @@ def _fetch(
     *,
     if_etag: str | None = None,
     if_last_modified: str | None = None,
+    timeout: int = 30,
 ) -> tuple[int, bytes, str, str | None, str | None]:
     """Fetch a URL with optional conditional headers.
 
     Returns (status_code, body_bytes, content_type, etag, last_modified).
-    On a 304 Not Modified response, body_bytes is empty.
+    On a 304 Not Modified response, body_bytes is empty. ``timeout`` (seconds)
+    bounds the request; the publication-date lookups pass a shorter value so a
+    slow API can't stall caching.
     """
     headers = {"User-Agent": "research_toolkit/2.5.0 strict-live cache"}
     if if_etag:
@@ -391,7 +394,7 @@ def _fetch(
         headers["If-Modified-Since"] = if_last_modified
     req = Request(source_url, headers=headers)
     try:
-        with urlopen(req, timeout=30) as response:  # noqa: S310
+        with urlopen(req, timeout=timeout) as response:  # noqa: S310
             status = response.status if hasattr(response, "status") else response.getcode()
             content_type = response.headers.get_content_type() or "application/octet-stream"
             etag = response.headers.get("ETag")
