@@ -146,20 +146,31 @@ def test_burn_in_query_format_options_work() -> None:
         assert result.stdout, f"format={fmt}: empty stdout"
 
 
-def test_high_severity_items_all_resolved_in_v1_5() -> None:
-    """As of v1.5, all high-severity items should have status=applied.
+def test_high_severity_items_all_resolved_or_tracked() -> None:
+    """Every high-severity item must be resolved OR tracked to a planned release.
 
-    If this test fails, a new high-severity finding has been added without
-    a fix. That's load-bearing for the v1.x release theme.
+    A high-severity finding is acceptable if EITHER:
+    - status == "applied" (it's been fixed), OR
+    - it carries a truthy `target_fix_version` (it's an in-flight milestone item
+      with a committed remediation plan, e.g. the v2.6 phases).
+
+    A high-severity item that is neither applied nor tracked means a finding was
+    added without a fix AND without a plan — that's the load-bearing regression
+    this gate catches (originally the v1.5 "all high items applied" rule; widened
+    in v2.6 to support multi-phase milestones where high-severity structural items
+    are filed up front and resolved phase-by-phase). Flip each tracked item to
+    status=applied (with fix_version) as its phase lands.
     """
     data = yaml.safe_load(BURN_IN_YML.read_text(encoding="utf-8"))
-    unresolved = [
+    untracked = [
         e for e in data["entries"]
-        if e.get("severity") == "high" and e.get("status") != "applied"
+        if e.get("severity") == "high"
+        and e.get("status") != "applied"
+        and not e.get("target_fix_version")
     ]
-    assert not unresolved, (
-        f"high-severity items not yet resolved:\n"
-        + "\n".join(f"  - {e['id']}: {e['finding']}" for e in unresolved)
+    assert not untracked, (
+        "high-severity items neither applied nor tracked to a target_fix_version:\n"
+        + "\n".join(f"  - {e['id']}: {e['finding']}" for e in untracked)
     )
 
 

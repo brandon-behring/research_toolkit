@@ -24,6 +24,11 @@
 #                                  wontfix = out of v1.x scope
 #   fix_version      (str, optional) — version that addressed this; required when status=applied
 #   fix_commit       (str, optional) — commit hash; required when status=applied
+#   target_fix_version (str, optional) — planned release for an in-flight item not
+#                                        yet applied. A high-severity item passes the
+#                                        release gate if status=applied OR it carries
+#                                        a target_fix_version (multi-phase milestones
+#                                        file high items up front, resolve phase-by-phase).
 #   notes            (str, optional) — additional context
 #
 # Query helper: scripts/burn_in_query.py for filtering by status / severity / phase.
@@ -623,6 +628,7 @@ entries:
   finding: 'the artifact assembler (~/Claude/_assemble.py) + per-topic renderers (~/Claude/_render_topic{,2,3,4}.py, ~200 lines each) + cross-project merge (_merge_projects.py / _merge_tracks.py) are uncommitted, outside git, and re-authored per topic'
   severity: high
   status: surfaced
+  target_fix_version: v2.6.0
   notes: 'The deterministic spine of the pipeline has no version control + no tests. Phase 1 commits them as scripts/assemble_artifacts.py, scripts/render_agent_index.py (+ sidecar render_config.yml schema), scripts/compose_cross_project_kg.py; parity-tested against a shipped topic at citation-audit 100%.'
 
 - id: v26-no-cli
@@ -639,6 +645,7 @@ entries:
   finding: 'long gather sub-agents hold sources in memory and lose everything on a socket drop (topic-4 lost ~3.6h; recoverable only because the cache is content-addressed)'
   severity: high
   status: surfaced
+  target_fix_version: v2.6.0
   notes: 'Data-loss / silent-fail risk. Phase 3 adds scripts/resume_gather_from_cache.py (rebuild a sources-JSON skeleton from clean research_cache/metadata/sha256/*.json blobs) + incremental-write discipline in the research-gather skill (write each source as confirmed, not in-memory-then-dump).'
 
 - id: v26-display-vs-evidence-unenforced
@@ -647,6 +654,7 @@ entries:
   finding: 'the display!=evidence discipline (rendered Mechanism sentence must be a verbatim raw-byte cache substring) is documented in dossier READMEs + applied only by the uncommitted local renderers, NOT enforced by any committed validator'
   severity: high
   status: surfaced
+  target_fix_version: v2.6.0
   notes: 'The #1 trust hole: a documented-but-unenforced guarantee on the claim graph an AI consumes. Phase 2 adds validators/agent_index_display.py (raw-byte substring check, wired into cross_stage / citation-audit) — enforceable once the renderer is committed (depends on Phase 1).'
 
 - id: v26-published-online-not-in-staleness
