@@ -53,6 +53,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from validators._common import cli_main, matches_canonical_fuzzy
+from validators import agent_index_display
 
 ARXIV_ID_RE = re.compile(
     r"(?:arxiv\.org/abs/|arxiv:)(\d{4}\.\d{4,5})", re.IGNORECASE
@@ -401,6 +402,13 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
     # Treats agent_index filenames + bib_ledger bibkeys + dataset_ledger
     # entry IDs as valid targets. See BURN_IN_NOTES.md dogfood item #6.
     _check_wiki_link_resolution(path, errors=errors, warnings=warnings)
+
+    # Edge (v2.6): agent_index Mechanism bullets must be display-vs-evidence
+    # safe — each rendered Mechanism sentence is a raw-byte substring of its
+    # cached source. Audit-time half of the renderer's write-time guard. These
+    # are hard errors (anti-hallucination contract), independent of --strict.
+    # No-op when the project has no agent_index/ folder.
+    errors.extend(agent_index_display.validate(path))
 
     if strict:
         errors.extend(warnings)
