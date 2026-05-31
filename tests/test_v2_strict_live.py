@@ -16,6 +16,7 @@ import yaml
 
 from validators import bib_ledger, dataset_ledger
 from validators import cache_manifest, claim_graph, evidence_ledger, freshness, gather_trace, pre_selection_manifest, research_kb_export
+from validators.v2_common import content_age_warning_for_entry
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "v2_strict_live_ai_agents"
@@ -59,6 +60,68 @@ def test_freshness_strict_rejects_stale_entry(tmp_path: Path) -> None:
     shutil.copytree(FIXTURE, project)
     errors = freshness.validate(project, strict=True, today=date(2026, 7, 1))
     assert any("stale as of 2026-07-01" in e for e in errors), errors
+
+
+# ----- content_age_warning_for_entry (published_online vs freshness_tier) -----
+
+
+def test_content_age_warning_fires_for_old_active_entry() -> None:
+    entry = {"freshness_tier": "active", "published_online": "2018-01-01"}
+    warn = content_age_warning_for_entry(entry, today=date(2026, 1, 1))
+    assert warn is not None
+    assert "content age" in warn
+
+
+def test_content_age_warning_silent_for_recent_entry() -> None:
+    entry = {"freshness_tier": "active", "published_online": "2025-10-01"}
+    assert content_age_warning_for_entry(entry, today=date(2026, 1, 1)) is None
+
+
+def test_content_age_warning_silent_for_historical_tier() -> None:
+    entry = {"freshness_tier": "historical", "published_online": "1990-01-01"}
+    assert content_age_warning_for_entry(entry, today=date(2026, 1, 1)) is None
+
+
+def test_content_age_warning_silent_for_missing_tier() -> None:
+    entry = {"published_online": "1990-01-01"}
+    assert content_age_warning_for_entry(entry, today=date(2026, 1, 1)) is None
+
+
+def test_content_age_warning_silent_for_year_only_published_online() -> None:
+    entry_str = {"freshness_tier": "volatile", "published_online": "2011"}
+    entry_int = {"freshness_tier": "volatile", "published_online": 2011}
+    assert content_age_warning_for_entry(entry_str, today=date(2026, 1, 1)) is None
+    assert content_age_warning_for_entry(entry_int, today=date(2026, 1, 1)) is None
+
+
+def test_content_age_warning_volatile_threshold_boundary() -> None:
+    recent = {"freshness_tier": "volatile", "published_online": "2025-07-01"}
+    old = {"freshness_tier": "volatile", "published_online": "2024-01-01"}
+    assert content_age_warning_for_entry(recent, today=date(2026, 1, 1)) is None
+    assert content_age_warning_for_entry(old, today=date(2026, 1, 1)) is not None
+
+
+def test_freshness_warns_on_old_content_age_default_mode(tmp_path: Path, capsys) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    bib_path = project / "bib_ledger.yml"
+    data = yaml.safe_load(bib_path.read_text(encoding="utf-8"))
+    data["entries"][0]["published_online"] = "2018-01-01"
+    bib_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    errors = freshness.validate(project, today=date(2026, 5, 19))
+    assert errors == [], errors
+    assert "content age" in capsys.readouterr().err.lower()
+
+
+def test_freshness_promotes_content_age_to_error_in_strict_mode(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    bib_path = project / "bib_ledger.yml"
+    data = yaml.safe_load(bib_path.read_text(encoding="utf-8"))
+    data["entries"][0]["published_online"] = "2018-01-01"
+    bib_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    errors = freshness.validate(project, strict=True, today=date(2026, 5, 19))
+    assert any("content age" in e.lower() for e in errors), errors
 
 
 def test_freshness_rejects_missing_evidence_reference(tmp_path: Path) -> None:
