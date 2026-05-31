@@ -3355,3 +3355,24 @@ offsets correct across multi-byte chars), and emits the anchor — **self-verifi
 `<meta>` + body — 41 of 61 detector-landscape anchors hit this). Reproduced all 61 real
 detector-landscape anchors exactly. 14 tests; wired into `/agent-index` Phase 2a + `/research-gather`
 Phase 5.
+
+---
+
+## v2.6 milestone planned — roadmap filed — 2026-05-31
+
+- **4-topic strict-live batch completed.** It surfaced the structural debt that
+  motivates v2.6: the artifact assembler + per-topic renderers + cross-project
+  merge live as ~13 uncommitted `~/Claude/_*.py` scratch files (re-authored per
+  topic), there is no CLI, long gather agents drop and lose in-memory state, and
+  several trust guarantees are documented-but-unenforced.
+- **v2.6 milestone planned + roadmap filed.** `docs/ROADMAP_v2_6.md` records the
+  goal (trustworthy + autonomous + committed; #1 goal is machine-checkable trust
+  because an AI consumes the exported claim graph), the 6 phases (0–5), and the
+  deferred export-contract redesign. Ten `v26-*` items filed into `burn_in.yml`
+  under phase `v2.6 Planning` (nine `surfaced`, one `deferred`).
+- **Environmental glitch observed this session (status: `surfaced` —
+  `srcprov-stdout-garble-fabrication`).** Severe stdout buffering/garbling
+  again: tool results delivered in delayed/duplicated/truncated batches.
+  Mitigation that worked (verify-via-files): never trust a command's stdout as
+  sole proof — confirm every load-bearing change by reading the file back and
+  re-parsing (YAML/AST) it, and cross-check a second way before believing it.

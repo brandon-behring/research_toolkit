@@ -499,7 +499,7 @@ entries:
   finding: 'Gather agents used non-canonical enums (source_type spec/academic, source_quality tertiary) -> 19 errors at canonical evidence_ledger validate; semantics right, strings wrong (-> standard/paper/secondary)'
   severity: medium
   status: surfaced
-  notes: 'ops-security tracks drifted; deterministic perl-swap fix on canonical + track files, rebuilt claim_graph (source_quality feeds claim confidence). PINNING the allowed enums in the eval-harnesses gather brief produced a first-try-clean evidence_ledger. Toolkit candidate: list allowed source_type {api,benchmark,blog,dataset,leaderboard,other,paper,policy,repo,standard,vendor} + source_quality {official,primary,secondary,user_note} in the /research-gather brief/template.'
+  notes: 'ops-security tracks drifted; deterministic perl-swap fix on canonical + track files, rebuilt claim_graph (source_quality feeds claim confidence). PINNING the allowed enums in the eval-harnesses gather brief produced a first-try-clean evidence_ledger. Toolkit candidate: list allowed source_type {api,benchmark,blog,dataset,leaderboard,other,paper,policy,repo,standard,vendor} + source_quality {official,primary,secondary,user_note} in the /research-gather brief/template. [v2.6: Phase 4 pins allowed enums in the gather brief.]'
 
 - id: w3-merge-projects-not-wave-parameterized
   phase: wave-3
@@ -525,7 +525,7 @@ entries:
   finding: '/dossier-audit SKILL v2-propagation example suggests verification_method: webfetch_<date>, but validators/evidence_ledger.py enforces an enum {api,inaccessible,manual,pdf,webfetch,websearch_snippet} and rejects dated variants'
   severity: low
   status: surfaced
-  notes: 'Mitigation: kept verification_method: webfetch + recorded the re-verification date in confidence.factors. Toolkit candidate: reconcile the skill example with the validator enum.'
+  notes: 'Mitigation: kept verification_method: webfetch + recorded the re-verification date in confidence.factors. Toolkit candidate: reconcile the skill example with the validator enum. [v2.6: Phase 4 reconciles the skill verification_method examples with the validator enum.]'
 
 - id: w3-yaml-leading-quote
   phase: wave-3
@@ -550,7 +550,7 @@ entries:
   finding: 'Wave-3 gather briefs pointed agents at the ~/Claude/_build_excerpt_anchor.py scratch twin, though the toolkit already ships scripts/build_excerpt_anchor.py (v2.5.0, v25-A)'
   severity: low
   status: surfaced
-  notes: 'Both self-verify before printing; produced 41/41 clean anchors (30 ops-security + 11 eval-harnesses, 0 citation-audit rejects). The 2026-05-25 no-producer gap is doubly closed. Minor follow-up: redirect the gather brief to scripts/build_excerpt_anchor.py and retire the scratch twin.'
+  notes: 'Both self-verify before printing; produced 41/41 clean anchors (30 ops-security + 11 eval-harnesses, 0 citation-audit rejects). The 2026-05-25 no-producer gap is doubly closed. Minor follow-up: redirect the gather brief to scripts/build_excerpt_anchor.py and retire the scratch twin. [v2.6: Phase 1 retires the scratch twins (_anchor_tmp.py, _build_excerpt_anchor.py).]'
 
 # ---------------------------------------------------------------------------
 # source-provenance — prefer arXiv + record publication date (2026-05-30)
@@ -610,3 +610,89 @@ entries:
   severity: medium
   status: surfaced
   notes: 'Environmental (harness/transport), not a toolkit defect, and a proven mitigation exists -> medium, not high (a high+surfaced item would trip the v1.5 release-readiness gate in tests/test_v1_5_artifacts.py, and this is not toolkit-resolvable). Mitigation that worked: never trust stdout as proof; verify every load-bearing outcome via content-addressed hashes + direct file reads (parse YAML / AST the source) + validators, re-running a check a second way before believing it.'
+
+# ---------------------------------------------------------------------------
+# v2.6 Planning — 3-agent audit (code + process + trust) of the 4-topic batch.
+# Roadmap: docs/ROADMAP_v2_6.md. status=surfaced (newly identified) /
+# deferred (explicitly punted to a follow-up milestone). (2026-05-31)
+# ---------------------------------------------------------------------------
+
+- id: v26-scratch-pipeline-uncommitted
+  phase: v2.6 Planning
+  stage: assemble / render / cross-project-merge
+  finding: 'the artifact assembler (~/Claude/_assemble.py) + per-topic renderers (~/Claude/_render_topic{,2,3,4}.py, ~200 lines each) + cross-project merge (_merge_projects.py / _merge_tracks.py) are uncommitted, outside git, and re-authored per topic'
+  severity: high
+  status: surfaced
+  notes: 'The deterministic spine of the pipeline has no version control + no tests. Phase 1 commits them as scripts/assemble_artifacts.py, scripts/render_agent_index.py (+ sidecar render_config.yml schema), scripts/compose_cross_project_kg.py; parity-tested against a shipped topic at citation-audit 100%.'
+
+- id: v26-no-cli
+  phase: v2.6 Planning
+  stage: packaging
+  finding: 'no [project.scripts] entry point in pyproject.toml — every stage is invoked as python scripts/foo.py, chained by hand'
+  severity: medium
+  status: surfaced
+  notes: 'Phase 4 adds a research-toolkit CLI ([project.scripts] -> research-toolkit <subcommand>).'
+
+- id: v26-gather-not-resumable
+  phase: v2.6 Planning
+  stage: research-gather
+  finding: 'long gather sub-agents hold sources in memory and lose everything on a socket drop (topic-4 lost ~3.6h; recoverable only because the cache is content-addressed)'
+  severity: high
+  status: surfaced
+  notes: 'Data-loss / silent-fail risk. Phase 3 adds scripts/resume_gather_from_cache.py (rebuild a sources-JSON skeleton from clean research_cache/metadata/sha256/*.json blobs) + incremental-write discipline in the research-gather skill (write each source as confirmed, not in-memory-then-dump).'
+
+- id: v26-display-vs-evidence-unenforced
+  phase: v2.6 Planning
+  stage: agent-index / validators
+  finding: 'the display!=evidence discipline (rendered Mechanism sentence must be a verbatim raw-byte cache substring) is documented in dossier READMEs + applied only by the uncommitted local renderers, NOT enforced by any committed validator'
+  severity: high
+  status: surfaced
+  notes: 'The #1 trust hole: a documented-but-unenforced guarantee on the claim graph an AI consumes. Phase 2 adds validators/agent_index_display.py (raw-byte substring check, wired into cross_stage / citation-audit) — enforceable once the renderer is committed (depends on Phase 1).'
+
+- id: v26-published-online-not-in-staleness
+  phase: v2.6 Planning
+  stage: validators / build-dashboard
+  finding: 'published_online (shipped in PR #30) is display-only in the dashboard Content-Age section; it is not wired into freshness pass/fail at all'
+  severity: medium
+  status: surfaced
+  notes: 'Finishes the deferred half of PR #30. Phase 2 extends v2_common.stale_error_for_entry with a content-age WARNING (not hard-fail) relative to tier.'
+
+- id: v26-link-confidence-untiered
+  phase: v2.6 Planning
+  stage: validators
+  finding: 'link_confidence is not bounded per extraction_method, so an llm_inferred link could carry 0.99 confidence'
+  severity: medium
+  status: surfaced
+  notes: 'Phase 2 enforces tiers in validators/evidence_ledger.py: verbatim_match / user_asserted >= 0.85; paraphrase / manual_override <= 0.80; llm_inferred <= 0.70.'
+
+- id: v26-no-claim-excerpt-relevance
+  phase: v2.6 Planning
+  stage: citation-audit
+  finding: 'citation-audit verifies an excerpt EXISTS byte-exact in cache but not that it is ON-TOPIC for the claim it supports — quote-mining (verbatim but off-topic) passes'
+  severity: medium
+  status: surfaced
+  notes: 'Phase 2 adds a keyword-overlap relevance WARNING in verify_citations.py (warning-only; documented as a known limitation of what strict-live guarantees: substring yes, relevance no).'
+
+- id: v26-no-orchestrator
+  phase: v2.6 Planning
+  stage: multi-stage
+  finding: 'the 7-step pipeline (plan -> gather -> assemble -> index -> citation-audit -> freshness -> export -> stamp) is chained by hand per topic; no end-to-end orchestrator'
+  severity: medium
+  status: surfaced
+  notes: 'Phase 4 adds an end-to-end /research skill. On a validator failure: bounded auto-retry first (re-fetch / re-anchor / re-pick excerpt, capped attempts), then halt + checkpoint if recovery fails — never auto-ship/stamp broken.'
+
+- id: v26-arxiv-doi-regex-dup
+  phase: v2.6 Planning
+  stage: validators / scripts
+  finding: 'ARXIV_ID_RE / ARXIV_OLD_ID_RE / DOI_RE are duplicated across ~4 scripts'
+  severity: low
+  status: surfaced
+  notes: 'Phase 1 extracts them into validators/_common.py (single source of truth).'
+
+- id: v26-export-contract-redesign
+  phase: v2.6 Planning
+  stage: research-kb-export
+  finding: 'grounding-strength / link_confidence / content-age / audit-status are not first-class queryable fields in the exported claim graph the AI consumer reads, and there is no export-schema validator for them'
+  severity: medium
+  status: deferred
+  notes: 'Explicitly deferred to its own follow-up milestone (per user call). v2.6 hardens the trust of what is produced, not the export schema; v2.6 trust fields ride in the existing export payload verbatim so the later milestone can promote them to first-class fields + add an export-schema validator.'
