@@ -78,6 +78,47 @@ def test_bib_ledger_rejects_non_string_optional_field(tmp_path: Path) -> None:
     assert any("authors" in e and "string" in e for e in errors), errors
 
 
+# ---------- published_online: content-age freshness field ----------
+
+def test_bib_ledger_accepts_valid_published_online(tmp_path: Path) -> None:
+    """published_online (ISO YYYY-MM-DD) is accepted when present and well-formed.
+
+    PyYAML deserializes the unquoted date to a datetime.date; parse_iso_date
+    accepts both date and YYYY-MM-DD string, so either spelling validates.
+    """
+    text = _minimal_ledger("  published_online: 2017-06-12\n")
+    p = tmp_path / "bib_ledger.yml"
+    p.write_text(text, encoding="utf-8")
+    assert bib_ledger.validate(p) == []
+
+
+def test_bib_ledger_accepts_quoted_published_online(tmp_path: Path) -> None:
+    """A quoted ISO string for published_online is also accepted."""
+    text = _minimal_ledger('  published_online: "2017-06-12"\n')
+    p = tmp_path / "bib_ledger.yml"
+    p.write_text(text, encoding="utf-8")
+    assert bib_ledger.validate(p) == []
+
+
+def test_bib_ledger_still_accepts_entry_without_published_online(
+    tmp_path: Path,
+) -> None:
+    """Backward compat: published_online is optional — omitting it still validates."""
+    text = _minimal_ledger()  # no published_online key
+    p = tmp_path / "bib_ledger.yml"
+    p.write_text(text, encoding="utf-8")
+    assert bib_ledger.validate(p) == []
+
+
+def test_bib_ledger_rejects_malformed_published_online(tmp_path: Path) -> None:
+    """A non-ISO published_online value fails the date-format check when present."""
+    text = _minimal_ledger('  published_online: "June 2017"\n')
+    p = tmp_path / "bib_ledger.yml"
+    p.write_text(text, encoding="utf-8")
+    errors = bib_ledger.validate(p)
+    assert any("published_online" in e and "YYYY-MM-DD" in e for e in errors), errors
+
+
 # ---------- A1.b: arXiv canonical-form check ----------
 
 @pytest.mark.parametrize(

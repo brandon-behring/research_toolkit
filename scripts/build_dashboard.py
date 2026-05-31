@@ -11,7 +11,7 @@ Overwrites the target by default; --no-overwrite refuses if the target exists.
 from __future__ import annotations
 
 import argparse
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 import sys
 from typing import Any
@@ -90,6 +90,90 @@ def _stale_on(entry: dict[str, Any]) -> date | None:
     if anchor is None:
         return None
     return anchor + timedelta(days=stale_after)
+
+
+def _published_online_date(value: Any) -> date | None:
+    """Best-effort parse of a published_online value into a date for content-age.
+
+    Tolerant by design (display-only): accepts a date/datetime, a full ISO
+    YYYY-MM-DD string, or a year-only value (int ``2011`` or str ``"2011"``,
+    normalized to Jan 1). Returns None for anything unparseable so the dashboard
+    renders ``—`` rather than crashing. Validators (not this function) enforce the
+    canonical YYYY-MM-DD form on write.
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    # Year-only: int 2011 or str "2011".
+    if isinstance(value, int) and 1000 <= value <= 9999:
+        return date(value, 1, 1)
+    if isinstance(value, str):
+        text = value.strip()
+        parsed, _ = parse_iso_date(text, "published_online")
+        if parsed is not None:
+            return parsed
+        if text.isdigit() and len(text) == 4:
+            return date(int(text), 1, 1)
+    return None
+
+
+def _content_age_years(published: date, today: date) -> float:
+    """Whole-plus-fractional years between published and today (>= 0.0)."""
+    days = (today - published).days
+    return max(0.0, round(days / 365.25, 1))
+
+
+def _build_content_age_section(entries: list[Any], *, today: date) -> list[str]:
+    """Render the Content Age section lines from entries carrying published_online.
+
+    Reports how many of the supplied entries declare an original online publication
+    date and, for those that do, the oldest + newest content and their age in days
+    and years. Entries without published_online (or with an unparseable value)
+    render as "—" / "unknown" — they are not errors. Returns [] only when there
+    are no entries at all (keeps the section out of empty dashboards).
+    """
+    dicts = [e for e in entries if isinstance(e, dict)]
+    if not dicts:
+        return []
+
+    dated: list[date] = []
+    for entry in dicts:
+        if "published_online" not in entry:
+            continue
+        parsed = _published_online_date(entry.get("published_online"))
+        if parsed is not None:
+            dated.append(parsed)
+
+    total = len(dicts)
+    with_pub = sum(1 for e in dicts if "published_online" in e)
+    lines = [
+        "",
+        "## Content Age",
+        "",
+        f"- entries with published_online: {with_pub}/{total}",
+    ]
+    if not dated:
+        # No parseable content dates — surface the dash rather than omitting.
+        lines.append("- oldest content: —")
+        lines.append("- newest content: —")
+        return lines
+
+    oldest = min(dated)
+    newest = max(dated)
+    oldest_days = max(0, (today - oldest).days)
+    newest_days = max(0, (today - newest).days)
+    lines.append(
+        f"- oldest content: {oldest.isoformat()} "
+        f"({oldest_days} days / {_content_age_years(oldest, today)} yrs old)"
+    )
+    lines.append(
+        f"- newest content: {newest.isoformat()} "
+        f"({newest_days} days / {_content_age_years(newest, today)} yrs old)"
+    )
+    return lines
 
 
 def build(project_dir: Path, today: date) -> str:
@@ -342,6 +426,15 @@ def build(project_dir: Path, today: date) -> str:
                 f"- sub-areas with no accepted source: {', '.join(coverage_gaps)}"
             )
 
+    # Content Age: original-online-publication age (today - published_online),
+    # distinct from the cache/verify age that drives staleness. published_online is
+    # an optional, display-only field; entries without it count as "unknown" rather
+    # than blocking. Tolerates year-only values (e.g. 2011) via _published_online_date.
+    content_age_lines = _build_content_age_section(
+        list(bib_entries) + list(dataset_entries) + list(cache_entries),
+        today=today,
+    )
+
     title = _title_case(topic) if isinstance(topic, str) else "Research"
     lines = [
         f"# {title} — Trust Dashboard",
@@ -360,6 +453,7 @@ def build(project_dir: Path, today: date) -> str:
         "## Action Queue",
         "",
         *action_lines,
+        *content_age_lines,
         *claim_health_lines,
         *discovery_rigor_lines,
         "",

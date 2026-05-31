@@ -693,3 +693,47 @@ def test_evidence_ledger_validates_dossier_local_body_anchor_with_cache_root(
     # body_text file → passes substring + hash check.
     errors = evidence_ledger.validate(evidence_path)
     assert errors == [], errors
+
+
+# ---------- cache_manifest published_online (content-age freshness field) ----------
+
+
+def _write_cache_manifest_with(tmp_path: Path, entry: dict) -> Path:
+    """Scaffold a single-entry cache_manifest.yml in a fresh cache_root."""
+    cache_dir = tmp_path / "shared_cache"
+    cache_dir.mkdir()
+    base_entry = _scaffold_cache(cache_dir, b"<html>pubdate</html>")
+    base_entry.update(entry)
+    manifest = tmp_path / "cache_manifest.yml"
+    payload = {
+        "schema_version": 2,
+        "topic": "pubdate_test",
+        "generated_at": "2026-05-23",
+        "current_as_of": "2026-05-23",
+        "freshness_policy": "strict_live",
+        "cache_root": str(cache_dir),
+        "entries": [base_entry],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    return manifest
+
+
+def test_cache_manifest_accepts_valid_published_online(tmp_path: Path) -> None:
+    """published_online (ISO YYYY-MM-DD) validates when present on a capture entry."""
+    manifest = _write_cache_manifest_with(tmp_path, {"published_online": "2024-01-15"})
+    assert cache_manifest.validate(manifest) == []
+
+
+def test_cache_manifest_still_accepts_entry_without_published_online(
+    tmp_path: Path,
+) -> None:
+    """Backward compat: published_online is optional on cache entries."""
+    manifest = _write_cache_manifest_with(tmp_path, {})
+    assert cache_manifest.validate(manifest) == []
+
+
+def test_cache_manifest_rejects_malformed_published_online(tmp_path: Path) -> None:
+    """A non-ISO published_online value fails the date-format check when present."""
+    manifest = _write_cache_manifest_with(tmp_path, {"published_online": "not-a-date"})
+    errors = cache_manifest.validate(manifest)
+    assert any("published_online" in e and "YYYY-MM-DD" in e for e in errors), errors

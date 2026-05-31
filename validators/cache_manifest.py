@@ -170,6 +170,15 @@ def _validate_entry(
         if err:
             errors.append(err)
 
+    # published_online (optional, additive): ISO YYYY-MM-DD date the content first
+    # appeared online (arXiv v1 / Crossref issued / page publish date). Display-only
+    # content-age anchor, distinct from fetched_at; never required. Checked only
+    # when present.
+    if entry.get("published_online") is not None:
+        _, err = parse_iso_date(entry["published_online"], f"{loc}.published_online")
+        if err:
+            errors.append(err)
+
     if "bytes" in entry:
         if not isinstance(entry["bytes"], int) or entry["bytes"] < 0:
             errors.append(f"{loc}.bytes: must be a non-negative integer")

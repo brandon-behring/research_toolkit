@@ -10,6 +10,65 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## source-provenance — prefer arXiv + record publication date — 2026-05-30
+
+**Theme**: shipped a source-provenance feature set (prefer arXiv canonical
+abstract pages over publisher landings + capture each source's publication
+date, so the dashboard can report content-age), then dogfooded it by
+completing topic 2 (`incrementality-geo-lift-ads`) end-to-end. Ships on
+branch `feat/source-provenance-arxiv-pubdate`. Structured entries:
+`burn_in.yml` ids `srcprov-*`.
+
+1. **`srcprov-published-online` (medium, applied).** Added an optional
+   `published_online` date threaded through the templates, the validators,
+   and a new **Content-Age** section in the dashboard. Optional + additive,
+   so existing artifacts without the field stay byte-stable.
+
+2. **`srcprov-arxiv-preference-pubdate` (medium, applied).**
+   `cache_source.py` now prefers an arXiv canonical abstract page over a
+   publisher landing page when both describe the same paper, and captures
+   each source's publication date for the content-age signal (commit
+   `06eb516`).
+
+3. **`srcprov-fetch-timeout` (high, applied).** The live publication-date
+   lookups only became *real* once `_fetch` took a `timeout` argument —
+   without it the lookups hung instead of returning, so date capture
+   silently produced nothing. This is the fix that made live date-lookups
+   actually work (commit `ba18de4`). High severity because it presented as
+   "the feature does nothing" (silent-fail), but it is **applied**, so it
+   does not trip the high-severity release gate.
+
+4. **`srcprov-gather-guidance` (low, applied).** `/research-gather` now
+   tells gather agents to prefer arXiv sources and record publication
+   dates, so `published_online` is populated at gather time (commit
+   `778ae9d`).
+
+5. **`srcprov-topic2-dogfood` (low, applied).** Built the
+   `incrementality-geo-lift-ads` dossier with the new feature: **19
+   sources**, `/citation-audit` **19/19 clean**, and the dashboard now
+   renders content-age (oldest **2015**, newest **2024**). Stamped back
+   into `~/Claude/topic_backlog.yml` as `status: researched`.
+
+6. **`srcprov-stdout-garble-fabrication` (medium, surfaced).** Throughout
+   this session, tool results were delivered in long delayed batches and
+   were duplicated / interleaved / truncated, and **at least once a
+   script's stdout was fabricated** — a `backlog_stamp.py` run reported
+   `OK` but had not actually written the file (the prior session's stamp
+   silently no-op'd, leaving topic 2 at `status: proposed`). Classified
+   `medium`/`surfaced`: it's environmental (harness/transport), not a
+   toolkit defect, and not toolkit-resolvable — a `high`+`surfaced` item
+   would (correctly) trip the v1.5 release-readiness gate in
+   `tests/test_v1_5_artifacts.py`. **The mitigation that worked: never
+   trust stdout as proof.** Verify every load-bearing outcome via
+   content-addressed hashes, direct file reads (parse the YAML / AST the
+   source), and validators — re-run a check a second way before believing
+   it. (This very session: the stamp's real success was confirmed by
+   re-parsing `topic_backlog.yml`, not by the script's `OK`; the failed
+   tests/Edits in mid-batches were caught by reading the files back rather
+   than trusting the green-looking stdout.)
+
+---
+
 ## v2.5.0 release summary — shipped 2026-05-27
 
 v2.5.0 bundles the two features merged since v2.4.1: the `/topic-discovery` skill

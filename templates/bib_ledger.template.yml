@@ -29,6 +29,10 @@
 #                   entity. Propagated to the entity record in claim_graph by
 #                   scripts/build_claim_graph.py. Example: ["ASB", "Agent Sec
 #                   Bench"]. Omit when no widely-used alternative name exists.
+#   published_online (str, optional, ISO YYYY-MM-DD) — the date the content first
+#                   appeared online (arXiv v1 submission / Crossref issued / page
+#                   publish date). Lets staleness be judged against content age,
+#                   not just cache age. Display-only; omit when unknown.
 
 schema_version: 2
 topic: example_topic
@@ -62,6 +66,9 @@ entries:
   authors: Smith et al. (2025)
   venue: NeurIPS 2025
   code_url: https://github.com/example-org/another-bar
+  published_online: 2025-03-15  # ISO YYYY-MM-DD; date the content first appeared
+                                # online (arXiv v1 / Crossref issued / page publish
+                                # date); omit when unknown
   retrieved_at: <YYYY-MM-DD>
   verified_at: <YYYY-MM-DD>
   verification_method: webfetch

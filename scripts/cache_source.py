@@ -22,6 +22,7 @@ from pathlib import Path
 import re
 import socket
 import sys
+from typing import Any
 import uuid
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -378,11 +379,14 @@ def _fetch(
     *,
     if_etag: str | None = None,
     if_last_modified: str | None = None,
+    timeout: int = 30,
 ) -> tuple[int, bytes, str, str | None, str | None]:
     """Fetch a URL with optional conditional headers.
 
     Returns (status_code, body_bytes, content_type, etag, last_modified).
-    On a 304 Not Modified response, body_bytes is empty.
+    On a 304 Not Modified response, body_bytes is empty. ``timeout`` (seconds)
+    bounds the request; the publication-date lookups pass a shorter value so a
+    slow API can't stall caching.
     """
     headers = {"User-Agent": "research_toolkit/2.5.0 strict-live cache"}
     if if_etag:
@@ -391,7 +395,7 @@ def _fetch(
         headers["If-Modified-Since"] = if_last_modified
     req = Request(source_url, headers=headers)
     try:
-        with urlopen(req, timeout=30) as response:  # noqa: S310
+        with urlopen(req, timeout=timeout) as response:  # noqa: S310
             status = response.status if hasattr(response, "status") else response.getcode()
             content_type = response.headers.get_content_type() or "application/octet-stream"
             etag = response.headers.get("ETag")
@@ -420,6 +424,203 @@ def _content_is_suspect(raw: bytes, content_type: str) -> tuple[bool, str]:
             if marker in text:
                 return True, f"contains JS-required marker {marker!r}"
     return False, ""
+
+
+# v2.6 source provenance: best-effort publication-date capture + arXiv stub
+# recovery. Id-extraction regexes mirror scripts/retry_escalations_v2.py so the
+# two stay in lockstep. Every network lookup here is timeout-bounded and
+# failure-tolerant — a date lookup that errors or times out must NEVER break
+# caching (the field is optional).
+ARXIV_ID_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5}(?:v\d+)?)", re.I)
+ARXIV_OLD_ID_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([a-z\-]+/\d{7}(?:v\d+)?)", re.I)
+DOI_RE = re.compile(r"\b(10\.\d{4,9}/[-._;()/:A-Z0-9]+)\b", re.I)
+PUBDATE_TIMEOUT = 20
+ARXIV_ABS_FALLBACK_REASON = "arxiv_abs_fallback"
+
+# arXiv Atom API <published> element, e.g. 2019-08-08T17:08:30Z → date part.
+_ARXIV_PUBLISHED_RE = re.compile(r"<published>\s*(\d{4}-\d{2}-\d{2})T", re.I)
+# A clean YYYY-MM-DD prefix in a longer datetime string (ISO dash or slash).
+_ISO_DATE_PREFIX_RE = re.compile(r"^\s*(\d{4})[-/](\d{2})[-/](\d{2})")
+# Generic HTML publication-date <meta> tags (content captured in either order).
+_META_PUBDATE_RES = (
+    re.compile(
+        r"<meta[^>]+(?:property|name)\s*=\s*[\"']article:published_time[\"']"
+        r"[^>]*?content\s*=\s*[\"']([^\"']+)[\"']",
+        re.I,
+    ),
+    re.compile(
+        r"<meta[^>]+content\s*=\s*[\"']([^\"']+)[\"']"
+        r"[^>]*?(?:property|name)\s*=\s*[\"']article:published_time[\"']",
+        re.I,
+    ),
+    re.compile(
+        r"<meta[^>]+name\s*=\s*[\"']citation_publication_date[\"']"
+        r"[^>]*?content\s*=\s*[\"']([^\"']+)[\"']",
+        re.I,
+    ),
+    re.compile(
+        r"<meta[^>]+content\s*=\s*[\"']([^\"']+)[\"']"
+        r"[^>]*?name\s*=\s*[\"']citation_publication_date[\"']",
+        re.I,
+    ),
+    re.compile(
+        r"<meta[^>]+name\s*=\s*[\"']dc\.date(?:\.issued)?[\"']"
+        r"[^>]*?content\s*=\s*[\"']([^\"']+)[\"']",
+        re.I,
+    ),
+    re.compile(
+        r"<meta[^>]+content\s*=\s*[\"']([^\"']+)[\"']"
+        r"[^>]*?name\s*=\s*[\"']dc\.date(?:\.issued)?[\"']",
+        re.I,
+    ),
+)
+
+
+def _arxiv_id_from_url(url: str) -> str | None:
+    """Return the bare arXiv id (version suffix stripped) from a URL, else None."""
+    m = ARXIV_ID_RE.search(url) or ARXIV_OLD_ID_RE.search(url)
+    if not m:
+        return None
+    return re.sub(r"v\d+$", "", m.group(1))
+
+
+def _doi_from_url(url: str) -> str | None:
+    """Return the DOI from a URL, else None (trailing punctuation trimmed)."""
+    m = DOI_RE.search(url)
+    if not m:
+        return None
+    return m.group(1).rstrip("/.,;")
+
+
+def _iso_date_or_none(value: str | None) -> str | None:
+    """Coerce a datetime-ish string to a calendar-valid ``YYYY-MM-DD`` or None.
+
+    Accepts ISO (``2019-08-08T...``) and slash (``2019/08/08``) prefixes only;
+    anything that is not a full year-month-day is rejected. The date is
+    range-checked (a bogus ``2019-13-40`` is dropped) so the value always
+    satisfies the cache_manifest / bib_ledger ISO-date validators.
+    """
+    if not value:
+        return None
+    m = _ISO_DATE_PREFIX_RE.match(value)
+    if not m:
+        return None
+    year, month, day = m.group(1), m.group(2), m.group(3)
+    try:
+        datetime(int(year), int(month), int(day))
+    except ValueError:
+        return None
+    return f"{year}-{month}-{day}"
+
+
+def _arxiv_published_date(
+    arxiv_id: str, *, fetch: Any = None, timeout: int = PUBDATE_TIMEOUT
+) -> str | None:
+    """Look up the v1 submission date for ``arxiv_id`` via the arXiv API.
+
+    Queries ``export.arxiv.org/api/query?id_list=<id>`` and returns the date
+    part of the Atom ``<published>`` element as ``YYYY-MM-DD``. ``fetch`` is an
+    injectable ``_fetch``-shaped callable (for tests). Best-effort: any
+    transport / decode / parse failure returns None.
+    """
+    fetcher = fetch or _fetch
+    api = f"http://export.arxiv.org/api/query?id_list={arxiv_id}"
+    try:
+        status, body, _ctype, _etag, _last = fetcher(api, timeout=timeout)
+    except Exception:  # noqa: BLE001 — a date lookup must never break caching
+        return None
+    if status != 200 or not body:
+        return None
+    try:
+        text = body.decode("utf-8", "replace")
+    except Exception:  # noqa: BLE001
+        return None
+    m = _ARXIV_PUBLISHED_RE.search(text)
+    if not m:
+        return None
+    return _iso_date_or_none(m.group(1))
+
+
+def _crossref_published_date(
+    doi: str, *, fetch: Any = None, timeout: int = PUBDATE_TIMEOUT
+) -> str | None:
+    """Look up the issued date for ``doi`` via the Crossref REST API.
+
+    Reads ``message.issued.date-parts[0]`` and returns ``YYYY-MM-DD`` ONLY when
+    year, month, AND day are all present; a year-only (or year+month) value is
+    dropped because the validators require a full ISO date. ``fetch`` is an
+    injectable ``_fetch``-shaped callable. Best-effort: any failure returns None.
+    """
+    fetcher = fetch or _fetch
+    api = f"https://api.crossref.org/works/{doi}"
+    try:
+        status, body, _ctype, _etag, _last = fetcher(api, timeout=timeout)
+    except Exception:  # noqa: BLE001
+        return None
+    if status != 200 or not body:
+        return None
+    try:
+        data = json.loads(body.decode("utf-8", "replace"))
+    except Exception:  # noqa: BLE001
+        return None
+    parts = data.get("message", {}).get("issued", {}).get("date-parts", [])
+    if not isinstance(parts, list) or not parts:
+        return None
+    first = parts[0]
+    if not isinstance(first, list) or len(first) < 3:
+        return None  # year-only / year+month: omit (validators need full date)
+    try:
+        year, month, day = int(first[0]), int(first[1]), int(first[2])
+    except (TypeError, ValueError):
+        return None
+    return _iso_date_or_none(f"{year:04d}-{month:02d}-{day:02d}")
+
+
+def _meta_published_date(html: str) -> str | None:
+    """Best-effort parse of a publication date from HTML ``<meta>`` tags.
+
+    Recognises ``article:published_time``, ``citation_publication_date``, and
+    ``dc.date`` / ``dc.date.issued`` variants. Returns a clean ``YYYY-MM-DD`` or
+    None (a partial / unparseable date is dropped).
+    """
+    if not html:
+        return None
+    for pattern in _META_PUBDATE_RES:
+        m = pattern.search(html)
+        if m:
+            iso = _iso_date_or_none(m.group(1))
+            if iso:
+                return iso
+    return None
+
+
+def _published_online_for(
+    url: str, raw: bytes, content_type: str, *, fetch: Any = None
+) -> str | None:
+    """Resolve ``published_online`` for a fetched source, best-effort.
+
+    Priority: arXiv API → Crossref (DOI) → HTML ``<meta>`` tags. Returns a clean
+    ``YYYY-MM-DD`` or None. Never raises (each lookup is failure-tolerant) and
+    never falls back to the server ``Last-Modified`` (that is the file mod time,
+    not the publication date).
+    """
+    arxiv_id = _arxiv_id_from_url(url)
+    if arxiv_id:
+        date_str = _arxiv_published_date(arxiv_id, fetch=fetch)
+        if date_str:
+            return date_str
+    doi = _doi_from_url(url)
+    if doi:
+        date_str = _crossref_published_date(doi, fetch=fetch)
+        if date_str:
+            return date_str
+    ct = (content_type or "").lower()
+    if ct.startswith("text/") or "html" in ct:
+        try:
+            return _meta_published_date(raw.decode("utf-8", "replace"))
+        except Exception:  # noqa: BLE001
+            return None
+    return None
 
 
 class PlaywrightUnavailable(RuntimeError):
@@ -535,6 +736,16 @@ def cache_one(
     - PDFs get the equation-aware cascade in `_extract_pdf_text` when
       `extract_pdfs=True` (default). `--no-extract-pdfs` preserves the
       pre-v2.3 `raw_only` behavior for byte-stable fixtures (closes #11).
+
+    v2.6 (source provenance):
+    - Best-effort ``published_online`` (the date content first appeared online,
+      ``YYYY-MM-DD``) is resolved from the arXiv API / Crossref / HTML meta tags
+      and written to both the metadata JSON and the returned entry; omitted when
+      unavailable. Never the server Last-Modified.
+    - arXiv stub recovery: when content is suspect (stub) AND the URL has an
+      arXiv id, the plain-HTML abs page is auto-fetched as a fallback EVEN
+      WITHOUT ``escalate_on_failure`` (urllib handles it). The record then
+      carries ``escalation_reason: arxiv_abs_fallback``.
     """
     fetch_method = URLLIB_FETCH_METHOD
     escalation_reason: str | None = None
@@ -564,11 +775,37 @@ def cache_one(
     # escalation is requested). If suspect AND escalation enabled → Playwright.
     # If suspect AND no escalation → flagged as `stub` in the manifest with a
     # stderr WARN so the caller knows the cache is degraded.
+    #
+    # v2.6: ``effective_url`` is the URL the recorded content actually came from
+    # (may shift to the arXiv abs page on fallback below); it drives the
+    # publication-date lookup. Default = the requested URL.
+    effective_url = source_url
     stub_reason: str | None = None
     if fetch_method == URLLIB_FETCH_METHOD and status not in (304,):
         is_suspect, reason = _content_is_suspect(raw, content_type)
         if is_suspect:
-            if escalate_on_failure:
+            # v2.6: arXiv stub recovery. If the fetched content is a stub and
+            # the URL carries an arXiv id, fetch the plain-HTML abs page (urllib
+            # handles it — no Playwright needed) EVEN WITHOUT escalate_on_failure.
+            # This directly fixes caching an HTML/JS stub when the arXiv abs page
+            # was available. Tried before Playwright so it wins for arXiv URLs.
+            arxiv_id = _arxiv_id_from_url(source_url)
+            if arxiv_id:
+                abs_url = f"https://arxiv.org/abs/{arxiv_id}"
+                if abs_url != source_url:
+                    try:
+                        a_status, a_raw, a_ct, a_etag, a_last = _fetch(abs_url)
+                    except (HTTPError, URLError, OSError):
+                        a_status, a_raw, a_ct, a_etag, a_last = 0, b"", "", None, None
+                    if a_status == 200 and a_raw:
+                        a_suspect, _a_reason = _content_is_suspect(a_raw, a_ct)
+                        if not a_suspect:
+                            status, raw, content_type = a_status, a_raw, a_ct or "text/html"
+                            etag, last_modified = a_etag, a_last
+                            effective_url = abs_url
+                            escalation_reason = ARXIV_ABS_FALLBACK_REASON
+                            is_suspect = False
+            if is_suspect and escalate_on_failure:
                 escalation_reason = reason
                 try:
                     status, raw, content_type, etag, last_modified = _fetch_via_playwright(source_url)
@@ -581,7 +818,7 @@ def cache_one(
                         file=sys.stderr,
                     )
                     stub_reason = reason
-            else:
+            elif is_suspect:
                 stub_reason = reason
 
     # 304 Not Modified → revisit record (server-not-modified)
@@ -642,6 +879,11 @@ def cache_one(
 
     cache_id_value = f"cache_{digest[:16]}"
 
+    # v2.6: best-effort original publication date (arXiv API / Crossref / HTML
+    # meta). Resolved from effective_url so an arXiv abs fallback still looks up
+    # the right id. Never the server Last-Modified (file mod time, not pub date).
+    published_online = _published_online_for(effective_url, raw, content_type)
+
     # v2.3 loud-failure surface #1: per-PDF / per-stub WARN to stderr.
     if extraction_status in LOUD_EXTRACTION_STATUSES:
         warn_msg = (
@@ -682,6 +924,8 @@ def cache_one(
         "http_etag": etag,
         "http_last_modified": last_modified,
     }
+    if published_online:
+        metadata["published_online"] = published_online
     if escalation_reason:
         metadata["escalation_reason"] = escalation_reason
     if extraction_warnings:
@@ -715,6 +959,13 @@ def cache_one(
     # existing fixtures byte-stable.
     if fetch_method != URLLIB_FETCH_METHOD:
         entry["fetch_method"] = fetch_method
+    # v2.6: surface why content was replaced (e.g. arxiv_abs_fallback) so audits
+    # can see the recorded content is not the originally-requested URL's body.
+    if escalation_reason:
+        entry["escalation_reason"] = escalation_reason
+    # v2.6: best-effort original publication date (omitted when unavailable).
+    if published_online:
+        entry["published_online"] = published_online
     if etag:
         entry["http_etag"] = etag
     if last_modified:
@@ -758,6 +1009,8 @@ def _print_yaml_entry(entry: dict) -> None:
             "extraction_status",
             "extraction_warnings",
             "fetch_method",
+            "escalation_reason",
+            "published_online",
             "http_etag",
             "http_last_modified",
             "refers_to_cache_id",
