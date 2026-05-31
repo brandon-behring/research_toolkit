@@ -551,3 +551,62 @@ entries:
   severity: low
   status: surfaced
   notes: 'Both self-verify before printing; produced 41/41 clean anchors (30 ops-security + 11 eval-harnesses, 0 citation-audit rejects). The 2026-05-25 no-producer gap is doubly closed. Minor follow-up: redirect the gather brief to scripts/build_excerpt_anchor.py and retire the scratch twin.'
+
+# ---------------------------------------------------------------------------
+# source-provenance — prefer arXiv + record publication date (2026-05-30)
+# ---------------------------------------------------------------------------
+
+- id: srcprov-published-online
+  phase: source-provenance
+  stage: validators / templates / build-dashboard
+  finding: 'no content-age signal — dossiers recorded retrieval/verification dates but not when each source was published, so the dashboard could not flag stale-content corpora'
+  severity: medium
+  status: applied
+  fix_version: unreleased
+  notes: 'Added optional published_online date threaded through templates + validators + a new dashboard Content-Age section. Optional/additive so absent-field artifacts stay byte-stable. Ships on branch feat/source-provenance-arxiv-pubdate.'
+
+- id: srcprov-arxiv-preference-pubdate
+  phase: source-provenance
+  stage: cache-source
+  finding: 'cache_source.py cached whatever URL it was handed and recorded no publication date — publisher landing pages were preferred over arXiv canonical abstracts, and content-age stayed unknown'
+  severity: medium
+  status: applied
+  fix_version: unreleased
+  notes: 'cache_source.py now prefers the arXiv canonical abstract page over a publisher landing when both describe the same paper, and captures the publication date for the content-age signal. Commits 06eb516 (capture) + ba18de4 (timeout fix).'
+
+- id: srcprov-fetch-timeout
+  phase: source-provenance
+  stage: cache-source
+  finding: '_fetch had no timeout arg, so the new live publication-date lookups hung instead of returning — date capture silently produced nothing until this was fixed'
+  severity: high
+  status: applied
+  fix_version: unreleased
+  fix_commit: ba18de4
+  notes: 'Gave _fetch a timeout argument; this is the fix that made live date-lookups actually work. Silent-fail risk (looked like the feature did nothing) -> severity high.'
+
+- id: srcprov-gather-guidance
+  phase: source-provenance
+  stage: research-gather skill body
+  finding: 'gather agents had no guidance to prefer arXiv sources or to record publication dates, so the new provenance fields would not get populated at gather time'
+  severity: low
+  status: applied
+  fix_version: unreleased
+  fix_commit: '778ae9d'
+  notes: '/research-gather now instructs agents to prefer arXiv and record pub-dates, populating published_online at the source.'
+
+- id: srcprov-topic2-dogfood
+  phase: source-provenance
+  stage: multi-stage
+  finding: 'topic 2 (incrementality-geo-lift-ads) completed end-to-end with the new feature: 19 sources, citation-audit 19/19 clean, dashboard content-age oldest 2015 / newest 2024'
+  severity: low
+  status: applied
+  fix_version: unreleased
+  notes: 'Positive dogfood. Dossier at ~/Claude/research_incrementality_geo_lift/; stamped status: researched into ~/Claude/topic_backlog.yml.'
+
+- id: srcprov-stdout-garble-fabrication
+  phase: source-provenance
+  stage: cross-cutting
+  finding: 'severe stdout buffering/garbling this session — tool results delivered in long delayed/duplicated/truncated batches, and at least once a script stdout was FABRICATED (backlog_stamp.py reported OK but had not written the file)'
+  severity: high
+  status: surfaced
+  notes: 'Data-integrity / silent-fail risk -> high. Mitigation that worked: never trust stdout as proof; verify every load-bearing outcome via content-addressed hashes + direct file reads (parse YAML / AST the source) + validators, re-running a check a second way before believing it.'
