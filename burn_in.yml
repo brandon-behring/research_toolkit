@@ -638,8 +638,10 @@ entries:
   stage: packaging
   finding: 'no [project.scripts] entry point in pyproject.toml — every stage is invoked as python scripts/foo.py, chained by hand'
   severity: medium
-  status: surfaced
-  notes: 'Phase 4 adds a research-toolkit CLI ([project.scripts] -> research-toolkit <subcommand>).'
+  status: applied
+  fix_version: v2.6.0
+  fix_commit: fd2c8d2
+  notes: 'Phase 4 added scripts/cli.py — a single research-toolkit console entry point ([project.scripts] research-toolkit = scripts.cli:main) whose subcommands (cache-source, assemble, render-index, build-claim-graph, verify-citations, build-dashboard, freshness, export, backlog-stamp, resume-gather, compose-kg) dispatch to the existing scripts main()/validators.freshness:_cli by import+call (no logic reimplemented). Handles both argv shapes (sliced parse_args(argv) vs full parse_args(argv[1:])), delegates each subcommand --help, and made scripts/ an importable package (scripts/__init__.py + scripts* in the setuptools package list). Covered by tests/test_cli.py.'
 
 - id: v26-gather-not-resumable
   phase: v2.6 Planning
@@ -696,8 +698,10 @@ entries:
   stage: multi-stage
   finding: 'the 7-step pipeline (plan -> gather -> assemble -> index -> citation-audit -> freshness -> export -> stamp) is chained by hand per topic; no end-to-end orchestrator'
   severity: medium
-  status: surfaced
-  notes: 'Phase 4 adds an end-to-end /research skill. On a validator failure: bounded auto-retry first (re-fetch / re-anchor / re-pick excerpt, capped attempts), then halt + checkpoint if recovery fails — never auto-ship/stamp broken.'
+  status: applied
+  fix_version: v2.6.0
+  fix_commit: b9ca3d9
+  notes: 'Phase 4 added .claude/skills/research.md — an end-to-end /research orchestrator chaining research-plan -> research-gather -> assemble -> render-index -> build-claim-graph -> citation-audit -> freshness -> export -> backlog-stamp, gating each stage on its validator (exact commands spelled out). Failure policy (user choice): bounded auto-retry (capped 3 attempts/stage, narrowest fix: re-fetch dead source / re-pick non-anchoring excerpt / re-run) then HALT on a resumable checkpoint (resume_gather_from_cache.py for gather, or the named artifact + red validator) — never auto-advance past a red validator, never export/stamp a non-clean dossier. Dogfoods the committed Phase-1 scripts, not the retired ~/Claude/_*.py scratch. Indexed in README.'
 
 - id: v26-arxiv-doi-regex-dup
   phase: v2.6 Planning
