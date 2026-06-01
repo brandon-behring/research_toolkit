@@ -393,7 +393,7 @@ def _fetch(
     bounds the request; the publication-date lookups pass a shorter value so a
     slow API can't stall caching.
     """
-    headers = {"User-Agent": "research_toolkit/2.5.0 strict-live cache"}
+    headers = {"User-Agent": "research_toolkit/2.6.0 strict-live cache"}
     if if_etag:
         headers["If-None-Match"] = if_etag
     if if_last_modified:
@@ -661,7 +661,7 @@ def _fetch_via_playwright(source_url: str) -> tuple[int, bytes, str, str | None,
         browser = p.chromium.launch(headless=True)
         try:
             context = browser.new_context(
-                user_agent="research_toolkit/2.5.0 strict-live cache (Playwright)"
+                user_agent="research_toolkit/2.6.0 strict-live cache (Playwright)"
             )
             page = context.new_page()
             response = page.goto(source_url, wait_until="domcontentloaded", timeout=30_000)

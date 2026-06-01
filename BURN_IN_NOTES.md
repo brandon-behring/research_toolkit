@@ -10,6 +10,65 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## v2.6.0 release summary — shipped 2026-05-30
+
+v2.6.0 is the "trustworthy, autonomous, committed pipeline" milestone: it moves
+the dossier-building spine into committed, deterministic code, makes the trust
+guarantees machine-checkable, makes a dropped gather recoverable, and ships a
+one-command autonomous `/research`. Plan source:
+`~/.claude/plans/make-sure-we-are-shiny-moon.md`; tracked in
+[`docs/ROADMAP_v2_6.md`](docs/ROADMAP_v2_6.md) (ids `v26-*`).
+
+### What shipped
+- **Committed pipeline (Phase 1).** `scripts/assemble_artifacts.py` (sources
+  JSON + cache → the four gather ledgers) and `scripts/render_agent_index.py`
+  (one engine + a per-topic `render_config.yml` → `pre_selection_manifest.yml` +
+  `agent_index/`) replace ~13 uncommitted `~/Claude/_*.py` scratch files (incl.
+  the ~200-line-per-topic renderers). Both reuse the committed
+  `build_excerpt_anchor` producer. `scripts/compose_cross_project_kg.py` commits
+  the cross-project KG merge; the arXiv/DOI regexes were deduped into
+  `validators/_common.py`.
+- **Trust enforcement (Phase 2).** `validators/agent_index_display.py` makes the
+  display-vs-evidence contract machine-checkable (every rendered Mechanism
+  sentence is a raw-byte cache substring; wired into `cross_stage`).
+  `published_online` now drives a tier-relative content-age **warning**;
+  `link_confidence` is bounded per `extraction_method`; `verify_citations.py`
+  adds a keyword-overlap **relevance warning** for likely quote-mining
+  (warning-only, documented as a known limitation).
+- **Resumability (Phase 3).** `scripts/resume_gather_from_cache.py` rebuilds a
+  sources-JSON skeleton from the content-addressed cache — the topic-4 manual
+  recovery as one command — plus incremental-write discipline in
+  `/research-gather`.
+- **Autonomy + ergonomics (Phase 4).** The `/research` skill chains
+  plan→gather→assemble→index→citation-audit→freshness→export→stamp with bounded
+  auto-retry, then **halts on a resumable checkpoint** (never auto-ships a broken
+  dossier). A unified `research-toolkit` CLI (`[project.scripts]` →
+  `scripts/cli.py`) exposes each stage as a subcommand. Stale-doc fixes landed.
+- **Tests + docs (Phase 5).** `tests/test_e2e_build.py` drives the whole builder
+  chain on a from-scratch tiny fixture and asserts schema + integrity + 100%
+  citation (`make e2e`). `docs/architecture.md` is the producer / verifier /
+  agent-authored map + the honest trust model (substring ✓, relevance ✗→warning,
+  content-age ✓→warning, export contract deferred). Refs hygiene: JS-render note
+  (`ctxasm-2`), cache-identity note (`ctxasm-3`), YAML leading-quote caveat
+  (`w3-yaml-leading-quote`).
+
+### Dogfood metric
+All 10 `v26-*` burn_in items are resolved: **9 applied** (fix_version v2.6.0) and
+**1 deferred** (`v26-export-contract-redesign` — promoting the trust fields to
+first-class queryable export fields is its own follow-up milestone; the fields
+already ride losslessly in the export payload). Zero `v26-*` items remain
+`surfaced`. The three Phase-5 refs-hygiene items (`ctxasm-2`, `ctxasm-3`,
+`w3-yaml-leading-quote`) were also flipped to applied/v2.6.0.
+
+### Version bump
+- `pyproject.toml` 2.5.0 → 2.6.0.
+- `scripts/cache_source.py` user-agent strings 2.5.0 → 2.6.0.
+
+End-state: `make test` 531 passed + 2 xfailed. Local annotated tag `v2.6.0` +
+push follow.
+
+---
+
 ## source-provenance — prefer arXiv + record publication date — 2026-05-30
 
 **Theme**: shipped a source-provenance feature set (prefer arXiv canonical
