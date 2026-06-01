@@ -91,7 +91,7 @@ make test                 # full validator/regression suite
 
 # Make skills discoverable from any project:
 mkdir -p ~/.claude/skills
-for skill in topic-discovery research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export; do
+for skill in research topic-discovery research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export; do
   ln -s ~/Claude/research_toolkit/.claude/skills/$skill.md ~/.claude/skills/$skill.md
 done
 ```
@@ -146,8 +146,15 @@ Reuses paper-pipeline's `/dossier-audit` (focus area: "license risks + access st
 
 | Skill | Stage | Input | Output | Validator |
 |---|---|---|---|---|
+| `/research` | orchestrator | Topic free-text | full validated dossier + export (or a resumable halt) | per-stage gates (no own validator) |
 | `/freshness-audit` | utility | v2 project dir | refreshed ledgers + `dashboard.md` | `validators/freshness.py` |
 | `/research-kb-export` | utility | v2 project dir | JSONL inbox file for `~/Claude/research-kb` | `validators/research_kb_export.py` |
+
+`/research` is the one-command end-to-end orchestrator: it chains plan -> gather
+-> assemble -> render-index -> build-claim-graph -> citation-audit -> freshness
+-> export -> backlog-stamp, gating each stage on its validator. On a failure it
+bounded-auto-retries the stage, then **halts on a resumable checkpoint** — it
+never auto-ships or stamps a broken dossier.
 
 v2 projects add `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, and `research_kb_export.jsonl`. Full source snapshots are cached locally under `~/Claude/research_cache/` for private research use and later ingestion.
 

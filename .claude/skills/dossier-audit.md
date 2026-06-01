@@ -148,7 +148,10 @@ For each finding, apply the corresponding v2 edits:
   - If the change touches an evidence-backed field (title, year, authors,
     headline result): update the corresponding `claim` record's `text` in
     `claim_graph.jsonl`. Update `evidence_ledger.yml` entry's `verification_method`
-    to reflect re-verification (e.g., `webfetch_2026_05_19`); update the
+    to reflect re-verification (use a validator-allowed value, e.g. `webfetch`;
+    record the re-verification date in `verified_at`, NOT in `verification_method`
+    — the enum is {`api`, `inaccessible`, `manual`, `pdf`, `webfetch`,
+    `websearch_snippet`}); update the
     entry's `confidence.factors` to note the correction.
   - If the change is cosmetic (formatting, anchor name): no v2 propagation needed.
 

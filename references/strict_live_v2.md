@@ -125,9 +125,9 @@ cascade:
 Authors should treat `degraded`/`partial`/`failed`/`stub` entries as
 sources that need re-fetching (find a non-paywalled / non-encrypted /
 non-image alternative), not as silently lossy supports. `cache_source.py`
-emits a stderr WARN for any non-ideal status; `/research-gather
---cache-pdfs` reads `<cache_root>/extraction_log_<hostname>.jsonl` and
-prints an aggregated end-of-run summary.
+emits a stderr WARN for any non-ideal status; the optional PDF-caching
+step of `/research-gather` reads `<cache_root>/extraction_log_<hostname>.jsonl`
+and prints an aggregated end-of-run summary.
 
 ### Path portability (v2.3 / #13)
 

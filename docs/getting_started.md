@@ -93,7 +93,8 @@ is one-time per machine (or per synced cache, see below).
 Flags:
 - `--no-extract-pdfs` — skip PDF extraction (PDFs land at `raw_only`).
 - `--strict-extraction` — exit non-zero on any WARN-tier status. For
-  batch runs (`/research-gather --cache-pdfs`) that need clean output.
+  batch runs (the optional PDF-caching step of `/research-gather`) that
+  need clean output.
 - `--extraction-log PATH` — append-only JSONL log of outcomes. Default:
   `<cache_root>/extraction_log_<hostname>.jsonl` (per-host filename
   avoids Dropbox/Drive conflicts on synced caches).
