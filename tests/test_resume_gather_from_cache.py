@@ -7,6 +7,21 @@ from pathlib import Path
 from scripts import assemble_artifacts
 from scripts import resume_gather_from_cache
 
+# The per-source keys assemble_artifacts.assemble() reads. The recovered
+# skeleton must carry all of these so it is a valid assemble input.
+ASSEMBLE_REQUIRED_SOURCE_KEYS = (
+    "n",
+    "bibkey",
+    "primary_url",
+    "title",
+    "authors",
+    "venue",
+    "claim_family",
+    "sha",
+    "sub_area",
+    "excerpt",
+)
+
 
 def _write_blob(
     cache_root: Path,
@@ -22,9 +37,12 @@ def _write_blob(
     """Write a metadata sidecar + matching text file into a fake cache."""
     meta_dir = cache_root / "metadata" / "sha256"
     text_dir = cache_root / "text" / "sha256"
+    blob_dir = cache_root / "blobs" / "sha256"
     meta_dir.mkdir(parents=True, exist_ok=True)
     text_dir.mkdir(parents=True, exist_ok=True)
+    blob_dir.mkdir(parents=True, exist_ok=True)
     (text_dir / f"{sha}.txt").write_text(text, encoding="utf-8")
+    (blob_dir / sha).write_text(text, encoding="utf-8")
     (meta_dir / f"{sha}.json").write_text(
         json.dumps(
             {
@@ -125,17 +143,61 @@ def test_judgment_fields_marked_placeholder(tmp_path: Path) -> None:
     )
 
 
-def test_output_shape_valid_for_assemble(tmp_path: Path) -> None:
-    """The recovered JSON loads as a valid assemble_artifacts input."""
+def test_output_shape_has_assemble_required_keys(tmp_path: Path) -> None:
+    """Every recovered source carries the keys assemble_artifacts reads."""
     root = _fake_cache(tmp_path)
     skeleton = resume_gather_from_cache.recover_sources(
         resume_gather_from_cache.iter_metadata(root), "topic_x", root
     )
     out = tmp_path / "recovered.json"
     out.write_text(json.dumps(skeleton), encoding="utf-8")
-    loaded = assemble_artifacts.load_sources_json(out)
-    needed = set(assemble_artifacts.REQUIRED_SOURCE_KEYS)
-    assert loaded["topic"] == "topic_x" and needed <= set(loaded["sources"][0])
+    loaded = json.loads(out.read_text(encoding="utf-8"))
+    needed = set(ASSEMBLE_REQUIRED_SOURCE_KEYS)
+    assert loaded["topic"] == "topic_x"
+    assert {"topic", "today", "cache_root", "sources", "rejects"} <= set(loaded)
+    assert all(needed <= set(src) for src in loaded["sources"])
+
+
+def test_completed_skeleton_is_valid_assemble_input(tmp_path: Path) -> None:
+    """A recovered source, once an excerpt is filled, feeds assemble() cleanly.
+
+    Proves the skeleton is a real assemble input (not just key-shaped): fill
+    one source's placeholder fields the way a resumer would, then run the
+    actual assemble() and confirm it emits a bib + evidence entry with no
+    excerpt failures.
+    """
+    root = _fake_cache(tmp_path)
+    # Give the good blob a known excerpt that occurs in its cached text.
+    excerpt = "the quick brown fox"
+    (root / "text" / "sha256" / "aaa.txt").write_text(
+        "intro " + excerpt + " outro", encoding="utf-8"
+    )
+    skeleton = resume_gather_from_cache.recover_sources(
+        resume_gather_from_cache.iter_metadata(root), "topic_x", root
+    )
+    completed = next(src for src in skeleton["sources"] if src["sha"] == "aaa")
+    completed.update(
+        {
+            "bibkey": "smith2024fox",
+            "title": "A Fox Paper",
+            "authors": "Smith, A.",
+            "venue": "arXiv preprint",
+            "claim_family": "primary",
+            "sub_area": "foxes",
+            "excerpt": excerpt,
+        }
+    )
+    data = {
+        "topic": "topic_x",
+        "today": "2026-05-30",
+        "cache_root": str(root),
+        "sources": [completed],
+        "rejects": [],
+    }
+    artifacts, failures = assemble_artifacts.assemble(data, root)
+    assert failures == []
+    assert len(artifacts["bib"]) == 1 and artifacts["bib"][0]["bibkey"] == "smith2024fox"
+    assert len(artifacts["evidence"]) == 1
 
 
 def test_existing_merge_keeps_filled_record(tmp_path: Path) -> None:

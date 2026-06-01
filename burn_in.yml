@@ -644,9 +644,10 @@ entries:
   stage: research-gather
   finding: 'long gather sub-agents hold sources in memory and lose everything on a socket drop (topic-4 lost ~3.6h; recoverable only because the cache is content-addressed)'
   severity: high
-  status: surfaced
-  target_fix_version: v2.6.0
-  notes: 'Data-loss / silent-fail risk. Phase 3 adds scripts/resume_gather_from_cache.py (rebuild a sources-JSON skeleton from clean research_cache/metadata/sha256/*.json blobs) + incremental-write discipline in the research-gather skill (write each source as confirmed, not in-memory-then-dump).'
+  status: applied
+  fix_version: v2.6.0
+  fix_commit: ebba805
+  notes: 'Data-loss / silent-fail risk. Phase 3 added scripts/resume_gather_from_cache.py (rebuilds a sources-JSON skeleton from clean research_cache/metadata/sha256/*.json blobs — cache-known fields filled, judgment fields marked TODO/empty, tiny/stub blobs flagged _low_quality; read-only over the cache; --existing merge dedups by sha+primary_url) + incremental-write discipline baked into the research-gather skill and references/agent_discipline.md (write each source as confirmed, not in-memory-then-dump; resume-from-cache is the canonical recovery path).'
 
 - id: v26-display-vs-evidence-unenforced
   phase: v2.6 Planning

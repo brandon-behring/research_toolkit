@@ -52,6 +52,25 @@ If an agent crashes (socket layer; OOM; timeout) after writing some notes:
 4. **Write the topic README inline** (often the crashed agent's last-step task). The README is meta-info and doesn't need a fresh fetch.
 5. **Update task tracking**: mark the original task as completed (partial recovery) AND note the crash for `BURN_IN_NOTES.md` if it surfaces a real toolkit weakness.
 
+## Incremental write — the cache is the checkpoint
+
+**Write each result to its on-disk artifact the moment it is confirmed, never in one dump at the end.** A long gather or synthesis can drop on a socket close after hours of work; anything held only in memory is lost. A `/research-gather` run lost ~3.6h of sources this way — the sources-JSON it was building in memory was empty when the agent dropped.
+
+The content-addressed cache (`scripts/cache_source.py`) is the durable checkpoint that makes this survivable: every fetched blob is already on disk under `<cache_root>/metadata/sha256/<sha>.json` (recording its `topic`), `text/sha256/<sha>.txt`, and `blobs/sha256/<sha>` BEFORE the agent would have written the sources list. So a gather must append each source to the sources-JSON immediately after it is cached + anchored, not accumulate-then-dump — but even when that discipline slips, the cache lets you reconstruct.
+
+### Resume from the cache (canonical recovery path)
+
+When a gather drops, reconstruct from the cache instead of refetching:
+
+```bash
+python ~/Claude/research_toolkit/scripts/resume_gather_from_cache.py <topic_slug> \
+  [--existing <partial_sources.json>]
+```
+
+It scans the cache for the topic, rebuilds a sources-JSON skeleton, fills cache-known fields (`sha`, `primary_url`, `published_online`), marks judgment fields as `TODO`/empty, and flags low-quality (tiny/stub) blobs to re-fetch. The merge is dedup-safe (by `sha` and `primary_url`) and never overwrites a human-completed record, so re-running it is idempotent. Complete the placeholder fields from each blob's cached text, then continue with only the sub-areas still missing.
+
+This replaces the manual blob-by-blob reconstruction the recovery steps above otherwise require.
+
 ## Background dispatch for time-isolated work
 
 If a research sub-area's outputs aren't needed for the immediate next step, dispatch the agent with `run_in_background: true`. The parent agent can:

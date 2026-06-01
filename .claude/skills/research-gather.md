@@ -128,6 +128,8 @@ Read `~/Claude/research_toolkit/templates/bib_ledger.template.yml` for the canon
 
 Write entries to `<output_dir>/bib_ledger.yml`. If the file already exists, append new entries (deduplicate by bibkey — fail with a clear error on duplicate).
 
+**HARD RULE — write each source incrementally.** Append every source to the on-disk artifacts (bib_ledger.yml + the v2 companions + gather_trace.yml) the moment it is confirmed, cached, and anchored — do NOT accumulate sources in memory to dump once at the end. A gather sub-agent that holds its sources in memory and drops on a socket close after hours of work loses every record: the content-addressed cache survives (each blob is on disk under `~/Claude/research_cache/`), but the sources list it was feeding does not. Writing per-source means a mid-run crash costs at most the one in-flight source, and the rest are recoverable. If a crash happens anyway, see "Resuming a crashed gather" below.
+
 #### v2 strict-live writes (when project uses `schema_version: 2`)
 
 Populate v2 strict-live fields on every bib_ledger entry: `retrieved_at`, `verified_at`,
@@ -256,6 +258,23 @@ The narrative count in your final report must equal that number. calibration Sta
 
 If any check fails, do NOT report success — fix the issue or surface it for user resolution.
 
+### Resuming a crashed gather
+
+When a gather drops before finishing, do NOT restart from zero. Every source confirmed before the crash is already in the content-addressed cache, so rebuild the sources skeleton from the cache and continue:
+
+```bash
+python ~/Claude/research_toolkit/scripts/resume_gather_from_cache.py <topic_slug> \
+  [--existing <partial_sources.json>] --out <topic_slug>_sources.recovered.json
+```
+
+It selects this topic's cache blobs, fills the fields the cache knows (`sha`, `primary_url`, `published_online`), marks judgment fields (`bibkey`/`claim_family`/`sub_area` as `TODO`; `title`/`authors`/`venue`/`excerpt` as empty), and flags tiny/stub blobs `_low_quality` so you re-fetch them rather than trust them. Then:
+
+1. Fill the placeholder fields for each recovered source from its cached text (path in `_cached_text_path`).
+2. Continue gathering only the sub-areas still missing.
+3. Re-running the tool is idempotent — it dedups by `sha` and `primary_url` and never overwrites a completed record — so pass the partial file back via `--existing`.
+
+See `references/agent_discipline.md` for the full cache-as-checkpoint recovery procedure.
+
 ## Templates
 
 - `Read ~/Claude/research_toolkit/templates/bib_ledger.template.yml` — bib_ledger schema.
@@ -264,6 +283,8 @@ If any check fails, do NOT report success — fix the issue or surface it for us
 ## References
 
 - `Read ~/Claude/research_toolkit/references/citation_rules.md` — URL forms, bibkey convention.
+- `Read ~/Claude/research_toolkit/references/agent_discipline.md` — tool-call budget, incremental-write rule, and the cache-as-checkpoint resume procedure.
+- `scripts/resume_gather_from_cache.py` — rebuilds the sources skeleton from the content-addressed cache after a crash.
 
 ## Validation
 
