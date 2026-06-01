@@ -557,8 +557,8 @@ ok_text_only` with a WARN suggesting installation.
 | `stub` | HTML page is a JS shell | re-cache with `--escalate-on-failure` to render via Playwright |
 
 The same WARN goes to `<cache_root>/extraction_log_<hostname>.jsonl` for
-later analysis. `/research-gather --cache-pdfs` reads this log and prints
-an aggregated summary at end-of-run.
+later analysis. The optional PDF-caching step of `/research-gather` reads
+this log and prints an aggregated summary at end-of-run.
 
 ## First PDF cache takes ~30 seconds (v2.3 / Docling)
 

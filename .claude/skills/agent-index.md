@@ -189,7 +189,7 @@ For each evidence ID referenced in your rendered 5-bullet blocks
    - `evidence_id`: the ID you cited in the markdown
    - `source_type`: `synthesis` (a synthesis-specific quality distinct from primary/secondary)
    - `source_quality`: `secondary` (cross-cutting claims aren't primary observation)
-   - `verification_method`: `cross_reference` (you're aggregating from multiple primary entries already in evidence_ledger)
+   - `verification_method`: `manual` (you're aggregating from multiple primary entries already verified in evidence_ledger; `manual` is the validator-allowed value for an aggregated/cross-referenced entry — allowed enum: `api`, `inaccessible`, `manual`, `pdf`, `webfetch`, `websearch_snippet`)
    - `supports`: list the claim IDs and the field paths in your synthesis files
    - `cache_ids`: list the cache_ids of the primary sources you cross-referenced
    - `confidence`: optional; if you include it, factors should list the primary sources cross-referenced

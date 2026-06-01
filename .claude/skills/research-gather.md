@@ -9,13 +9,13 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 ## Usage
 
 ```
-/research-gather <plan_path> [--cache-pdfs] [--output-dir <dir>]
+/research-gather <plan_path> [--output-dir <dir>]
 ```
 
 **Examples:**
 ```
 /research-gather ~/Claude/research_timeseries/research_plan.md
-/research-gather ~/Claude/research_jailbreak/research_plan.md --cache-pdfs
+/research-gather ~/Claude/research_jailbreak/research_plan.md
 ```
 
 **Default output dir**: same directory as `<plan_path>` (e.g., `~/Claude/research_<slug>/`).
@@ -24,7 +24,7 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 
 - After `/research-plan` produces a `research_plan.md`.
 - May be re-run later when adding new sources to an existing dossier — pass the same plan path; the skill appends new entries (no duplicates per bibkey).
-- `--cache-pdfs` is opt-in; expensive (per-paper download) and only needed when offline access is required.
+- The optional PDF-caching step (Phase 5 below) is opt-in; expensive (per-paper download) and only needed when offline access is required. There is **no `--cache-pdfs` flag** — `cache_source.py` extracts PDF text by default (opt out with `--no-extract-pdfs`). Control PDF caching by running or skipping Phase 5.
 
 **Upstream:** `/research-plan` produces the plan this skill consumes.
 **Downstream:** `/dossier-build` reads `bib_ledger.yml` to render topic-organized table files.
@@ -150,6 +150,23 @@ For strict-live projects you MUST also write these companion artifacts as part o
 2. **`<output_dir>/evidence_ledger.yml`** — read `templates/evidence_ledger.template.yml`.
    For each substantive claim that will appear in downstream synthesis (typically: the paper's headline result, key methodological choice, and any benchmark/scale numbers), create one evidence entry with `evidence_id`, `source_url`, `source_type`, `source_quality` (`primary` / `official` / `secondary` / `user_note`), `verification_method`, and `supports` (claim IDs + field paths). Record the `evidence_id` on the bib_ledger entry's `evidence_ids` list.
 
+   **Controlled enums (validator source of truth — do not invent values).** The
+   evidence-ledger validators reject any value outside these sets. Copy the exact
+   tokens; they are case-sensitive. (Sources: `validators/v2_common.py`
+   `ALLOWED_*` + `validators/evidence_ledger.py`.)
+
+   | Field | Allowed values |
+   |---|---|
+   | `source_type` | `api`, `benchmark`, `blog`, `dataset`, `leaderboard`, `other`, `paper`, `policy`, `repo`, `standard`, `vendor` |
+   | `source_quality` | `official`, `primary`, `secondary`, `user_note` |
+   | `verification_method` | `api`, `inaccessible`, `manual`, `pdf`, `webfetch`, `websearch_snippet` |
+   | `extraction_method` | `llm_inferred`, `manual_override`, `paraphrase`, `propagated_from_child`, `user_asserted`, `verbatim_match` |
+   | `evidence_role` (`supports[*].role`) | `contradicts`, `dates`, `defines`, `identifies`, `mentions`, `qualifies`, `supports` |
+
+   `verification_method` records **how** a field was checked, not **when** — put
+   the date in `verified_at`. Never write `webfetch_<date>` or a custom token like
+   `cross_reference`; those fail the validator.
+
 3. **`<output_dir>/claim_graph.jsonl`** — generated mechanically from the artifacts written in steps 1 + 2. Run:
 
    ```bash
@@ -171,7 +188,7 @@ Validate each artifact before exit (see Phase 6).
 
 ### Phase 5 (optional): cache PDFs
 
-If `--cache-pdfs` was passed:
+If you are running this optional PDF-caching step:
 
 **Step 5.0 (v2.4+ pre-cache scan).** BEFORE fetching new URLs, scan the
 existing `<output_dir>/cache_manifest.yml` for entries where
@@ -203,8 +220,8 @@ PDFs are gitignored at the toolkit level (`papers/` typically isn't committed).
 
 #### v2.3+ extraction summary (end-of-run)
 
-When `--cache-pdfs` is passed AND `cache_source.py` is invoked against PDF
-URLs, each call appends one JSONL record to
+When this optional PDF-caching step runs AND `cache_source.py` is invoked
+against PDF URLs, each call appends one JSONL record to
 `<cache_root>/extraction_log_<hostname>.jsonl` (per-host filename avoids
 sync conflicts on Dropbox/Drive-hosted cache_root).
 
@@ -278,7 +295,7 @@ See `references/agent_discipline.md` for the full cache-as-checkpoint recovery p
 ## Templates
 
 - `Read ~/Claude/research_toolkit/templates/bib_ledger.template.yml` — bib_ledger schema.
-- `Read ~/Claude/research_toolkit/templates/bib_primary_source_cache.template.yml` — PDF cache schema (only if `--cache-pdfs`).
+- `Read ~/Claude/research_toolkit/templates/bib_primary_source_cache.template.yml` — PDF cache schema (only if running the optional Phase 5 PDF-caching step).
 
 ## References
 
@@ -311,7 +328,7 @@ Validator checks: schema_version present, fetches list non-empty, every fetch ha
 - `<output_dir>/claim_graph.jsonl` (v2 strict-live only) — JSONL records (entity / source / claim / evidence / cache_blob) consumed by `/research-kb-export`
 - `<output_dir>/gather_trace.yml` (v2.2+ strict-live only) — per-fetch Self-RAG reflection records (IsRel/IsSup/IsUse + decision); audit trail for discovery rigor
 - `~/Claude/research_cache/` (v2 strict-live only) — raw + text + metadata blobs written by `scripts/cache_source.py` (gitignored)
-- `<output_dir>/papers/` — cached PDFs (only with `--cache-pdfs`)
-- `<output_dir>/cache/bib_primary_source_cache.yml` — PDF metadata (only with `--cache-pdfs`)
+- `<output_dir>/papers/` — cached PDFs (only when the optional Phase 5 PDF-caching step is run)
+- `<output_dir>/cache/bib_primary_source_cache.yml` — PDF metadata (only when the optional Phase 5 PDF-caching step is run)
 
 **Consumed by:** `/dossier-build <bib_ledger_path>` — renders the entries into topic-organized Markdown tables. For v2 strict-live projects, `/freshness-audit` and `/agent-index` also read the v2 companion artifacts.
