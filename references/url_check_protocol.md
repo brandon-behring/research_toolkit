@@ -14,6 +14,27 @@ The two are orthogonal and often run together on v2 projects:
 
 Both stay in scope; neither subsumes the other.
 
+## The cache is content-addressed: one URL can have two valid cache_ids
+
+`scripts/cache_source.py` keys the cache by **content hash, not URL**. The same
+URL fetched via urllib versus via Playwright (the `--escalate-on-failure` path)
+yields a *different render* — different bytes → different `sha256` →
+different `cache_id`. **Both captures are valid**; they are two faithful
+snapshots of the same page taken two different ways. This is by design, not a
+duplicate to be collapsed.
+
+Practical consequences when reasoning about a cache:
+
+- Do **not** treat two cache entries that share a `source_url` as a bug or a
+  dedup target — they may be a urllib capture and a Playwright capture of the
+  same page, each anchoring its own excerpts.
+- An excerpt anchored against one render verifies only against *that* render's
+  cached bytes; the offsets are not portable between the two captures.
+- `cache_manifest.yml` records `fetch_method` (`urllib` / `playwright_rendered`)
+  so the two captures are distinguishable.
+
+(Surfaced as `ctxasm-3` in the context-assembly pilot.)
+
 ## Bash chunking pattern
 
 The check should run in parallel chunks for efficiency. ~50 URLs per chunk, ~10 chunks in parallel:

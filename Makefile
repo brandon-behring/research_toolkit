@@ -1,4 +1,4 @@
-.PHONY: install symlinks test smoke dataset-smoke backlog-smoke v2-smoke builders-smoke audit audit-strict burn-in metrics lint clean help
+.PHONY: install symlinks test e2e smoke dataset-smoke backlog-smoke v2-smoke builders-smoke audit audit-strict burn-in metrics lint clean help
 
 PYTHON ?= python3
 VENV   ?= .venv
@@ -14,6 +14,7 @@ help:
 	@echo "  install         create .venv and install package + dev deps"
 	@echo "  symlinks        symlink all skill bodies into ~/.claude/skills/"
 	@echo "  test            run pytest against tests/"
+	@echo "  e2e             run the full builder-pipeline end-to-end integration test"
 	@echo "  smoke           run a single validator against the mini fixture"
 	@echo "  dataset-smoke   run dataset_ledger validator against the dataset smoke fixture (v1.6)"
 	@echo "  backlog-smoke   run topic_backlog validator against the template (v2.5)"
@@ -40,6 +41,9 @@ symlinks:
 
 test:
 	$(PY) -m pytest
+
+e2e:
+	$(PY) -m pytest tests/test_e2e_build.py -v
 
 smoke:
 	$(PY) validators/bib_ledger.py tests/fixtures/mini_topic_timeseries_anomaly/bib_ledger.yml

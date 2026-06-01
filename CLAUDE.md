@@ -26,6 +26,12 @@ The following rules are documented elsewhere — read these too:
   mandatory `## Validation` step running its validator; no silent
   partial success. Validator scope: schema-only, not URL liveness or
   content faithfulness.
+- [`docs/architecture.md`](docs/architecture.md) — producer / verifier /
+  agent-authored map for the committed pipeline (which script PRODUCES each
+  artifact vs which validator VERIFIES it), the display-vs-evidence contract
+  (`validators/agent_index_display.py`), and the trust model's guarantees +
+  honest holes. Read before editing any `scripts/*` producer, the
+  `research-toolkit` CLI (`scripts/cli.py`), or the `/research` orchestrator.
 - [`references/citation_rules.md`](references/citation_rules.md) — URL
   canonical forms, YAML quoting, bibkey naming (`{firstauthor_lc}{year}{slug}`),
   "no LLM-generated specifics" rule, source tiers T1/T2/T3.

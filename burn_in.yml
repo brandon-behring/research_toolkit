@@ -379,16 +379,18 @@ entries:
   stage: research-gather
   finding: 'Slate/JS-rendered blogs (Manus) fragment prose across <span> nodes, so cached text has no sentence-length contiguous span — only sub-sentence verbatim anchors verify'
   severity: medium
-  status: surfaced
-  notes: 'Workaround: reuse the gather-time anchor (the span actually found in the cached render) at agent-index time rather than re-selecting a longer quote that will not substring-match. Candidate doc: references/citation_rules.md, as a known render class.'
+  status: applied
+  fix_version: v2.6.0
+  notes: 'Documented in references/citation_rules.md § "JS-rendered / fragmented sources" as a known render class (v2.6 refs hygiene): reuse the gather-time anchor (the span actually found in the cached render) at agent-index time rather than re-selecting a longer quote that will not substring-match; escalate_to_manual if even a short span will not match.'
 
 - id: ctxasm-3
   phase: context-assembly-pilot
   stage: research-gather
   finding: 'cache_source.py is content-addressed: the same URL via urllib vs Playwright yields different cache_id (different render) — both anchors stay valid; not a bug'
   severity: low
-  status: surfaced
-  notes: 'By-design, but surprised the run. One-liner candidate for references/url_check_protocol.md so a future run does not collapse two valid renders as a perceived duplicate.'
+  status: applied
+  fix_version: v2.6.0
+  notes: 'Documented in references/url_check_protocol.md § "The cache is content-addressed" (v2.6 refs hygiene): two cache entries sharing a source_url may be a urllib + a Playwright capture (distinguished by fetch_method); not a dedup target, and an anchor verifies only against its own render.'
 
 - id: ctxasm-4
   phase: context-assembly-pilot
@@ -539,8 +541,9 @@ entries:
   stage: research-gather
   finding: 'A confidence.factors block-sequence string beginning with a double-quoted token broke PyYAML parsing in a track ledger'
   severity: low
-  status: surfaced
-  notes: 'Gather agent rephrased to recover. Cheap gather-brief convention: avoid a leading double-quote in block-sequence factor strings.'
+  status: applied
+  fix_version: v2.6.0
+  notes: 'Documented as a "## YAML output" leading-double-quote caveat in docs/conventions/code-style.md (v2.6 refs hygiene): a block-sequence string value starting with " (or any YAML indicator char) makes PyYAML parse it as a quoted scalar and break — let safe_dump quote it, or avoid a leading quote. Cross-linked from citation_rules.md § YAML quoting.'
 
 - id: w3-bibkey-year-vs-verified
   phase: wave-3
