@@ -627,9 +627,9 @@ entries:
   stage: assemble / render / cross-project-merge
   finding: 'the artifact assembler (~/Claude/_assemble.py) + per-topic renderers (~/Claude/_render_topic{,2,3,4}.py, ~200 lines each) + cross-project merge (_merge_projects.py / _merge_tracks.py) are uncommitted, outside git, and re-authored per topic'
   severity: high
-  status: surfaced
-  target_fix_version: v2.6.0
-  notes: 'The deterministic spine of the pipeline has no version control + no tests. Phase 1 commits them as scripts/assemble_artifacts.py, scripts/render_agent_index.py (+ sidecar render_config.yml schema), scripts/compose_cross_project_kg.py; parity-tested against a shipped topic at citation-audit 100%.'
+  status: applied
+  fix_version: v2.6.0
+  notes: 'The deterministic spine of the pipeline now has version control + tests. Phase 1 committed them as scripts/assemble_artifacts.py, scripts/render_agent_index.py (+ sidecar render_config.yml schema), scripts/compose_cross_project_kg.py; parity-tested against a shipped topic at citation-audit 100%.'
 
 - id: v26-no-cli
   phase: v2.6 Planning
@@ -653,33 +653,40 @@ entries:
   stage: agent-index / validators
   finding: 'the display!=evidence discipline (rendered Mechanism sentence must be a verbatim raw-byte cache substring) is documented in dossier READMEs + applied only by the uncommitted local renderers, NOT enforced by any committed validator'
   severity: high
-  status: surfaced
-  target_fix_version: v2.6.0
-  notes: 'The #1 trust hole: a documented-but-unenforced guarantee on the claim graph an AI consumes. Phase 2 adds validators/agent_index_display.py (raw-byte substring check, wired into cross_stage / citation-audit) — enforceable once the renderer is committed (depends on Phase 1).'
+  status: applied
+  fix_version: v2.6.0
+  fix_commit: '346fd86'
+  notes: 'The #1 trust hole: a documented-but-unenforced guarantee on the claim graph an AI consumes. Phase 2a adds validators/agent_index_display.py (whitespace-normalized raw-byte substring check; resolves each Mechanism bullet to its cached text via inline Evidence bullet -> evidence_ledger cache_ids -> cache_manifest text_path, falling back to Source-bibkey + family-file -> pre_selection; skips v1-era dossiers with no cache to ground against), wired into cross_stage as a hard check. 11 tests incl. a real-data oracle against the shipped mcp_server_security dossier (0 violations). The audit-time complement to the renderer verify_display write-time guard committed in Phase 1.'
 
 - id: v26-published-online-not-in-staleness
   phase: v2.6 Planning
   stage: validators / build-dashboard
   finding: 'published_online (shipped in PR #30) is display-only in the dashboard Content-Age section; it is not wired into freshness pass/fail at all'
   severity: medium
-  status: surfaced
-  notes: 'Finishes the deferred half of PR #30. Phase 2 extends v2_common.stale_error_for_entry with a content-age WARNING (not hard-fail) relative to tier.'
+  status: applied
+  fix_version: v2.6.0
+  fix_commit: 'cf973b5'
+  notes: 'Phase 2b: added content_age_warning_for_entry() + CONTENT_AGE_WARN_YEARS to validators/v2_common.py and surfaced it in validators/freshness.py as a soft WARNING (promoted to a hard error only under --strict, matching the existing stale-entry split). Year-only / missing published_online is a no-op. Closes the content-vs-verify staleness gap (the deferred half of PR #30).'
 
 - id: v26-link-confidence-untiered
   phase: v2.6 Planning
   stage: validators
   finding: 'link_confidence is not bounded per extraction_method, so an llm_inferred link could carry 0.99 confidence'
   severity: medium
-  status: surfaced
-  notes: 'Phase 2 enforces tiers in validators/evidence_ledger.py: verbatim_match / user_asserted >= 0.85; paraphrase / manual_override <= 0.80; llm_inferred <= 0.70.'
+  status: applied
+  fix_version: v2.6.0
+  fix_commit: '360a631'
+  notes: 'Phase 2b: per-method link_confidence cap promoted to a named, documented constant MAX_LINK_CONFIDENCE in validators/evidence_ledger.py (EXTRACTION_METHOD_CAPS kept as a back-compat alias), caps aligned to verify_citations METHOD_BUCKETS, plus boundary tests. The underlying hard-error enforcement predated v2.6 (shipped with the v3 anti-hallucination work), so the original repro no longer reproduced; this closes the item by making the cap discoverable under the spec name and regression-checking the shipped dossiers (verbatim_match @ 0.98 stays valid; llm_inferred @ 0.99 rejected).'
 
 - id: v26-no-claim-excerpt-relevance
   phase: v2.6 Planning
   stage: citation-audit
   finding: 'citation-audit verifies an excerpt EXISTS byte-exact in cache but not that it is ON-TOPIC for the claim it supports — quote-mining (verbatim but off-topic) passes'
   severity: medium
-  status: surfaced
-  notes: 'Phase 2 adds a keyword-overlap relevance WARNING in verify_citations.py (warning-only; documented as a known limitation of what strict-live guarantees: substring yes, relevance no).'
+  status: applied
+  fix_version: v2.6.0
+  fix_commit: 'c1336df'
+  notes: 'Phase 2b: added a stdlib keyword-overlap heuristic to scripts/verify_citations.py. Claim-side text comes from the sibling claim_graph.jsonl claim records (record_type=claim, keyed id->text); low-overlap links are collected into a "Relevance warnings (heuristic - review manually)" report section. Runs only when real claim text is available (the thin field_path+claim_id fallback is skipped to avoid noise). WARNING-only: never alters the substring pass/fail or exit code; documented as a known limitation (substring yes, relevance no). Threshold 0.20 verified on the shipped dossiers (on-topic overlap ~1.00) -> both flag 0 links.'
 
 - id: v26-no-orchestrator
   phase: v2.6 Planning
@@ -694,8 +701,9 @@ entries:
   stage: validators / scripts
   finding: 'ARXIV_ID_RE / ARXIV_OLD_ID_RE / DOI_RE are duplicated across ~4 scripts'
   severity: low
-  status: surfaced
-  notes: 'Phase 1 extracts them into validators/_common.py (single source of truth).'
+  status: applied
+  fix_version: v2.6.0
+  notes: 'Phase 1 extracted them into validators/_common.py (single source of truth).'
 
 - id: v26-export-contract-redesign
   phase: v2.6 Planning

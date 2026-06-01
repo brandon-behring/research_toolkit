@@ -56,7 +56,25 @@ ALLOWED_EXTRACTION_METHODS = {
     "manual_override",      # requires source_quality: user_note
 }
 ALLOWED_CONFIDENCE_DOMAIN_LEVELS = {"high", "moderate", "low"}
-EXTRACTION_METHOD_CAPS = {
+# Per-method ceilings on link_confidence [0,1]. A support link whose
+# link_confidence EXCEEDS its method's cap is a HARD error — this prevents an
+# llm_inferred link from carrying, say, 0.99 and thereby inverting the
+# strong/partial/weak grounding hierarchy that downstream consumers rely on.
+#
+# Caps are ordered to match scripts/verify_citations.py METHOD_BUCKETS:
+#   strong  (verbatim_match, user_asserted) -> high ceilings (1.0 / 0.95)
+#   partial (paraphrase, manual_override*)  -> mid ceiling   (0.85 / 1.0*)
+#   weak    (llm_inferred, propagated)      -> low ceilings  (0.60 / 0.50)
+# so a weak link can never out-rank a partial one, nor a partial out-rank a
+# strong one, on confidence ceiling alone.
+#
+# *manual_override is the deliberate carve-out: it is user-controlled and
+# additionally gated by source_quality=user_note (enforced below), so the user
+# may assert up to 1.0 even though its grounding bucket is "partial". Bounds are
+# intentionally generous so real dossiers pass (the shipped assemblers use
+# verbatim_match @ 0.98, well under the 1.0 cap); the goal is to catch
+# INVERSIONS, not to second-guess legitimately confident verbatim links.
+MAX_LINK_CONFIDENCE = {
     "verbatim_match": 1.0,
     "paraphrase": 0.85,
     "user_asserted": 0.95,
@@ -64,6 +82,8 @@ EXTRACTION_METHOD_CAPS = {
     "propagated_from_child": 0.50,
     "manual_override": 1.0,  # user-controlled, but source_quality must be user_note
 }
+# Backward-compatible alias (pre-v2.6 name).
+EXTRACTION_METHOD_CAPS = MAX_LINK_CONFIDENCE
 REQUIRED_ENTRY_FIELDS = (
     "evidence_id",
     "source_url",
@@ -120,8 +140,8 @@ def _validate_support(
         errors.append(f"{loc}: missing required v3 field 'link_confidence'")
     elif not isinstance(link_conf, (int, float)) or not 0 <= float(link_conf) <= 1:
         errors.append(f"{loc}.link_confidence: must be a number from 0 to 1")
-    elif isinstance(method, str) and method in EXTRACTION_METHOD_CAPS:
-        cap = EXTRACTION_METHOD_CAPS[method]
+    elif isinstance(method, str) and method in MAX_LINK_CONFIDENCE:
+        cap = MAX_LINK_CONFIDENCE[method]
         if float(link_conf) > cap:
             errors.append(
                 f"{loc}.link_confidence: {link_conf} exceeds cap {cap} for "

@@ -50,6 +50,22 @@ DEFAULT_STALE_AFTER_DAYS = {
     "historical": 1825,
 }
 
+# Content-age warning thresholds (whole years), keyed by freshness_tier.
+# These gate ``content_age_warning_for_entry`` — a SOFT signal distinct from the
+# verify/retrieve staleness window (DEFAULT_STALE_AFTER_DAYS). The point is that a
+# paper can be re-verified today (so it passes staleness) while its CONTENT first
+# appeared online many years ago; for a tier that implies fast-moving content,
+# that age is worth flagging for human review. Thresholds are deliberately loose
+# (multiples of the staleness window) so they fire only on genuinely old content,
+# not on the routine gap between publication and re-verification. ``historical``
+# has no threshold (None) because old content is the whole point of that tier.
+CONTENT_AGE_WARN_YEARS: dict[str, float | None] = {
+    "volatile": 1.0,
+    "active": 3.0,
+    "stable": 10.0,
+    "historical": None,
+}
+
 ALLOWED_RIGHTS_STATUS = {
     "public",
     "private_use",
@@ -355,6 +371,69 @@ def stale_error_for_entry(
             f"{loc}: stale as of {today.isoformat()} "
             f"(last verified/retrieved {anchor.isoformat()}, stale_after_days={stale_after})"
         )
+    return None
+
+
+def content_age_warning_for_entry(
+    entry: dict[str, Any], *, today: date
+) -> str | None:
+    """Return a content-age WARNING string if the entry's content is much older
+    than its freshness_tier implies, else None.
+
+    Uses the optional ``published_online`` field (the date the content first
+    appeared online — arXiv v1, blog post date, etc.), which is independent of
+    when the entry was last re-verified. When the content age (``today`` minus
+    ``published_online``) exceeds ``CONTENT_AGE_WARN_YEARS[tier]``, the content
+    may be stale on the merits even though it passes the verify/retrieve
+    staleness check in ``stale_error_for_entry``. This NEVER returns an error and
+    NEVER alters pass/fail — callers surface it as a soft warning.
+
+    Returns None (no warning, no crash) when:
+    - ``published_online`` is missing;
+    - ``published_online`` is year-only (e.g. ``2011`` or ``"2011"``) or
+      otherwise not a full YYYY-MM-DD date — year-only is too coarse to date a
+      content-age signal against, so it is intentionally ignored here (the
+      dashboard still renders year-only ages; this gate does not);
+    - the entry's ``freshness_tier`` is unknown or has no threshold
+      (``historical`` → None).
+    """
+    tier = entry.get("freshness_tier")
+    if not isinstance(tier, str):
+        return None
+    threshold = CONTENT_AGE_WARN_YEARS.get(tier)
+    if threshold is None:
+        return None
+
+    published = _full_iso_date_or_none(entry.get("published_online"))
+    if published is None:
+        return None
+
+    age_years = (today - published).days / 365.25
+    if age_years <= threshold:
+        return None
+    return (
+        f"content age ~{age_years:.1f}y exceeds {threshold:.0f}y guideline for "
+        f"freshness_tier={tier!r} (published_online={published.isoformat()}); "
+        f"content may be stale on the merits even if recently re-verified"
+    )
+
+
+def _full_iso_date_or_none(value: Any) -> date | None:
+    """Parse only a full YYYY-MM-DD value (or date/datetime) into a date.
+
+    Returns None for year-only ints/strings and anything unparseable, so
+    content-age gating never acts on a coarse year-only publication date and
+    never crashes on malformed input.
+    """
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.strptime(value.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return None
     return None
 
 

@@ -13,6 +13,7 @@ if __package__ in (None, ""):
 
 from validators import bib_ledger, cache_manifest, dataset_ledger, evidence_ledger
 from validators.v2_common import (
+    content_age_warning_for_entry,
     is_v2_mapping,
     stale_error_for_entry,
 )
@@ -104,6 +105,14 @@ def validate(
                     errors.append(stale)
                 else:
                     warnings.append(f"WARN {stale}")
+
+            content_age = content_age_warning_for_entry(entry, today=today)
+            if content_age:
+                msg = f"{loc}: {content_age}"
+                if strict:
+                    errors.append(msg)
+                else:
+                    warnings.append(f"WARN {msg}")
 
             for evidence_id in entry.get("evidence_ids", []) or []:
                 if isinstance(evidence_id, str) and evidence_id not in evidence_ids:
