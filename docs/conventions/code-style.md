@@ -203,6 +203,24 @@ print(f"warning: ...", file=sys.stderr)
 print(f"error: ...", file=sys.stderr)
 ```
 
+## YAML output
+
+Scripts that emit YAML use `yaml.safe_dump(data, sort_keys=False,
+allow_unicode=True)` (preserves field order; matches what the other writer
+scripts produce).
+
+**Leading-double-quote caveat:** a string value in a YAML *block sequence* that
+*begins* with a double-quote character makes PyYAML try to parse the whole item
+as a double-quoted scalar — and it breaks on the next quote or the line end.
+This bit a `confidence.factors` block-sequence entry whose first token was a
+double-quoted phrase (surfaced as `w3-yaml-leading-quote`). When a list-item
+string starts with `"` (or any indicator char — `:`, `#`, `[`, `{`, `&`, `*`,
+`?`, `|`, `>`, `!`, `%`, `@`, `` ` ``, or a leading `-`), either let
+`safe_dump` quote it for you (don't hand-write the YAML) or avoid a leading
+quote in the value. The same rule applies to gather-brief / ledger values —
+see [`../../references/citation_rules.md`](../../references/citation_rules.md)
+§ "YAML quoting in ledger values".
+
 ## Path handling
 
 Use `pathlib.Path` everywhere. Idiom for user-supplied paths:

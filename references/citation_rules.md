@@ -149,6 +149,27 @@ every cited claim_id has a matching atom selection in
 `pre_selection_manifest.yml`. Validators reject bullets that cite
 spans outside the pre-selection commitment.
 
+### JS-rendered / fragmented sources (no contiguous span)
+
+Slate/JS-rendered blogs and SPA dashboards (e.g. Manus) fragment prose across
+many `<span>` nodes, so the **cached text often has no sentence-length
+contiguous span** — only a sub-sentence string substring-matches the cache.
+When anchoring an excerpt for such a source:
+
+- **Reuse the gather-time anchor** — the exact span that was actually found in
+  the cached render at gather time — rather than re-selecting a longer, nicer
+  quote at agent-index time that will *not* substring-match. The byte-exact
+  substring guarantee is non-negotiable; a shorter true span beats a longer
+  span that fails the anchor check.
+- If even a short span won't match, the source is a candidate for the
+  `escalate_to_manual` path (the render is too fragmented to anchor cleanly)
+  rather than forcing a span that breaks citation-audit.
+
+This is a known render class, not a bug — the same anchor producer
+(`build_excerpt_anchor.build_anchor`, `occurrence=1`) is used everywhere, so an
+anchor that verified at gather time verifies at index time on the same cached
+bytes. (Surfaced as `ctxasm-2` in the context-assembly pilot.)
+
 ## Escalation reason cheatsheet (v2.3+)
 
 When `/research-gather` Phase 2 fetches a source, the `gather_trace.yml`

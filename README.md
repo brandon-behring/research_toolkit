@@ -158,13 +158,33 @@ never auto-ships or stamps a broken dossier.
 
 v2 projects add `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, and `research_kb_export.jsonl`. Full source snapshots are cached locally under `~/Claude/research_cache/` for private research use and later ingestion.
 
-Three helper scripts mechanize the artifacts the skills used to populate by hand:
+Committed producer scripts mechanize the artifacts the skills used to populate by hand (v2.6 added the assembler + renderer, which previously lived as uncommitted per-topic scratch files):
 
+- `scripts/assemble_artifacts.py <sources.json> <project_dir>` — builds the four gather ledgers (`bib_ledger.yml`, `evidence_ledger.yml`, `cache_manifest.yml`, `gather_trace.yml`) from a sources JSON + the content-addressed cache, byte-anchoring every excerpt via `build_excerpt_anchor`. (v2.6)
+- `scripts/render_agent_index.py <sources.json> <project_dir> --config <render_config.yml>` — renders `pre_selection_manifest.yml` + the `agent_index/` 5-bullet folder from one engine + a per-topic sidecar config (no bespoke per-topic Python). Bakes in the display-vs-evidence write-time guard. (v2.6)
 - `scripts/build_claim_graph.py <project_dir>` — emits `claim_graph.jsonl` from the project's ledgers + evidence_ledger + cache_manifest. Called from `/research-gather` Phase 4.
 - `scripts/build_dashboard.py <project_dir> --today <YYYY-MM-DD>` — emits `dashboard.md` with Trust State metrics + per-tier Action Queue (and FACT-framework Claim Health metrics for v3 projects). Called from `/freshness-audit` Phase 5.
-- `scripts/verify_citations.py <project_dir>` — mechanical FACT-framework citation auditor for v3 projects. For every `verbatim_match` evidence link, slices the cached `text_path` at the declared byte offset, hashes the slice, and asserts the excerpt matches. Emits `citation_audit_report.md` with per-method breakdown + per-claim grounding strength.
+- `scripts/verify_citations.py <project_dir>` — mechanical FACT-framework citation auditor for v3 projects. For every `verbatim_match` evidence link, slices the cached `text_path` at the declared byte offset, hashes the slice, and asserts the excerpt matches. Emits `citation_audit_report.md` with per-method breakdown + per-claim grounding strength + a heuristic relevance warning.
+- `scripts/resume_gather_from_cache.py <cache> --topic <slug>` — rebuilds a sources-JSON skeleton from the content-addressed cache, so a dropped gather agent's work is recoverable in one command. (v2.6)
+- `scripts/compose_cross_project_kg.py` — merges per-project claim graphs into a cross-project KG snapshot (env-parameterized; no wave/date hardcodes). (v2.6)
 
-All three validate output before writing and accept `--no-overwrite` to refuse if the target file already exists.
+The producers validate output before writing and accept `--no-overwrite` to refuse if the target file already exists. v2.6 added `validators/agent_index_display.py` — the audit-time half of the display-vs-evidence contract, wired into `cross_stage`. See [`docs/architecture.md`](docs/architecture.md) for the full producer / verifier / agent-authored map + the trust model.
+
+### Unified CLI (v2.6)
+
+`pyproject.toml` exposes a `[project.scripts]` entry point so the whole chain is one command per stage:
+
+```bash
+research-toolkit --help                       # list subcommands
+research-toolkit assemble sources.json proj/  # -> the four ledgers
+research-toolkit render-index sources.json proj/ --config render_config.yml
+research-toolkit build-claim-graph proj/
+research-toolkit verify-citations proj/
+research-toolkit build-dashboard proj/ --today 2026-05-30
+research-toolkit export proj/ --output proj/research_kb_export.jsonl
+```
+
+Subcommands dispatch to the existing `scripts/*.main()` (and `validators/freshness`) without reimplementing them. The `/research` skill chains the same stages autonomously.
 
 ### v2.1 — anti-hallucination upgrade (schema_version 3)
 
@@ -187,7 +207,8 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 | If you want to... | Read |
 |---|---|
 | Use the toolkit for the first time | [`docs/getting_started.md`](docs/getting_started.md) — 5-min walkthrough |
-| Understand a failure / error message | [`docs/troubleshooting.md`](docs/troubleshooting.md) — 7 common failures with symptom→cause→fix |
+| Understand how the pipeline is wired (producer / verifier / agent map + trust model) | [`docs/architecture.md`](docs/architecture.md) |
+| Understand a failure / error message | [`docs/troubleshooting.md`](docs/troubleshooting.md) — common failures with symptom→cause→fix |
 | See what's been improved version-by-version | [`BURN_IN_NOTES.md`](BURN_IN_NOTES.md) — narrative friction log v1.0 → v1.9 |
 | Query unresolved issues | `python scripts/burn_in_query.py --status surfaced` |
 | See reliability across runs | [`evals/dogfood_metrics.csv`](evals/dogfood_metrics.csv) — per-run hard-404 + audit-correction counts |
@@ -202,31 +223,34 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 ├── burn_in.yml                      # structured BURN_IN index (v1.5)
 ├── Makefile                         # install / test / audit / burn-in / metrics targets
 ├── pyproject.toml
-├── .claude/skills/                  # 14 skill bodies (source of truth)
-├── templates/                       # 18 schema/structure templates
+├── .claude/skills/                  # 15 skill bodies (source of truth; incl. /research orchestrator)
+├── templates/                       # 20 schema/structure templates (incl. render_config.schema.yml)
 ├── references/                      # 12 protocol docs (audit_protocol, url_check_protocol, ...)
-├── validators/                      # 17 schema validators (cross_stage added v1.2)
-├── scripts/                         # backfill_ledger, build_medium_fixture, burn_in_query
+├── validators/                      # 21 schema validators (cross_stage v1.2; agent_index_display v2.6)
+├── scripts/                         # committed pipeline: assemble_artifacts, render_agent_index,
+│                                    #   build_claim_graph, build_dashboard, verify_citations,
+│                                    #   research_kb_export, resume_gather_from_cache,
+│                                    #   compose_cross_project_kg, cli (research-toolkit), + helpers
 ├── docs/
 │   ├── getting_started.md           # onboarding (paper + dataset pipelines)
-│   └── troubleshooting.md           # common failures v1.0 → v1.9
+│   ├── architecture.md              # producer / verifier / agent map + trust model (v2.6)
+│   ├── ROADMAP_v2_6.md              # v2.6 milestone tracking
+│   └── troubleshooting.md           # common failures v1.0 → v2.6
 ├── evals/
 │   └── dogfood_metrics.csv          # reliability metrics across runs
-└── tests/
+└── tests/                          # 29 test modules (positive + negative per validator)
     ├── conftest.py
     ├── test_validators.py           # positive + negative per validator
-    ├── test_skill_outputs.py        # prompt-injection fixture sanity
-    ├── test_recreation_diff.py      # real/ vs recreated/ (2 xfailed baselines)
-    ├── test_v1_1_fixes.py           # 27 cases: schema extension + arXiv canonical-form
-    ├── test_v1_2_fixes.py           # 14 cases: cross_stage + anti-cheat
-    ├── test_v1_3_fixtures.py        # 17 cases: backfilled ledgers + medium fixture
-    ├── test_pipeline_e2e.py         # 9 cases: validator chain + idempotency
-    ├── test_v1_5_artifacts.py       # 12 cases: docs + burn_in + metrics
-    ├── test_v1_5_1_fixes.py         # 12 cases: skill-body lints + audit_trail sequence
+    ├── test_pipeline_e2e.py         # validator chain + idempotency (smoke)
+    ├── test_e2e_build.py            # full builder pipeline end-to-end (v2.6; `make e2e`)
+    ├── test_assemble_artifacts.py   # the committed assembler (v2.6)
+    ├── test_render_agent_index.py   # the committed renderer (v2.6)
+    ├── ...                          # per-version + per-script regression suites
     └── fixtures/
         ├── mini_topic_timeseries_anomaly/        # 5 entries (smoke)
         ├── medium_topic_calibration_subset/      # 22 entries (v1.3, schema reference)
-        └── prompt_injection_snapshot/{real,recreated}/      # 137 entries (real-world reference)
+        ├── v2_strict_live_* / v3_strict_live_demo/  # strict-live v2/v3 references
+        └── prompt_injection_snapshot/{real,recreated}/      # real-world reference
 ```
 
 ## Make targets
@@ -236,6 +260,7 @@ Empirical effect: the RLHF run (first dogfood under all v1.2+ guardrails) shippe
 | `make install` | venv + dev deps |
 | `make symlinks` | symlink all skill bodies into `~/.claude/skills/` |
 | `make test` | full pytest suite |
+| `make e2e` | full builder-pipeline end-to-end integration test (v2.6) |
 | `make smoke` | single validator against the mini fixture |
 | `make v2-smoke` | strict-live v2 validator chain against the v2 fixtures (`ai_agents` + `multi_entry`) |
 | `make builders-smoke` | run `scripts/build_claim_graph.py` + `scripts/build_dashboard.py` against the v2 fixture (outputs to `/tmp`, validates) |
