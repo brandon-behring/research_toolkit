@@ -30,9 +30,14 @@ synthesis = [
   "anthropic>=0.40",
 ]
 
+[project.scripts]
+# Unified pipeline entry point (v2.6). Subcommands dispatch to the existing
+# scripts/*.main() and validators/freshness:_cli (see scripts/cli.py).
+research-toolkit = "scripts.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["validators*"]
+include = ["validators*", "scripts*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
