@@ -314,7 +314,12 @@ def _extract_usage(response: Any) -> dict[str, int]:
 
 
 def _extract_text(response: Any) -> str:
-    """Extract concatenated text from an Anthropic Message response.content."""
+    """Extract concatenated text from an Anthropic Message response.content.
+
+    Returns "" when no text blocks are present (refusal / all-non-text
+    response); ``synthesize()`` treats that as a loud failure rather than
+    writing an empty row (#21 item #2).
+    """
     parts: list[str] = []
     for block in getattr(response, "content", []) or []:
         if getattr(block, "type", None) == "text":
@@ -358,9 +363,10 @@ def synthesize(
     Exit codes:
       0 — all templates reached target_count
       2 — bail-at-cost tripped; partial manifest written
-      3 — API call raised an exception; partial manifest written with
-          ``api_error`` field; samples up to the failing call are
-          preserved in JSONL (re-run resumes from there)
+      3 — API call raised an exception, or returned no text content
+          (empty / all-non-text response — #21 item #2); partial
+          manifest written with ``api_error`` field; samples up to the
+          failing call are preserved in JSONL (re-run resumes from there)
 
     ``bail_at_cost`` is reactive (post-call): the first sample always
     runs; subsequent samples halt once the running total crosses the
@@ -450,6 +456,29 @@ def synthesize(
                 text = _extract_text(response)
                 usage = _extract_usage(response)
                 cost = compute_call_cost(recipe.model, **usage)
+                if not text.strip():
+                    # #21 item #2: an all-non-text / empty response (e.g. a
+                    # refusal) must not become a silent empty row counted
+                    # against target_count. Count the spend, drop the row,
+                    # surface via api_error (exit 3); re-runs resume from
+                    # the persisted JSONL.
+                    per_template_cost[template.id] += cost
+                    per_template_input[template.id] += usage["input_tokens"]
+                    per_template_output[template.id] += usage["output_tokens"]
+                    per_template_cache_read[template.id] += usage["cache_read_tokens"]
+                    per_template_cache_write[template.id] += usage["cache_creation_tokens"]
+                    total_cost += cost
+                    api_error = (
+                        f"EmptyResponse: template {template.id!r} returned "
+                        f"no text content (stop_reason="
+                        f"{getattr(response, 'stop_reason', None)!r}); "
+                        f"row not written, not counted"
+                    )
+                    print(
+                        f"dataset-synthesize: {api_error}",
+                        file=sys.stderr,
+                    )
+                    break
                 row = {
                     "id": f"sample_{uuid.uuid4().hex[:12]}",
                     "template_id": template.id,
