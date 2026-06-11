@@ -10,6 +10,36 @@ This file is the load-bearing artifact of Phases 3.5 + 5. Every skill-prompt twe
 
 ---
 
+## dataset-synthesize first external burn-in — prompt-injection-portfolio C1 corpus — 2026-06-11
+
+**Theme**: the `/dataset-synthesize` path got its first real external production run: the
+prompt-injection-portfolio **C1** experiment generated its 600-context benign-table corpus through
+`synthesize()` (recipe `recipe_table_corpus.yaml`, 3×200 md/csv/html). The run doubled as the burn-in
+for **PR #38** (`fix/21-empty-response-loud`, commit `c9fae12`), which the consumer's pre-registration
+gate-trace had escalated: `_extract_text` was found ON the recipe path, where an empty model response
+silently became an empty corpus row (silent-fail / data-poisoning risk — #21 item 2). Structured
+entries: `burn_in.yml` ids `dsynth-*`.
+
+1. **`dsynth-empty-response-loud` (high, applied — PR #38, `c9fae12`).** Empty-text responses now
+   fail loudly: row dropped + not counted toward the cap, honest cost accounting, `api_error
+   EmptyResponse` recorded, exit 3, regression test. Burn-in evidence: the C1 run completed
+   **600/600 contexts with zero hygiene drops and $0.27 realized**; the EmptyResponse gate **never
+   fired in production** (no false positives on a clean run), and the consumer's leakage gate +
+   5-verifier audit downstream confirmed corpus integrity end-to-end (sha-chain held into the paid
+   GPU rung).
+
+2. **`dsynth-provider-adapter-ergonomics` (low, surfaced — positive evidence + one nugget).** The
+   consumer's Anthropic credits were empty mid-arc; recovery was a **duck-typed OpenAI adapter**
+   (`generate_openai.py`, gpt-4.1-mini) injected via the `client=` seam into the SAME `synthesize()`
+   orchestrator — cap/resume/PR#38 gate all retained unmodified. The `client=` interface is
+   adapter-friendly as designed. The one real friction: the **failed Anthropic attempt's manifest
+   was overwritten** by the recovery run's manifest at the same `corpus_raw/manifest.json` path, so
+   the $0/zero-rows provenance of the failed attempt survives only in the consumer's git history,
+   not as an artifact. Candidate: suffix manifests per attempt (or archive the prior manifest on
+   provider switch) so billing-failure recoveries keep both records.
+
+---
+
 ## v2.6.0 release summary — shipped 2026-05-30
 
 v2.6.0 is the "trustworthy, autonomous, committed pipeline" milestone: it moves

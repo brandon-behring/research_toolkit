@@ -547,3 +547,58 @@ def test_synthesize_resume_after_api_failure_continues(tmp_path: Path) -> None:
     assert client.messages.call_count == 2
     assert manifest["api_error"] is None
     assert manifest["templates"]["t1"]["actual"] == 4
+
+
+def test_synthesize_empty_response_fails_loudly_not_counted(tmp_path: Path) -> None:
+    """An all-non-text response (e.g. a refusal) must NOT become a silent
+    empty row (#21 item #2): nothing written or counted, ``api_error`` set,
+    exit code 3 — but the wasted call's cost still lands in the totals."""
+    recipe = ds.Recipe(
+        model="claude-sonnet-4-7",
+        templates=[
+            ds.Template(
+                id="t1",
+                system="sys",
+                user_prompt="gen",
+                target_count=3,
+            )
+        ],
+        sha256="abc",
+    )
+    # Call 1 succeeds; call 2 returns no text blocks (empty content).
+    client = _FakeClient(
+        scenarios=[
+            _make_scenario(text="s1", input_tokens=10, output_tokens=20),
+            _FakeMessage(
+                content=[],
+                usage=_FakeUsage(input_tokens=10, output_tokens=20),
+            ),
+        ]
+    )
+    exit_code, manifest = ds.synthesize(
+        recipe=recipe,
+        output_dir=tmp_path,
+        bail_at_cost=100.0,
+        client=client,
+    )
+    assert exit_code == 3
+    assert manifest["api_error"] is not None
+    assert "EmptyResponse" in manifest["api_error"]
+    assert "'t1'" in manifest["api_error"]
+    assert manifest["total_samples"] == 1  # only the real sample counted
+    assert manifest["templates"]["t1"]["actual"] == 1
+
+    # Only 1 row in JSONL — no empty-content row was written.
+    samples_path = tmp_path / "samples.jsonl"
+    rows = [json.loads(line) for line in samples_path.read_text().strip().split("\n") if line]
+    assert len(rows) == 1
+    assert rows[0]["content"] == "s1"
+
+    # Honest cost accounting: BOTH calls' spend is in the totals
+    # (2 calls x (10 in @ $3/MTok + 20 out @ $15/MTok) = $0.00066 -> 0.0007).
+    assert manifest["total_cost_usd"] == pytest.approx(0.0007)
+
+    # Whitespace-only text is equally empty.
+    assert ds._extract_text(
+        _FakeMessage(content=[_FakeBlock(type="text", text="   ")])
+    ).strip() == ""

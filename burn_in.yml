@@ -722,3 +722,21 @@ entries:
   severity: medium
   status: deferred
   notes: 'Explicitly deferred to its own follow-up milestone (per user call). v2.6 hardens the trust of what is produced, not the export schema; v2.6 trust fields ride in the existing export payload verbatim so the later milestone can promote them to first-class fields + add an export-schema validator.'
+
+- id: dsynth-empty-response-loud
+  phase: dataset-synthesize external burn-in
+  stage: dataset-synthesize
+  finding: '_extract_text silently turned an empty model response into an empty corpus row (silent-fail / corpus-poisoning risk; found ON-PATH by the prompt-injection-portfolio C1 pre-registration gate-trace, #21 item 2)'
+  severity: high
+  status: applied
+  fix_version: 'unreleased (main; PR #38, merged 2026-06-11)'
+  fix_commit: c9fae12
+  notes: 'Empty text now fails loudly: row dropped + not counted toward cap, honest cost accounting, api_error EmptyResponse, exit 3, regression test. Burn-in: C1 generated 600/600 contexts, zero hygiene drops, $0.27; the gate never fired in production; consumer leakage gate + 5-verifier audit confirmed corpus integrity end-to-end.'
+
+- id: dsynth-provider-adapter-ergonomics
+  phase: dataset-synthesize external burn-in
+  stage: dataset-synthesize
+  finding: 'billing-failure recovery (empty Anthropic credits) via a duck-typed OpenAI adapter through the client= seam worked unmodified (cap/resume/EmptyResponse gate retained) — but the failed attempt''s manifest was overwritten at corpus_raw/manifest.json, losing the $0/zero-rows provenance as an artifact'
+  severity: low
+  status: surfaced
+  notes: 'Mostly positive evidence: the client= interface is adapter-friendly as designed (consumer generate_openai.py, gpt-4.1-mini). Candidate fix: suffix manifests per attempt or archive the prior manifest on provider switch so recoveries keep both records.'
