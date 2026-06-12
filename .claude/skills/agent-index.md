@@ -17,11 +17,11 @@ allowed-tools: Read, Write, Edit, Bash
 **Examples:**
 ```
 # v2.2+ strict-live: point at the project root
-/agent-index ~/Claude/research_eval_drift/ --output-dir ~/Claude/research_eval_drift/agent_index/
+/agent-index ~/Claude/research-dossiers/research_eval_drift/ --output-dir ~/Claude/research-dossiers/research_eval_drift/agent_index/
 
 # v1-era / v2.0 / v2.1: point at the dossier dir
-/agent-index ~/Claude/research_timeseries/dossier/ --output-dir ~/some_project/docs/timeseries_research/
-/agent-index ~/Claude/research_jailbreak/dossier/ --topic jailbreak --output-dir ~/some_project/docs/jailbreak_research/
+/agent-index ~/Claude/research-dossiers/research_timeseries/dossier/ --output-dir ~/some_project/docs/timeseries_research/
+/agent-index ~/Claude/research-dossiers/research_jailbreak/dossier/ --topic jailbreak --output-dir ~/some_project/docs/jailbreak_research/
 ```
 
 **Default output dir**: `<project_dir>/agent_index/` for v2.2+ strict-live; `<consumer-project>/docs/<topic>_research/` for legacy flow when invoked from a project root; else prompts the user.

@@ -8,7 +8,7 @@ failure with errors printed to stderr.
 The v1 validators are schema-oriented: they check fields, types, enums, counts,
 and structural shape. v2 strict-live validators add evidence/cache/freshness
 contracts for research OS artifacts (`evidence_ledger.yml`,
-`cache_manifest.yml`, `claim_graph.jsonl`, and `research_kb_export.jsonl`).
+`cache_manifest.yml`, `claim_graph.jsonl`, and `synthesis_export.jsonl`).
 
 URL liveness is still handled by /url-freshness-check and /freshness-audit;
 content faithfulness is represented through v2 evidence IDs and cache hashes.

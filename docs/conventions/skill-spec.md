@@ -77,7 +77,7 @@ explicit `/slash` invocation by the user still works. Reserve `paths`
 for skills that should *never* auto-fire outside a specific context.
 **Do not put `paths` on pipeline skills that a runbook or orchestrator
 invokes by name** (`research-gather`, `agent-index`, `citation-audit`,
-`freshness-audit`, `research-kb-export`, `dossier-audit`,
+`freshness-audit`, `synthesis-export`, `dossier-audit`,
 `url-freshness-check` had it removed for exactly this reason — see
 `BURN_IN_NOTES.md`, 2026-05-25).
 

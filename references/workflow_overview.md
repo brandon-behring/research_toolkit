@@ -27,7 +27,7 @@ strict-live research OS layer for evidence, cache, freshness, dashboards, and
        └──────────────────────┘
 
        ┌──────────────────────┐      ┌──────────────────────┐
-       │   /freshness-audit   │─────▶│ /research-kb-export  │
+       │   /freshness-audit   │─────▶│ /synthesis-export  │
        │ v2 trust/dashboard   │      │ JSONL ingestion feed │
        └──────────────────────┘      └──────────────────────┘
 ```
@@ -43,7 +43,7 @@ strict-live research OS layer for evidence, cache, freshness, dashboards, and
 | 4 | `/dossier-audit` | Indexed folder + scope focus | Inline edits + audit-trail note | `validators/audit_trail.py` |
 | utility | `/url-freshness-check` | Any markdown folder | URL check report | `validators/url_check_report.py` |
 | utility | `/freshness-audit` | v2 project dir | refreshed ledgers + `dashboard.md` | `validators/freshness.py` |
-| utility | `/research-kb-export` | v2 project dir | JSONL inbox file | `validators/research_kb_export.py` |
+| utility | `/synthesis-export` | v2 project dir | in-dossier `synthesis_export.jsonl` | `validators/research_kb_export.py` |
 
 ## When each skill applies
 
@@ -54,7 +54,7 @@ strict-live research OS layer for evidence, cache, freshness, dashboards, and
 - **`/dossier-audit`**: after `/agent-index` produces the synthesis. Each invocation is one round of complementary-scope verification. Stop iterating when a round returns "clean."
 - **`/url-freshness-check`**: any time. Useful before publishing the synthesis externally or after long gaps where blog posts may have drifted to 404.
 - **`/freshness-audit`**: v2 strict-live trust pass. Refreshes stale entries, checks evidence/cache IDs, validates cache hashes, and updates the trust dashboard. Phase 5 of this skill invokes `scripts/build_dashboard.py` to mechanically generate `dashboard.md`.
-- **`/research-kb-export`**: after strict freshness passes. Emits normalized JSONL records for `~/Claude/research-kb`.
+- **`/synthesis-export`**: after strict freshness passes. Emits the in-dossier `synthesis_export.jsonl` envelope for synthesis-kb.
 
 ## Mechanized v2 artifacts
 

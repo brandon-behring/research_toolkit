@@ -15,10 +15,10 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 **Examples:**
 ```
 /research "Adaptive jailbreak attacks 2024-2025"
-/research "Incrementality and geo-lift measurement" --output-dir ~/Claude/research_incrementality_geo_lift/ --today 2026-06-01
+/research "Incrementality and geo-lift measurement" --output-dir ~/Claude/research-dossiers/research_incrementality_geo_lift/ --today 2026-06-01
 ```
 
-**Default project dir**: `~/Claude/research_<slug>/` where `<slug>` is the topic
+**Default project dir**: `~/Claude/research-dossiers/research_<slug>/` where `<slug>` is the topic
 snake_cased. **Default `--today`**: the run date (YYYY-MM-DD) — fill it in once
 and reuse it for every stage so freshness math is consistent.
 
@@ -139,7 +139,7 @@ stale blockers, evidence/cache referential integrity holds, anchors verify).
 ```bash
 python ~/Claude/research_toolkit/scripts/research_kb_export.py <proj>
 python ~/Claude/research_toolkit/validators/research_kb_export.py \
-  ~/Claude/research-kb/inbox/research_toolkit/<slug>.jsonl
+  <project_dir>/synthesis_export.jsonl
 ```
 Gate: exporter exit 0 AND export validator exit 0. **Never reach this stage with
 a non-clean citation-audit or a failing freshness `--strict`.**
@@ -200,7 +200,7 @@ failure — a shipped broken dossier is not.
 - [`citation_rules.md`](~/Claude/research_toolkit/references/citation_rules.md) — URL forms, bibkey convention, no-LLM-specifics rule.
 - [`agent_discipline.md`](~/Claude/research_toolkit/references/agent_discipline.md) — tool-call budget, mid-phase validator checkpoints, incremental-write + cache-as-checkpoint resume.
 - [`strict_live_v2.md`](~/Claude/research_toolkit/references/strict_live_v2.md) — evidence/cache/freshness artifact schema + path portability.
-- Per-stage skills for full semantics: `/research-plan`, `/research-gather`, `/agent-index`, `/citation-audit`, `/freshness-audit`, `/research-kb-export`.
+- Per-stage skills for full semantics: `/research-plan`, `/research-gather`, `/agent-index`, `/citation-audit`, `/freshness-audit`, `/synthesis-export`.
 
 ## Validation
 
@@ -216,7 +216,7 @@ retry, the run HALTS on a checkpoint (see Failure handling) and reports failure
 python ~/Claude/research_toolkit/scripts/verify_citations.py <proj>          # citation audit clean
 python ~/Claude/research_toolkit/validators/freshness.py --strict <proj>     # no stale blockers
 python ~/Claude/research_toolkit/validators/research_kb_export.py \
-  ~/Claude/research-kb/inbox/research_toolkit/<slug>.jsonl                    # export well-formed
+  <project_dir>/synthesis_export.jsonl                    # export well-formed
 ```
 
 ## Output / handoff
@@ -227,7 +227,7 @@ python ~/Claude/research_toolkit/validators/research_kb_export.py \
 - `render_config.yml`, `agent_index/` (README + 5-bullet entry files), `dashboard.md`
 - `citation_audit_report.md`
 - `~/Claude/research_cache/` blobs (gitignored, content-addressed)
-- `~/Claude/research-kb/inbox/research_toolkit/<slug>.jsonl` (export envelope)
+- `<project_dir>/synthesis_export.jsonl` (export envelope)
 - a stamped `~/Claude/topic_backlog.yml` entry
 
 **Consumed by:** `~/Claude/research-kb` ingestion (downstream AI consumer reads

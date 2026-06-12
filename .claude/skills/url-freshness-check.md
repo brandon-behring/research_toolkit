@@ -31,7 +31,7 @@ target synthesis folder so the report does not become an agent-index artifact).
 **Not the same as `/freshness-audit`.** This skill HEAD-checks URL liveness on any markdown folder (HTTP 2xx/3xx/4xx categorization). `/freshness-audit` is a different tool that validates v2 strict-live evidence integrity (stale entries, missing evidence_id references, cache hash mismatches) on a structured v2 project directory. The two are orthogonal: HTTP liveness vs. evidence trust state. Use this one for any markdown collection; use `/freshness-audit` when working with a v2 strict-live project that has `evidence_ledger.yml` / `cache_manifest.yml` / `claim_graph.jsonl`.
 
 **Upstream:** any markdown collection. Most commonly invoked on `/agent-index` output.
-**Downstream:** the user reviews the report; optionally re-runs with `--inline` to annotate the source files. For v2 projects, often paired with `/freshness-audit` before `/research-kb-export`.
+**Downstream:** the user reviews the report; optionally re-runs with `--inline` to annotate the source files. For v2 projects, often paired with `/freshness-audit` before `/synthesis-export`.
 
 ## Workflow
 

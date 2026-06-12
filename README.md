@@ -91,7 +91,7 @@ make test                 # full validator/regression suite
 
 # Make skills discoverable from any project:
 mkdir -p ~/.claude/skills
-for skill in research topic-discovery research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export; do
+for skill in research topic-discovery research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit synthesis-export; do
   ln -s ~/Claude/research_toolkit/.claude/skills/$skill.md ~/.claude/skills/$skill.md
 done
 ```
@@ -148,7 +148,7 @@ Reuses paper-pipeline's `/dossier-audit` (focus area: "license risks + access st
 |---|---|---|---|---|
 | `/research` | orchestrator | Topic free-text | full validated dossier + export (or a resumable halt) | per-stage gates (no own validator) |
 | `/freshness-audit` | utility | v2 project dir | refreshed ledgers + `dashboard.md` | `validators/freshness.py` |
-| `/research-kb-export` | utility | v2 project dir | JSONL inbox file for `~/Claude/research-kb` | `validators/research_kb_export.py` |
+| `/synthesis-export` | utility | v2 project dir | in-dossier `synthesis_export.jsonl` for synthesis-kb | `validators/research_kb_export.py` |
 
 `/research` is the one-command end-to-end orchestrator: it chains plan -> gather
 -> assemble -> render-index -> build-claim-graph -> citation-audit -> freshness
@@ -156,7 +156,7 @@ Reuses paper-pipeline's `/dossier-audit` (focus area: "license risks + access st
 bounded-auto-retries the stage, then **halts on a resumable checkpoint** — it
 never auto-ships or stamps a broken dossier.
 
-v2 projects add `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, and `research_kb_export.jsonl`. Full source snapshots are cached locally under `~/Claude/research_cache/` for private research use and later ingestion.
+v2 projects add `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, and `synthesis_export.jsonl`. Full source snapshots are cached locally under `~/Claude/research_cache/` for private research use and later ingestion.
 
 Committed producer scripts mechanize the artifacts the skills used to populate by hand (v2.6 added the assembler + renderer, which previously lived as uncommitted per-topic scratch files):
 
@@ -181,7 +181,7 @@ research-toolkit render-index sources.json proj/ --config render_config.yml
 research-toolkit build-claim-graph proj/
 research-toolkit verify-citations proj/
 research-toolkit build-dashboard proj/ --today 2026-05-30
-research-toolkit export proj/ --output proj/research_kb_export.jsonl
+research-toolkit export proj/ --output proj/synthesis_export.jsonl
 ```
 
 Subcommands dispatch to the existing `scripts/*.main()` (and `validators/freshness`) without reimplementing them. The `/research` skill chains the same stages autonomously.
@@ -190,7 +190,7 @@ Subcommands dispatch to the existing `scripts/*.main()` (and `validators/freshne
 
 v2.1 adds `schema_version: 3` to evidence_ledger.yml: every `supports[]` link must declare `extraction_method` (verbatim_match / paraphrase / llm_inferred / propagated_from_child / user_asserted / manual_override) + `link_confidence` (0..1, capped per method). For `verbatim_match`, an `excerpt_anchor: {cache_id, text_path_offset, sha256_of_span}` block is required, and the validator mechanically verifies the substring + hash against the cached text — closing the gap between "source is real" and "the link between source and claim is real." Existing v2 fixtures are grandfathered. See `references/strict_live_v2.md` for the full v3 protocol.
 
-The new `/citation-audit` skill runs this verification as a pre-flight before `/research-kb-export`. The `/dossier-audit` skill's Phase 3 now uses CoVE-factored verification (Dhuliawala et al. arXiv 2309.11495) — verification questions answered in fully decoupled sub-agent contexts to prevent post-rationalization.
+The new `/citation-audit` skill runs this verification as a pre-flight before `/synthesis-export`. The `/dossier-audit` skill's Phase 3 now uses CoVE-factored verification (Dhuliawala et al. arXiv 2309.11495) — verification questions answered in fully decoupled sub-agent contexts to prevent post-rationalization.
 
 ## Defensive layer (v1.2+)
 

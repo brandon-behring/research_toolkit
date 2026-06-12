@@ -14,11 +14,11 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 
 **Examples:**
 ```
-/research-gather ~/Claude/research_timeseries/research_plan.md
-/research-gather ~/Claude/research_jailbreak/research_plan.md
+/research-gather ~/Claude/research-dossiers/research_timeseries/research_plan.md
+/research-gather ~/Claude/research-dossiers/research_jailbreak/research_plan.md
 ```
 
-**Default output dir**: same directory as `<plan_path>` (e.g., `~/Claude/research_<slug>/`).
+**Default output dir**: same directory as `<plan_path>` (e.g., `~/Claude/research-dossiers/research_<slug>/`).
 
 ## When to use
 
@@ -325,7 +325,7 @@ Validator checks: schema_version present, fetches list non-empty, every fetch ha
 - `<output_dir>/bib_ledger.yml` — populated bibliography ledger
 - `<output_dir>/evidence_ledger.yml` (v2 strict-live only) — field-level evidence entries linking claims to primary/official sources
 - `<output_dir>/cache_manifest.yml` (v2 strict-live only) — SHA-256-keyed manifest of cached source artifacts
-- `<output_dir>/claim_graph.jsonl` (v2 strict-live only) — JSONL records (entity / source / claim / evidence / cache_blob) consumed by `/research-kb-export`
+- `<output_dir>/claim_graph.jsonl` (v2 strict-live only) — JSONL records (entity / source / claim / evidence / cache_blob) consumed by `/synthesis-export`
 - `<output_dir>/gather_trace.yml` (v2.2+ strict-live only) — per-fetch Self-RAG reflection records (IsRel/IsSup/IsUse + decision); audit trail for discovery rigor
 - `~/Claude/research_cache/` (v2 strict-live only) — raw + text + metadata blobs written by `scripts/cache_source.py` (gitignored)
 - `<output_dir>/papers/` — cached PDFs (only when the optional Phase 5 PDF-caching step is run)

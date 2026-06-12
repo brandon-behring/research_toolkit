@@ -14,8 +14,8 @@ allowed-tools: Read, Write, Edit, Bash
 
 **Examples:**
 ```
-/dataset-index ~/Claude/research_<slug>/dataset_ledger.yml
-/dataset-index ~/Claude/research_anomaly/dataset_ledger.yml --output-dir ~/some_project/docs/research/anomaly_datasets/
+/dataset-index ~/Claude/research-dossiers/research_<slug>/dataset_ledger.yml
+/dataset-index ~/Claude/research-dossiers/research_anomaly/dataset_ledger.yml --output-dir ~/some_project/docs/research/anomaly_datasets/
 ```
 
 **Default `--output-dir`**: `~/<consumer-project>/docs/research/<topic>_datasets/`

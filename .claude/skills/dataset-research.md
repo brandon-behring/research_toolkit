@@ -31,7 +31,7 @@ For granular control (review the ledger before rendering), use
 This is a thin orchestrator. It invokes:
 
 1. **`/dataset-gather "<topic>"`** — produces
-   `~/Claude/research_<slug>/dataset_ledger.yml`. See `dataset-gather.md`
+   `~/Claude/research-dossiers/research_<slug>/dataset_ledger.yml`. See `dataset-gather.md`
    for full discovery semantics + the HARD REQUIREMENTS (read
    `references/dataset_sources.md`, strict `unverified` default, count
    assertion in final report, anti-cheat heuristic at ≥30 entries).
@@ -62,7 +62,7 @@ without re-discovering.
 ## Output / handoff
 
 **Produces:**
-- `~/Claude/research_<slug>/dataset_ledger.yml` (gather output)
+- `~/Claude/research-dossiers/research_<slug>/dataset_ledger.yml` (gather output)
 - `<consumer-project>/docs/research/<slug>_datasets/` (index output: README + 00_overview + 0K_<source>.md)
 
 **Consumed by:**

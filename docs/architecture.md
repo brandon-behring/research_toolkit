@@ -45,7 +45,7 @@ checkpoint if a stage cannot be made to pass.
 | 4 | render | `scripts/render_agent_index.py` (+ `render_config.yml`) | producer | `pre_selection_manifest.yml`, `agent_index/` | `validators/{pre_selection_manifest,agent_index,agent_index_display}.py` |
 | 5 | audit | `scripts/verify_citations.py` | producer | `citation_audit_report.md` | (self-checking: exit 1 on substring failure) |
 | 6 | freshness | `scripts/build_dashboard.py` | producer | `dashboard.md` | `validators/freshness.py` |
-| 7 | export | `scripts/research_kb_export.py` | producer | `<slug>.jsonl` (research-kb inbox) | `validators/research_kb_export.py` |
+| 7 | export | `scripts/synthesis_export.py` | producer | `synthesis_export.jsonl` (in-dossier) | `validators/research_kb_export.py` |
 | 8 | stamp | `scripts/backlog_stamp.py` | producer | updated `topic_backlog.yml` | `validators/topic_backlog.py` |
 
 Cross-cutting: `validators/cross_stage.py` validates the *whole project* —
@@ -159,7 +159,7 @@ should not over-trust them.
   legitimately old.
 - **The export contract is deferred.** v2.6 hardens the *trust of what is
   produced*, not the *export schema*. The export envelope
-  (`research_kb_export.jsonl`, `export_schema_version 2`) wraps each claim_graph
+  (`synthesis_export.jsonl`, `export_schema_version 2`) wraps each claim_graph
   record verbatim and losslessly, so the trust fields above ride in the payload
   — but promoting grounding-strength / link_confidence / content-age /
   audit-status to first-class *queryable* export fields (with an export-schema
@@ -169,7 +169,7 @@ should not over-trust them.
 
 ## The export contract for AI consumers
 
-`scripts/research_kb_export.py` reads `claim_graph.jsonl` and wraps each record
+`scripts/synthesis_export.py` reads `claim_graph.jsonl` and wraps each record
 in an envelope: `{export_schema_version: 2, record_type, id: "export_<id>",
 source_project, exported_at, payload: <verbatim claim_graph record>}`. It
 validates with `validators/research_kb_export.py` before writing and refuses to

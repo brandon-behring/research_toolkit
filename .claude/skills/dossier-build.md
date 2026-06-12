@@ -14,8 +14,8 @@ allowed-tools: Read, Write, Edit, Bash
 
 **Examples:**
 ```
-/dossier-build ~/Claude/research_timeseries/bib_ledger.yml
-/dossier-build ~/Claude/research_jailbreak/bib_ledger.yml --output-dir ~/Claude/research_jailbreak/dossier/
+/dossier-build ~/Claude/research-dossiers/research_timeseries/bib_ledger.yml
+/dossier-build ~/Claude/research-dossiers/research_jailbreak/bib_ledger.yml --output-dir ~/Claude/research-dossiers/research_jailbreak/dossier/
 ```
 
 **Default output dir**: `<bib_ledger_dir>/dossier/`.

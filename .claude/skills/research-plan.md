@@ -15,10 +15,10 @@ allowed-tools: Read, Write, Bash
 **Examples:**
 ```
 /research-plan "Time-series anomaly detection benchmarks"
-/research-plan "Adaptive jailbreak attacks 2024-2025" --output ~/Claude/research_jailbreak/research_plan.md
+/research-plan "Adaptive jailbreak attacks 2024-2025" --output ~/Claude/research-dossiers/research_jailbreak/research_plan.md
 ```
 
-**Default output**: `~/Claude/research_<slug>/research_plan.md` where `<slug>` is the topic snake_cased.
+**Default output**: `~/Claude/research-dossiers/research_<slug>/research_plan.md` where `<slug>` is the topic snake_cased.
 
 ## When to use
 
@@ -87,6 +87,6 @@ The validator checks: H1 starts with `Research Plan:`; `## Sub-areas` has 4–8 
 
 ## Output / handoff
 
-**Produces:** `research_plan.md` at the `--output` path (or default `~/Claude/research_<slug>/research_plan.md`).
+**Produces:** `research_plan.md` at the `--output` path (or default `~/Claude/research-dossiers/research_<slug>/research_plan.md`).
 
 **Consumed by:** `/research-gather <plan_path>` — reads the plan and discovers primary sources for each sub-area.

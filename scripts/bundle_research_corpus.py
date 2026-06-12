@@ -6,15 +6,16 @@ for shipping the corpus from laptop to desktop (where research-kb's queryable
 ingestion code lives). Reusable for the recurring laptop→desktop sync per
 locked design §8 Q14 (files-canonical).
 
-Scope B (locked): ~/Claude strict-live dossiers + shared cache + inbox + catalogue
+Scope B (locked; paths updated for RS1 2026-06-12): strict-live dossiers (now under
+~/Claude/research-dossiers) + shared cache + in-dossier envelopes + catalogue
 + home-wide research project dirs (minus cruft).
 
 Behavior:
-1. Freshness pre-flight — re-run `research_kb_export.py` for any dossier whose
-   claim_graph.jsonl is newer than its inbox JSONL (so the inbox is current).
+1. Freshness pre-flight — re-run `synthesis_export.py` for any dossier whose
+   claim_graph.jsonl is newer than its in-dossier synthesis_export.jsonl.
 2. Enumerate the scope-B payload (write paths to a temp file for `tar -T`).
 3. Build a MANIFEST.txt with: schema, ISO timestamp, scope, toolkit git rev,
-   per-dossier records + claim_graph sha256, cache summary, inbox summary,
+   per-dossier records + claim_graph sha256, cache summary, envelope summary,
    embedded cache_health.md snapshot.
 4. tar czf the payload with the exclusion list.
 5. Sha256 the tarball; write `.sha256` sidecar; append to MANIFEST.
@@ -41,13 +42,16 @@ HOME = Path.home()
 CLAUDE = HOME / "Claude"
 TK = CLAUDE / "research_toolkit"
 SHARED_CACHE = CLAUDE / "research_cache"
-INBOX = CLAUDE / "research-kb" / "inbox"
+# RS1 (2026-06-12): dossiers + catalogue live in the private research-dossiers repo;
+# the research-kb inbox is gone — export envelopes are in-dossier (synthesis_export.jsonl).
+DOSSIERS_REPO = CLAUDE / "research-dossiers"
+ENVELOPE_NAME = "synthesis_export.jsonl"
 CATALOGUE = [
-    CLAUDE / "research_INDEX.md",
-    CLAUDE / "research_BACKLOG.md",
-    CLAUDE / "research_TOPIC_BACKLOG.md",
-    CLAUDE / "research_graph.json",
-    CLAUDE / "research_graph.html",
+    DOSSIERS_REPO / "research_INDEX.md",
+    DOSSIERS_REPO / "research_BACKLOG.md",
+    DOSSIERS_REPO / "research_TOPIC_BACKLOG.md",
+    DOSSIERS_REPO / "research_graph.json",
+    DOSSIERS_REPO / "research_graph.html",
     CLAUDE / "cache_health.md",
     CLAUDE / "retry_escalations_report.md",
 ]
@@ -101,26 +105,25 @@ def find_strict_live_dossiers() -> list[Path]:
 
 
 def freshness_preflight(dossiers: list[Path]) -> dict[str, str]:
-    """Re-run research_kb_export.py for any dossier whose claim_graph.jsonl is newer than its inbox JSONL.
+    """Re-run synthesis_export.py for any dossier whose claim_graph.jsonl is newer than its
+    in-dossier envelope (synthesis_export.jsonl).
 
     Returns {slug: status_message}.
     """
     py = TK / ".venv" / "bin" / "python"
-    export_script = TK / "scripts" / "research_kb_export.py"
-    inbox_dir = INBOX / "research_toolkit"
+    export_script = TK / "scripts" / "synthesis_export.py"
     results: dict[str, str] = {}
     for d in dossiers:
         cg = d / "claim_graph.jsonl"
         if not cg.exists():
             continue
         slug = d.name
-        # The export slug logic in research_kb_export.py uses the dir basename
-        inbox_file = inbox_dir / f"{slug}.jsonl"
+        envelope = d / ENVELOPE_NAME
         # Determine if re-export is needed
-        if not inbox_file.exists():
+        if not envelope.exists():
             need = True
-            reason = "no inbox file"
-        elif cg.stat().st_mtime > inbox_file.stat().st_mtime:
+            reason = "no envelope"
+        elif cg.stat().st_mtime > envelope.stat().st_mtime:
             need = True
             reason = "claim_graph newer"
         else:
@@ -154,7 +157,7 @@ def build_manifest(dossiers: list[Path], cache_health_excerpt: str | None = None
         "toolkit_git_rev": get_toolkit_git_rev(),
         "dossiers": [],
         "shared_cache": {},
-        "inbox": {},
+        "envelopes": {},
         "catalogue": [],
         "homewide_projects": [],
     }
@@ -180,13 +183,13 @@ def build_manifest(dossiers: list[Path], cache_health_excerpt: str | None = None
             "total_bytes": total_bytes,
         }
 
-    # Inbox summary
-    inbox_files = list((INBOX / "research_toolkit").glob("*.jsonl")) if (INBOX / "research_toolkit").exists() else []
-    manifest["inbox"] = {
-        "path": str(INBOX.relative_to(HOME)),
-        "file_count": len(inbox_files),
-        "file_sizes": {f.name: f.stat().st_size for f in inbox_files},
-        "total_records": sum(sum(1 for _ in f.open()) for f in inbox_files),
+    # In-dossier envelope summary (post-RS1 there is no inbox; envelopes ship inside dossier dirs)
+    env_files = [d / ENVELOPE_NAME for d in dossiers if (d / ENVELOPE_NAME).exists()]
+    manifest["envelopes"] = {
+        "name": ENVELOPE_NAME,
+        "file_count": len(env_files),
+        "file_sizes": {f.parent.name: f.stat().st_size for f in env_files},
+        "total_records": sum(sum(1 for _ in f.open()) for f in env_files),
     }
 
     # Catalogue
@@ -219,9 +222,9 @@ def render_manifest(manifest: dict) -> str:
         lines.append(f"## Shared cache\n- path: `{sc['path']}`")
         lines.append(f"- blob_count: {sc['blob_count']}")
         lines.append(f"- total_bytes: {sc['total_bytes']:,} ({sc['total_bytes']/1024/1024:.1f} MiB)\n")
-    ib = manifest["inbox"]
+    ib = manifest["envelopes"]
     if ib:
-        lines.append(f"## Inbox\n- path: `{ib['path']}`")
+        lines.append(f"## Envelopes (in-dossier `{ib['name']}`)")
         lines.append(f"- file_count: {ib['file_count']}")
         lines.append(f"- total_records: {ib['total_records']:,}\n")
     if manifest["catalogue"]:
@@ -239,11 +242,9 @@ def write_payload_paths_file(dossiers: list[Path], extra_files: list[Path], tmp_
     """Write the path list for `tar -T`. Paths are relative to HOME so tar produces clean names."""
     paths_file = tmp_dir / "payload_paths.txt"
     with paths_file.open("w") as f:
-        # Shared cache, inbox dirs (full)
+        # Shared cache (full); envelopes ship inside the dossier dirs below
         if SHARED_CACHE.exists():
             f.write(str(SHARED_CACHE.relative_to(HOME)) + "\n")
-        if INBOX.exists():
-            f.write(str(INBOX.relative_to(HOME)) + "\n")
         # Dossier dirs (full each)
         for d in dossiers:
             f.write(str(d.relative_to(HOME)) + "\n")
@@ -292,7 +293,7 @@ def main() -> int:
     ap.add_argument("--scope", choices=["B"], default="B")  # only B locked
     ap.add_argument("--out", type=Path, default=CLAUDE)
     ap.add_argument("--dry-run", action="store_true", help="Build manifest + path list but don't tar")
-    ap.add_argument("--skip-freshness", action="store_true", help="Don't re-run inbox exports")
+    ap.add_argument("--skip-freshness", action="store_true", help="Don't re-run envelope exports")
     args = ap.parse_args()
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -305,7 +306,7 @@ def main() -> int:
     print(f"      found {len(dossiers)}", file=sys.stderr)
 
     if not args.skip_freshness:
-        print("[2/5] Freshness pre-flight (re-export stale inbox entries)…", file=sys.stderr)
+        print("[2/5] Freshness pre-flight (re-export stale in-dossier envelopes)…", file=sys.stderr)
         results = freshness_preflight(dossiers)
         stale = sum(1 for v in results.values() if v == "re-exported")
         failed = sum(1 for v in results.values() if "fail" in v or "error" in v)

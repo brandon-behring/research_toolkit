@@ -179,14 +179,14 @@ def test_research_kb_export_rejects_missing_payload(tmp_path: Path) -> None:
     assert any("payload" in e for e in errors), errors
 
 
-def test_research_kb_export_script_writes_valid_jsonl(tmp_path: Path) -> None:
+def test_synthesis_export_script_writes_valid_jsonl(tmp_path: Path) -> None:
     project = tmp_path / "project"
     shutil.copytree(FIXTURE, project)
     out = tmp_path / "kb_export.jsonl"
     result = subprocess.run(
         [
             sys.executable,
-            str(REPO_ROOT / "scripts" / "research_kb_export.py"),
+            str(REPO_ROOT / "scripts" / "synthesis_export.py"),
             str(project),
             "--output",
             str(out),
@@ -198,6 +198,29 @@ def test_research_kb_export_script_writes_valid_jsonl(tmp_path: Path) -> None:
         cwd=str(REPO_ROOT),
     )
     assert result.returncode == 0, result.stderr
+    assert out.exists()
+    assert research_kb_export.validate(out) == []
+
+
+def test_synthesis_export_default_output_is_in_dossier(tmp_path: Path) -> None:
+    # RS1 contract (R1a): without --output the envelope lands IN the project dir,
+    # named synthesis_export.jsonl — there is no inbox.
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "synthesis_export.py"),
+            str(project),
+            "--date",
+            "2026-06-12",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    out = project / "synthesis_export.jsonl"
     assert out.exists()
     assert research_kb_export.validate(out) == []
 
@@ -971,14 +994,18 @@ def test_v2_skills_codify_strict_live_cache_and_export_rules() -> None:
     gather = (skills / "research-gather.md").read_text(encoding="utf-8")
     dataset = (skills / "dataset-gather.md").read_text(encoding="utf-8")
     freshness_skill = (skills / "freshness-audit.md").read_text(encoding="utf-8")
-    export_skill = (skills / "research-kb-export.md").read_text(encoding="utf-8")
+    export_skill = (skills / "synthesis-export.md").read_text(encoding="utf-8")
 
     for text in (gather, dataset, freshness_skill):
         assert "strict-live" in text.lower()
         assert "cache" in text.lower()
         assert "evidence" in text.lower()
-    assert "research-kb" in export_skill
-    assert "research_kb_export.py" in export_skill
+    # RS1 (2026-06-12): the export skill is /synthesis-export, writing in-dossier;
+    # the envelope validator keeps its historical module name.
+    assert "synthesis-kb" in export_skill
+    assert "synthesis_export.py" in export_skill
+    assert "synthesis_export.jsonl" in export_skill
+    assert "validators/research_kb_export.py" in export_skill
 
 
 # ----- v2.2 Phase A: gather_trace.yml (Self-RAG adaptive retrieval) -----

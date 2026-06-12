@@ -111,7 +111,7 @@ When the audited folder lives inside a strict-live v2 project (i.e., a parent
 directory containing `evidence_ledger.yml` + `cache_manifest.yml` +
 `claim_graph.jsonl`), markdown-only edits are not enough. The v2 ledgers must
 stay consistent with the markdown, or `/freshness-audit --strict` will fail
-the regression check and downstream `/research-kb-export` will ship desynced
+the regression check and downstream `/synthesis-export` will ship desynced
 data.
 
 For each finding, propagate the change to the v2 artifacts at the project

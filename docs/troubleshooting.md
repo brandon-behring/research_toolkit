@@ -354,7 +354,7 @@ is internally consistent.
 ## Restricted source slipped through to research-kb export
 
 **Symptom:** A `cache_id` for a source you didn't intend to redistribute
-appears in `research_kb_export.jsonl` cache_blob records.
+appears in `synthesis_export.jsonl` cache_blob records.
 
 **Cause:** the export script does verbatim wrap of the claim_graph. If the
 ledgers reference a restricted source's `cache_id`, that ID flows through.
@@ -379,8 +379,8 @@ re-fetch.
 **Fix:** generate with the bundled exporter after freshness passes:
 
 ```bash
-python scripts/research_kb_export.py <project>
-python validators/research_kb_export.py ~/Claude/research-kb/inbox/research_toolkit/<project>.jsonl
+python scripts/synthesis_export.py <project>
+python validators/research_kb_export.py <project_dir>/synthesis_export.jsonl
 ```
 
 ## gather_trace fails: bad IsSup / IsUse / decision / bibkey

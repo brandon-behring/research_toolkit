@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
-"""Export strict-live v2 project records for research-kb ingestion."""
+"""Export strict-live project records as the in-dossier synthesis-kb envelope.
+
+Writes <project_dir>/synthesis_export.jsonl (RS1 contract, 2026-06-12): the envelope
+lives only in its dossier folder — there is no inbox. Consumed by
+synthesis-kb/scripts/ingest_dossiers.py. Schema unchanged (export_schema_version 2;
+validated by validators/research_kb_export.py, which keeps its historical name).
+"""
 from __future__ import annotations
 
 import argparse
 from datetime import date
 import json
 from pathlib import Path
-import re
 import sys
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from validators import research_kb_export
-
-
-def _slug(path: Path) -> str:
-    return re.sub(r"[^a-z0-9_]+", "_", path.name.lower()).strip("_") or "project"
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -73,10 +74,7 @@ def main(argv: list[str]) -> int:
     if args.output:
         output = Path(args.output).expanduser().resolve()
     else:
-        output = (
-            Path("~/Claude/research-kb/inbox/research_toolkit").expanduser()
-            / f"{_slug(project)}.jsonl"
-        )
+        output = project / "synthesis_export.jsonl"
     export_project(project, output=output, exported_at=args.date)
     print(output)
     return 0

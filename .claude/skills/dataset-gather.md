@@ -16,10 +16,10 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 ```
 /dataset-gather "time-series anomaly detection"
 /dataset-gather "tabular benchmarks" --sources huggingface,uci,openml
-/dataset-gather "biomedical text classification" --output-dir ~/Claude/research_<slug>/
+/dataset-gather "biomedical text classification" --output-dir ~/Claude/research-dossiers/research_<slug>/
 ```
 
-**Default `--output-dir`**: `~/Claude/research_<slug>/` where `<slug>` is the
+**Default `--output-dir`**: `~/Claude/research-dossiers/research_<slug>/` where `<slug>` is the
 topic with spaces → underscores, lowercase.
 
 **Default `--sources`**: all 8 categories (see `references/dataset_sources.md`).

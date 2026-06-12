@@ -1,6 +1,6 @@
 ---
 name: freshness-audit
-description: Use when the user asks to audit a v2 strict-live research project for staleness, refresh outdated entries, validate trust state, or before running /research-kb-export. Checks stale blockers, evidence_id and cache_id referential integrity, cache hashes (and v3 substring anchors), URL liveness; refreshes stale primary sources; rebuilds dashboard.md via scripts/build_dashboard.py.
+description: Use when the user asks to audit a v2 strict-live research project for staleness, refresh outdated entries, validate trust state, or before running /synthesis-export. Checks stale blockers, evidence_id and cache_id referential integrity, cache hashes (and v3 substring anchors), URL liveness; refreshes stale primary sources; rebuilds dashboard.md via scripts/build_dashboard.py.
 allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 ---
 
@@ -15,7 +15,7 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 ## When to use
 
 - Before treating a v2 project as current.
-- Before `/research-kb-export`.
+- Before `/synthesis-export`.
 - Any time `validators/freshness.py --strict` fails, or a dashboard shows stale blockers.
 
 **Not the same as `/url-freshness-check`.** This skill is the v2 strict-live trust audit: it reads `evidence_ledger.yml`, `cache_manifest.yml`, `claim_graph.jsonl`, validates referential integrity, re-fetches stale primary sources, and updates the dashboard. `/url-freshness-check` is a generic HTTP-HEAD utility on any markdown folder (2xx/3xx/4xx categorization, no v2 awareness). For a v2 project both can be useful: run `/url-freshness-check` on the rendered agent-index markdown to catch dead URLs, and run this skill on the project root to refresh stale evidence and rebuild trust state.
@@ -121,4 +121,4 @@ Do not report success until strict validation passes.
 
 **Produces:** refreshed v2 ledgers, cache manifest, evidence ledger, claim graph, and trust dashboard.
 
-**Consumed by:** `/research-kb-export <project_dir>` and future research sessions.
+**Consumed by:** `/synthesis-export <project_dir>` and future research sessions.

@@ -76,9 +76,9 @@ writing.
 ### Phase 4 — dedup against prior research (HARD REQUIREMENT — silent-failure mode)
 
 Per protocol Step 3, build the "already-covered" set from: this backlog's own
-`status ∈ {researched, planned, dropped}` entries; `~/Claude/research_*/` dir
+`status ∈ {researched, planned, dropped}` entries; `~/Claude/research-dossiers/research_*/` dir
 slugs + their `bib_ledger.yml` `topic:` field; and
-`~/Claude/research-kb/inbox/research_toolkit/*.jsonl` stems. Drop matches and log
+in-dossier `synthesis_export.jsonl` stems. Drop matches and log
 each drop + reason. **`/topic-discovery` is append-only — never rewrite or
 re-emit an existing entry.**
 

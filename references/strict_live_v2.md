@@ -161,7 +161,7 @@ on the research-kb side parses `payload.*` directly; nothing is dropped on
 the export side so future ingestion always has full information.
 
 See `templates/research_kb_export.template.jsonl` for the per-record-type
-payload schemas and `scripts/research_kb_export.py` for the implementation
+payload schemas and `scripts/synthesis_export.py` for the implementation
 (it does verbatim copy: `"payload": record`).
 
 **Ingestion is out of scope for `research_toolkit`.** Building the

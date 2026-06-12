@@ -45,7 +45,7 @@ import assemble_artifacts as aa  # type: ignore[import-not-found]
 import build_claim_graph as bcg  # type: ignore[import-not-found]
 import build_dashboard as bd  # type: ignore[import-not-found]
 import render_agent_index as rai  # type: ignore[import-not-found]
-import research_kb_export as rke  # type: ignore[import-not-found]
+import synthesis_export as rke  # type: ignore[import-not-found]
 import verify_citations as vc  # type: ignore[import-not-found]
 from validators import (  # type: ignore[import-not-found]
     agent_index,
@@ -374,7 +374,7 @@ def test_e2e_builder_pipeline_builds_trustworthy_dossier(tmp_path: Path) -> None
 
     # --- Stage 6: research_kb_export -> a valid research-kb JSONL envelope ---
     export_path = tmp_path / "export" / "e2e.jsonl"
-    rc = rke.main(["research_kb_export", str(project), "--output", str(export_path)])
+    rc = rke.main(["synthesis_export", str(project), "--output", str(export_path)])
     assert rc == 0
     assert export_path.exists()
     assert research_kb_export.validate(export_path) == []

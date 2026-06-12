@@ -16,7 +16,7 @@ allowed-tools: Read, Bash
 
 - After `/research-gather` produces (or after manual edits to) a v3
   evidence_ledger.yml with `extraction_method: verbatim_match` anchors.
-- Before `/research-kb-export` to ensure no broken citations ship.
+- Before `/synthesis-export` to ensure no broken citations ship.
 - As part of `/freshness-audit` to surface citation health alongside trust state.
 
 **Not for v2 projects** — v3 schema introduces `extraction_method` and
@@ -24,7 +24,7 @@ allowed-tools: Read, Bash
 
 **Upstream:** `/research-gather` produces evidence_ledger.yml.
 **Downstream:** `/freshness-audit` Phase 5 (dashboard build) consumes the
-metrics; `/research-kb-export` should not run while substring failures are open.
+metrics; `/synthesis-export` should not run while substring failures are open.
 
 ## Workflow
 
@@ -109,5 +109,5 @@ echo "Exit code: $?"  # 0 = all pass, 1 = substring failures
 **Consumed by:**
 - `/freshness-audit` — embeds the same metrics in `dashboard.md` Claim
   Health section.
-- `/research-kb-export` — should not run while exit code is 1.
+- `/synthesis-export` — should not run while exit code is 1.
 - The user, who acts on per-claim grounding-strength flags.
