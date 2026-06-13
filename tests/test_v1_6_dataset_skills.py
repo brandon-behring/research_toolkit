@@ -568,7 +568,7 @@ def test_cross_stage_passes_on_v1_6_medium_dataset_subset_fixture() -> None:
 def test_cross_stage_passes_on_real_rlhf_datasets_dir() -> None:
     """v1.8 dogfood project validates under v1.9 cross_stage. Skipped if the
     working copy isn't on this machine."""
-    real = Path.home() / "Claude" / "research_rlhf_datasets"
+    real = Path.home() / "Claude" / "research-dossiers" / "research_rlhf_datasets"
     if not real.exists():
         pytest.skip(f"{real} not present")
     # Default mode should pass (agent_index lives in interview_prep_series, not
