@@ -18,10 +18,12 @@ normalized substring of the cached text the bullet is grounded in.
 Scope: the substring contract enforces the *verbatim* guarantee, so it applies to
 Mechanisms grounded in ``verbatim_match`` (or unspecified) evidence. A Mechanism
 backed by ``extraction_method: paraphrase`` evidence is a *declared* paraphrase — a
-synthesis of the source, not a verbatim claim — and is exempt from the substring
-check (its cache linkage is still verified). This lets depth-expanded paraphrase
-dossiers keep their synthesized Mechanism displays without weakening the contract
-where verbatim is actually claimed.
+synthesis of the source, not a verbatim claim — and is exempt: it is skipped before
+the cache is consulted, since the cache read exists only to run the substring check.
+That skip also keeps the offline tier (CI, no cache blobs) from false-failing on a
+paraphrase entry it cannot audit. This lets depth-expanded paraphrase dossiers keep
+their synthesized Mechanism displays without weakening the contract where verbatim is
+actually claimed.
 
 Linkage (mirrors the renderer exactly — see ``_render_entry`` there):
 
@@ -370,6 +372,20 @@ def validate(project_dir: Path) -> list[str]:
             if not mech_match:
                 continue  # Block legitimately omits Mechanism — nothing to check.
             display = mech_match.group(1).strip()
+            # Paraphrase exemption — checked BEFORE the cache read. A Mechanism grounded
+            # in extraction_method=paraphrase evidence is a declared paraphrase (a
+            # synthesis), not a verbatim claim, so it is exempt from the substring
+            # contract. The cache read below exists only to run that substring check, so
+            # skip it entirely for paraphrase Mechanisms — which also keeps the offline
+            # tier (CI: no cache blobs) from false-failing on a paraphrase entry it cannot
+            # audit. Verbatim_match (or unspecified) evidence resolves the cache and is
+            # checked below.
+            ev_rec = _evidence_for_block(
+                block, fpath.stem,
+                evidence_by_id=evidence_by_id, selection_index=selection_index,
+            )
+            if ev_rec is not None and _is_paraphrase_only(ev_rec):
+                continue
             cached_text, link_err = _resolve_cached_text_for_block(
                 block,
                 fpath.stem,
@@ -385,17 +401,6 @@ def validate(project_dir: Path) -> list[str]:
                     f"{fpath.name}: Mechanism bullet ('{short}') has no resolvable "
                     f"cache linkage: {link_err}"
                 )
-                continue
-            # Paraphrase exemption: a Mechanism grounded in extraction_method=paraphrase
-            # evidence is a declared paraphrase (a synthesis of the source), not a
-            # verbatim claim — the substring contract enforces the verbatim guarantee for
-            # verbatim_match (or unspecified) evidence only. Cache linkage is still
-            # required (checked above).
-            ev_rec = _evidence_for_block(
-                block, fpath.stem,
-                evidence_by_id=evidence_by_id, selection_index=selection_index,
-            )
-            if ev_rec is not None and _is_paraphrase_only(ev_rec):
                 continue
             assert cached_text is not None
             norm_display = _normalize_ws(display)

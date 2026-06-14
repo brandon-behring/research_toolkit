@@ -344,6 +344,26 @@ def test_validate_still_enforces_substring_for_verbatim_match_evidence(tmp_path)
     assert "substring" in errors[0]
 
 
+def test_validate_exempts_paraphrase_before_cache_read(tmp_path):
+    # Regression (offline/CI tier): the paraphrase exemption is applied BEFORE the cache
+    # is consulted, so a paraphrase Mechanism raises no cache-linkage error when the
+    # cache blob is absent — which is exactly the offline tier CI runs (no cache blobs
+    # are committed). The bad block is paraphrase-backed and the cache text is deleted;
+    # the ONLY error is the non-paraphrase good block. Pre-reorder, the paraphrase block
+    # hit the cache read first and both blocks failed "could not be read".
+    project = _build_project(
+        tmp_path,
+        good_mechanism="Tool poisoning attacks embed hidden instructions in an MCP tool description",
+        bad_mechanism="Tool poisoning ... lets attackers fully hijack the agent entirely.",
+        bad_extraction_method="paraphrase",
+    )
+    (project / "text" / "sha256" / f"{SHA}.txt").unlink()
+    errors = agent_index_display.validate(project)
+    assert len(errors) == 1, errors
+    assert "could not be read" in errors[0]
+    assert "fully hijack" not in errors[0]
+
+
 # ---------- Real-data smoke test (oracle) ----------
 
 _SHIPPED = Path.home() / "Claude" / "research_mcp_server_security"
