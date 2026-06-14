@@ -15,6 +15,14 @@ breaking the anti-hallucination contract. This module re-checks, for every
 rendered ``- **Mechanism:** ...`` bullet, that its display text is still a
 normalized substring of the cached text the bullet is grounded in.
 
+Scope: the substring contract enforces the *verbatim* guarantee, so it applies to
+Mechanisms grounded in ``verbatim_match`` (or unspecified) evidence. A Mechanism
+backed by ``extraction_method: paraphrase`` evidence is a *declared* paraphrase — a
+synthesis of the source, not a verbatim claim — and is exempt from the substring
+check (its cache linkage is still verified). This lets depth-expanded paraphrase
+dossiers keep their synthesized Mechanism displays without weakening the contract
+where verbatim is actually claimed.
+
 Linkage (mirrors the renderer exactly — see ``_render_entry`` there):
 
 1. Preferred (what shipped dossiers emit): an inline ``- **Evidence:**
@@ -248,6 +256,42 @@ def _resolve_cached_text_for_block(
     return cached, None
 
 
+def _evidence_for_block(
+    block: str,
+    family_stem: str,
+    *,
+    evidence_by_id: dict[str, dict[str, Any]],
+    selection_index: dict[tuple[str, str], dict[str, Any]],
+) -> dict[str, Any] | None:
+    """The evidence record a block's Mechanism is grounded in — inline Evidence
+    bullet (preferred), else the Source bibkey via pre_selection. Mirrors the
+    linkage in ``_resolve_cached_text_for_block``; returns None if unresolvable
+    (the caller still runs the full cache-linkage check via that function)."""
+    ev_match = EVIDENCE_LINE_RE.search(block)
+    if ev_match:
+        return evidence_by_id.get(ev_match.group(1).strip())
+    src_match = SOURCE_LINE_RE.search(block)
+    if src_match:
+        bibkey = _bibkey_of(src_match.group(1))
+        if bibkey:
+            sel = selection_index.get((family_stem, bibkey))
+            if sel and isinstance(sel.get("evidence_id"), str):
+                return evidence_by_id.get(sel["evidence_id"])
+    return None
+
+
+def _is_paraphrase_only(evidence: dict[str, Any]) -> bool:
+    """True if the evidence declares its support(s) as paraphrase and makes no
+    verbatim_match claim. ``extraction_method`` lives per-support under ``supports``;
+    a verbatim_match support (even alongside paraphrase) keeps the substring contract."""
+    methods = {
+        s.get("extraction_method")
+        for s in evidence.get("supports", [])
+        if isinstance(s, dict)
+    }
+    return "paraphrase" in methods and "verbatim_match" not in methods
+
+
 def validate(project_dir: Path) -> list[str]:
     """Verify every agent_index Mechanism bullet is a substring of its cached source.
 
@@ -341,6 +385,17 @@ def validate(project_dir: Path) -> list[str]:
                     f"{fpath.name}: Mechanism bullet ('{short}') has no resolvable "
                     f"cache linkage: {link_err}"
                 )
+                continue
+            # Paraphrase exemption: a Mechanism grounded in extraction_method=paraphrase
+            # evidence is a declared paraphrase (a synthesis of the source), not a
+            # verbatim claim — the substring contract enforces the verbatim guarantee for
+            # verbatim_match (or unspecified) evidence only. Cache linkage is still
+            # required (checked above).
+            ev_rec = _evidence_for_block(
+                block, fpath.stem,
+                evidence_by_id=evidence_by_id, selection_index=selection_index,
+            )
+            if ev_rec is not None and _is_paraphrase_only(ev_rec):
                 continue
             assert cached_text is not None
             norm_display = _normalize_ws(display)

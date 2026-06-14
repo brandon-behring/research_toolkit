@@ -45,6 +45,7 @@ def _build_project(
     include_bad_block: bool = True,
     bad_bibkey: str = "smith2024poison",
     include_bad_selection: bool = True,
+    bad_extraction_method: str | None = None,
 ) -> Path:
     """Build a minimal strict-live project. Returns the project dir."""
     project = tmp_path / "proj"
@@ -80,6 +81,18 @@ def _build_project(
         },
     )
 
+    _ev_bad: dict[str, Any] = {
+        "evidence_id": "ev_bad",
+        "bibkey": bad_bibkey,
+        "cache_id": "cache_poison",
+        # The ledger excerpt is itself a substring; the VIOLATION is
+        # introduced only in the rendered agent_index display text.
+        "excerpt": "Tool poisoning attacks embed hidden instructions",
+    }
+    if bad_extraction_method is not None:
+        _ev_bad["supports"] = [
+            {"claim_id": "claim_bad", "extraction_method": bad_extraction_method}
+        ]
     _dump(
         project / "evidence_ledger.yml",
         {
@@ -92,14 +105,7 @@ def _build_project(
                     "cache_id": "cache_poison",
                     "excerpt": good_mechanism,
                 },
-                {
-                    "evidence_id": "ev_bad",
-                    "bibkey": bad_bibkey,
-                    "cache_id": "cache_poison",
-                    # The ledger excerpt is itself a substring; the VIOLATION is
-                    # introduced only in the rendered agent_index display text.
-                    "excerpt": "Tool poisoning attacks embed hidden instructions",
-                },
+                _ev_bad,
             ],
         },
     )
@@ -305,6 +311,37 @@ def test_validate_uses_inline_evidence_bullet_when_present(tmp_path):
         encoding="utf-8",
     )
     assert agent_index_display.validate(project) == []
+
+
+# ---------- Paraphrase exemption (extraction_method) ----------
+
+
+def test_validate_exempts_paraphrase_backed_mechanism(tmp_path):
+    # A Mechanism grounded in extraction_method: paraphrase evidence is a declared
+    # paraphrase (a synthesis of the source), not a verbatim claim — exempt from the
+    # substring contract, so a non-substring display is NOT flagged. (Cache linkage is
+    # still required; here it resolves fine, only the substring audit is skipped.)
+    project = _build_project(
+        tmp_path,
+        good_mechanism="Tool poisoning attacks embed hidden instructions in an MCP tool description",
+        bad_mechanism="Tool poisoning ... lets attackers fully hijack the agent entirely.",
+        bad_extraction_method="paraphrase",
+    )
+    assert agent_index_display.validate(project) == []
+
+
+def test_validate_still_enforces_substring_for_verbatim_match_evidence(tmp_path):
+    # A verbatim_match claim keeps the substring contract: the same non-substring
+    # display that paraphrase evidence would exempt is flagged here.
+    project = _build_project(
+        tmp_path,
+        good_mechanism="Tool poisoning attacks embed hidden instructions in an MCP tool description",
+        bad_mechanism="Tool poisoning ... lets attackers fully hijack the agent entirely.",
+        bad_extraction_method="verbatim_match",
+    )
+    errors = agent_index_display.validate(project)
+    assert len(errors) == 1, errors
+    assert "substring" in errors[0]
 
 
 # ---------- Real-data smoke test (oracle) ----------
