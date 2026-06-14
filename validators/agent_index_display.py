@@ -21,9 +21,12 @@ backed by ``extraction_method: paraphrase`` evidence is a *declared* paraphrase 
 synthesis of the source, not a verbatim claim — and is exempt: it is skipped before
 the cache is consulted, since the cache read exists only to run the substring check.
 That skip also keeps the offline tier (CI, no cache blobs) from false-failing on a
-paraphrase entry it cannot audit. This lets depth-expanded paraphrase dossiers keep
-their synthesized Mechanism displays without weakening the contract where verbatim is
-actually claimed.
+paraphrase entry it cannot audit; the consequent loss of this validator's cache-linkage
+re-check for paraphrase entries is by design — cache-blob integrity behind paraphrase
+evidence is covered by the ``evidence_ledger`` / ``cache_manifest`` validators, and the
+display↔evidence link is still required here (an unresolvable evidence record is not
+exempt). This lets depth-expanded paraphrase dossiers keep their synthesized Mechanism
+displays without weakening the contract where verbatim is actually claimed.
 
 Linkage (mirrors the renderer exactly — see ``_render_entry`` there):
 
@@ -283,15 +286,18 @@ def _evidence_for_block(
 
 
 def _is_paraphrase_only(evidence: dict[str, Any]) -> bool:
-    """True if the evidence declares its support(s) as paraphrase and makes no
-    verbatim_match claim. ``extraction_method`` lives per-support under ``supports``;
-    a verbatim_match support (even alongside paraphrase) keeps the substring contract."""
-    methods = {
-        s.get("extraction_method")
-        for s in evidence.get("supports", [])
-        if isinstance(s, dict)
-    }
-    return "paraphrase" in methods and "verbatim_match" not in methods
+    """True iff EVERY declared support is ``extraction_method: paraphrase`` (and there is
+    at least one). A ``verbatim_match`` *or* unspecified (missing ``extraction_method`` →
+    ``None``) support keeps the substring contract — exemption requires the whole record to
+    be a declared paraphrase, so a mixed paraphrase+unspecified record is still enforced. A
+    malformed or absent ``supports`` (e.g. YAML ``supports:`` → ``None``, or any non-list) is
+    treated as non-paraphrase rather than raising. ``extraction_method`` lives per-support
+    under ``supports``."""
+    supports = evidence.get("supports")
+    if not isinstance(supports, list):
+        return False
+    methods = {s.get("extraction_method") for s in supports if isinstance(s, dict)}
+    return methods == {"paraphrase"}
 
 
 def validate(project_dir: Path) -> list[str]:

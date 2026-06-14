@@ -364,6 +364,29 @@ def test_validate_exempts_paraphrase_before_cache_read(tmp_path):
     assert "fully hijack" not in errors[0]
 
 
+def test_is_paraphrase_only_predicate_edge_cases():
+    # Direct unit coverage of the exemption predicate — it gates every linked Mechanism,
+    # so its edge behavior is load-bearing.
+    p = agent_index_display._is_paraphrase_only
+    # Exempt only when EVERY support is a declared paraphrase.
+    assert p({"supports": [{"extraction_method": "paraphrase"}]}) is True
+    # A mixed paraphrase + unspecified(None) record is NOT exempt — an unspecified support
+    # keeps the substring contract (only verbatim_match used to be excluded).
+    assert p({"supports": [{"extraction_method": "paraphrase"},
+                           {"extraction_method": None}]}) is False
+    # A verbatim_match support still blocks exemption.
+    assert p({"supports": [{"extraction_method": "paraphrase"},
+                           {"extraction_method": "verbatim_match"}]}) is False
+    # All-unspecified / empty / absent supports → not a declared paraphrase → enforced.
+    assert p({"supports": [{"claim_id": "c"}]}) is False
+    assert p({"supports": []}) is False
+    assert p({}) is False
+    # A malformed supports (YAML `supports:` → None, or any non-list) returns False instead
+    # of raising TypeError.
+    assert p({"supports": None}) is False
+    assert p({"supports": {"extraction_method": "paraphrase"}}) is False
+
+
 # ---------- Real-data smoke test (oracle) ----------
 
 _SHIPPED = Path.home() / "Claude" / "research_mcp_server_security"
