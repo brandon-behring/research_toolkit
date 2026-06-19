@@ -129,6 +129,11 @@ def test_bib_ledger_rejects_malformed_published_online(tmp_path: Path) -> None:
         "https://arxiv.org/abs/2501.00001",
         "https://www.arxiv.org/abs/2106.09685",
         "http://arxiv.org/abs/2106.09685",
+        # legacy (pre-2007) arXiv identifiers in canonical /abs/ form
+        "https://arxiv.org/abs/math/9404236",
+        "https://arxiv.org/abs/hep-th/9901001",
+        "https://arxiv.org/abs/math.GT/0309136",
+        "https://arxiv.org/abs/cond-mat/0509045v2",
     ],
 )
 def test_bib_ledger_accepts_canonical_arxiv_urls(tmp_path: Path, url: str) -> None:
@@ -153,6 +158,9 @@ def test_bib_ledger_accepts_canonical_arxiv_urls(tmp_path: Path, url: str) -> No
         "https://arxiv.org/abs/notanid",
         "https://arxiv.org/abs/2106",
         "https://arxiv.org/find/cs/1/au:+Hu/0/1/0/all/0/1",
+        # legacy id in non-canonical /pdf/ form, and a malformed legacy id
+        "https://arxiv.org/pdf/math/9404236",
+        "https://arxiv.org/abs/math/123",
     ],
 )
 def test_bib_ledger_rejects_non_canonical_arxiv_urls(tmp_path: Path, url: str) -> None:

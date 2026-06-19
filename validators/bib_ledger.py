@@ -65,8 +65,14 @@ OPTIONAL_STRING_FIELDS = ("authors", "venue", "code_url")
 #                      freshness anchor for judging content age vs cache age.
 OPTIONAL_DATE_FIELDS = ("published_online",)
 URL_PATTERN = re.compile(rf"^{URL_RE}$")
+# Accept both arXiv identifier schemes in canonical /abs/ form:
+#   - new style (post-2007): 1234.56789(vN)   e.g. arxiv.org/abs/2106.09685
+#   - legacy  (pre-2007):    <archive>(.<subclass>)?/YYMMNNN(vN)
+#     e.g. arxiv.org/abs/math/9404236, hep-th/9901001, math.GT/0309136
 ARXIV_ABS_PATTERN = re.compile(
-    r"^https?://(?:www\.)?arxiv\.org/abs/\d{4}\.\d{4,5}(?:v\d+)?/?$"
+    r"^https?://(?:www\.)?arxiv\.org/abs/"
+    r"(?:\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Z]{2,})?/\d{7})"
+    r"(?:v\d+)?/?$"
 )
 ARXIV_HOST_PATTERN = re.compile(r"^https?://(?:www\.)?arxiv\.org/")
 
