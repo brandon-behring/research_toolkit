@@ -176,10 +176,12 @@ def test_cross_stage_strict_promotes_orphan_to_error(tmp_path: Path) -> None:
     assert any("2099.99999" in e for e in errors), errors
 
 
-def test_cross_stage_warns_on_stale_ledger_entry(
+def test_cross_stage_notes_stale_ledger_entry_never_errors(
     tmp_path: Path, capsys: pytest.CaptureFixture
 ) -> None:
-    """Ledger entries without a matching agent_index Source line are stale-warnings."""
+    """A bib_ledger entry not cited in any agent_index Source (ledger ⊋ synthesis) is an
+    accepted NOTE — a curated bibliography larger than the write-up is not a defect
+    (decision 2026-06-20). It is printed but NEVER promoted to an error, even under --strict."""
     agent_index = (
         "# Foo synthesis\n\n"
         "## A1. Foo\n\n"
@@ -196,11 +198,12 @@ def test_cross_stage_warns_on_stale_ledger_entry(
         bib_ledger_yaml=_BASIC_LEDGER,  # has 2 entries; only 1 in agent_index
         agent_index_files={"01_foo.md": agent_index},
     )
-    errors = cross_stage.validate(project, strict=False)
-    assert errors == []
+    # Never an error — not by default, and (the decision) not under --strict either.
+    assert cross_stage.validate(project, strict=False) == []
+    assert cross_stage.validate(project, strict=True) == []
     err_text = capsys.readouterr().err
-    assert "stale" in err_text.lower(), f"should warn about stale entry; stderr: {err_text}"
-    assert "2501.00002" in err_text, f"should mention specific stale ID; stderr: {err_text}"
+    assert "2501.00002" in err_text, f"should NOTE the specific uncited ID; stderr: {err_text}"
+    assert "not an error" in err_text.lower(), f"should mark it accepted; stderr: {err_text}"
 
 
 def test_cross_stage_runs_standalone_without_module_form(tmp_path: Path) -> None:

@@ -486,11 +486,13 @@ def test_cross_stage_warns_on_orphan_dataset_synthesis_reference(
     assert "not in dataset_ledger" in err.lower() or "unattributed" in err.lower()
 
 
-def test_cross_stage_strict_promotes_dataset_orphans(tmp_path: Path) -> None:
-    """--strict promotes both orphan-direction warnings to errors."""
+def test_cross_stage_strict_dataset_orphan_asymmetry(tmp_path: Path) -> None:
+    """--strict is asymmetric across the two orphan directions (decision 2026-06-20):
+    a ledger entry not cited in synthesis (ledger ⊋ synthesis) is an accepted NOTE — never
+    promoted; an UNSOURCED synthesis URL (synthesis ⊄ ledger) is still a hard error."""
     entries = [
-        {"bibkey": "foo2025example", **_BASE_ENTRY},
-        {  # orphan in ledger
+        {"bibkey": "foo2025example", **_BASE_ENTRY},  # in synthesis + ledger
+        {  # orphan in ledger (curated, uncited) -> NOTE, never an error
             "bibkey": "bar2025orphan",
             **{**_BASE_ENTRY, "primary_url": "https://huggingface.co/datasets/example/bar"},
         },
@@ -504,14 +506,21 @@ def test_cross_stage_strict_promotes_dataset_orphans(tmp_path: Path) -> None:
         "  - **Size+License:** —\n"
         "  - **Tasks:** —\n"
         "  - **Status:** Verified.\n"
+        "- **Unlisted** — example.\n"  # cites a URL NOT in the ledger -> orphan synthesis
+        "  - **Source:** https://huggingface.co/datasets/example/unlisted\n"
+        "  - **Access:** —\n"
+        "  - **Schema:** —\n"
+        "  - **Size+License:** —\n"
+        "  - **Tasks:** —\n"
+        "  - **Status:** Verified.\n"
     )
     project = _project_with_dataset_ledger(
         tmp_path, ledger_entries=entries, synthesis_files={"01_subset.md": synthesis}
     )
     errors = cross_stage.validate(project, strict=True)
-    # Should have at least one error (stale ledger entry)
-    assert errors, "--strict should promote orphan warnings to errors"
-    assert any("stale" in e.lower() or "no matching" in e.lower() for e in errors), errors
+    # The unsourced synthesis URL IS promoted; the uncited ledger entry (bar) is NOT.
+    assert any("not in dataset_ledger" in e for e in errors), errors
+    assert not any("bar" in e for e in errors), f"orphan-ledger must stay a note: {errors}"
 
 
 def test_cross_stage_handles_both_bib_and_dataset_ledger_independently(

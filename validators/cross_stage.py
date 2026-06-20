@@ -186,11 +186,13 @@ def _agent_index_source_urls(agent_index_dir: Path) -> set[str]:
 
 
 def _check_bib_ledger_flow(
-    path: Path, *, errors: list[str], warnings: list[str]
+    path: Path, *, errors: list[str], warnings: list[str], notes: list[str]
 ) -> None:
-    """Original v1.2 paper-pipeline cross-stage flow. Mutates errors/warnings in-place.
+    """Original v1.2 paper-pipeline cross-stage flow. Mutates errors/warnings/notes in-place.
 
-    Triggered when `<path>/bib_ledger.yml` exists.
+    Triggered when `<path>/bib_ledger.yml` exists. ``notes`` carries the accepted
+    "ledger ⊋ synthesis" observation (a curated bibliography larger than the write-up) — it
+    is never promoted to an error, even under --strict (see ``validate``).
     """
     ledger = path / "bib_ledger.yml"
     entries = _ledger_entries(ledger)
@@ -254,24 +256,25 @@ def _check_bib_ledger_flow(
         if stale:
             sample = sorted(stale)[:5]
             extra = f" (and {len(stale) - 5} more)" if len(stale) > 5 else ""
-            warnings.append(
-                f"WARN bib_ledger has {len(stale)} arxiv ID(s) with no "
+            notes.append(
+                f"NOTE bib_ledger has {len(stale)} arxiv ID(s) with no "
                 f"matching agent_index **Source:** line: {sample}{extra} "
-                f"(stale entries — synthesis incomplete? --strict promotes to error)"
+                f"(curated bibliography ⊋ synthesis — accepted, NOT an error)"
             )
 
 
 def _check_dataset_ledger_flow(
-    path: Path, *, errors: list[str], warnings: list[str]
+    path: Path, *, errors: list[str], warnings: list[str], notes: list[str]
 ) -> None:
     """v1.9 dataset-pipeline cross-stage flow. Parallel to bib_ledger flow but
     keys on `primary_url` (since datasets don't have arxiv IDs).
 
-    Triggered when `<path>/dataset_ledger.yml` exists. Mutates errors/warnings.
+    Triggered when `<path>/dataset_ledger.yml` exists. Mutates errors/warnings/notes.
 
-    Soft warnings (default → stderr; --strict → errors):
-    - Orphan ledger: dataset_ledger entry with no matching `**Source:**` URL in agent_index.
-    - Orphan synthesis: agent_index `**Source:**` URL with no matching dataset_ledger primary_url.
+    - Orphan ledger (dataset_ledger entry not cited in any agent_index Source): an accepted
+      "ledger ⊋ synthesis" observation → ``notes`` (never promoted, even under --strict).
+    - Orphan synthesis (agent_index Source URL not in dataset_ledger): a soft warning
+      (default → stderr; --strict → error) — an unsourced synthesis claim is a real concern.
     """
     ledger = path / "dataset_ledger.yml"
     entries = _ledger_entries(ledger)
@@ -290,10 +293,10 @@ def _check_dataset_ledger_flow(
         extra = (
             f" (and {len(orphan_ledger) - 5} more)" if len(orphan_ledger) > 5 else ""
         )
-        warnings.append(
-            f"WARN dataset_ledger has {len(orphan_ledger)} entry/entries with no "
+        notes.append(
+            f"NOTE dataset_ledger has {len(orphan_ledger)} entry/entries with no "
             f"matching agent_index **Source:** URL: {sample}{extra} "
-            f"(stale ledger entries — synthesis incomplete? --strict promotes to error)"
+            f"(curated ledger ⊋ synthesis — accepted, NOT an error)"
         )
 
     # Orphan synthesis: in agent_index Source line but not in dataset_ledger.
@@ -385,6 +388,7 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
 
     errors: list[str] = []
     warnings: list[str] = []
+    notes: list[str] = []  # accepted "ledger ⊋ synthesis" observations; never promoted
 
     bib_ledger = path / "bib_ledger.yml"
     dataset_ledger = path / "dataset_ledger.yml"
@@ -393,10 +397,10 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
         return []
 
     if bib_ledger.exists():
-        _check_bib_ledger_flow(path, errors=errors, warnings=warnings)
+        _check_bib_ledger_flow(path, errors=errors, warnings=warnings, notes=notes)
 
     if dataset_ledger.exists():
-        _check_dataset_ledger_flow(path, errors=errors, warnings=warnings)
+        _check_dataset_ledger_flow(path, errors=errors, warnings=warnings, notes=notes)
 
     # Dangling [[slug]] reference check — applies whenever agent_index/ exists.
     # Treats agent_index filenames + bib_ledger bibkeys + dataset_ledger
@@ -409,6 +413,11 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
     # are hard errors (anti-hallucination contract), independent of --strict.
     # No-op when the project has no agent_index/ folder.
     errors.extend(agent_index_display.validate(path))
+
+    # Notes are an accepted observation (a curated bibliography larger than the synthesis is
+    # not a defect — a deliberate decision, 2026-06-20); always informational, never promoted.
+    for n in notes:
+        print(f"  - {n}", file=sys.stderr)
 
     if strict:
         errors.extend(warnings)
