@@ -46,6 +46,17 @@ substring; a bullet with no resolvable cache linkage is a clear error (never
 silently passed). The substring + normalization semantics reuse
 ``v2_common._normalize_ws`` so this validator agrees with the renderer.
 
+Atom-anchored synthesis (Rule B): a Mechanism that cites inline ``[claim_X]`` atoms is a
+*synthesis* display — it paraphrases or weaves several cited sources, and the verbatim proof
+for each cited claim is the excerpt span its evidence record anchors (verified by
+``evidence_ledger`` / ``verify_excerpt_anchor``), NOT the displayed sentence. For such a
+Mechanism the whole-display substring check therefore does not apply; instead every atom must
+resolve to an evidence record in the ledger (the display↔evidence link must hold; a dangling
+atom is a hard error). This generalizes the paraphrase exemption above to verbatim-anchored
+synthesis: the verbatim guarantee shifts from the *display* to the per-atom *anchor*, where it
+is owned. A 0-atom Mechanism keeps the full substring contract (its display claims to be the
+verbatim span, so it must be one).
+
 Complements ``validators/agent_index.py`` (which checks the folder SCHEMA);
 this is the CONTENT / substring check. Wired into ``validators/cross_stage.py``
 so a normal cross-stage run includes the display audit.
@@ -80,6 +91,8 @@ EVIDENCE_LINE_RE = re.compile(r"^\s*-\s*\*\*Evidence:\*\*\s*(.+?)\s*$", re.MULTI
 # (renderer emits ``- **Source:** {bibkey}``; richer dossiers may append a URL
 # or title after it).
 BIBKEY_TOKEN_RE = re.compile(r"^([A-Za-z0-9_][A-Za-z0-9_\-]*)")
+# An inline ``[claim_X]`` atom marks a claim cited in a synthesis Mechanism (Rule B).
+CLAIM_ATOM_RE = re.compile(r"\[(claim_[A-Za-z0-9_]+)\]")
 
 
 def _cache_entries(cache: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -96,6 +109,19 @@ def _evidence_by_id(evidence: dict[str, Any]) -> dict[str, dict[str, Any]]:
         for e in evidence.get("entries", [])
         if isinstance(e, dict) and isinstance(e.get("evidence_id"), str)
     }
+
+
+def _claim_ids(evidence: dict[str, Any]) -> set[str]:
+    """All claim_ids an evidence ledger declares — the resolvable targets for inline
+    ``[claim_X]`` atoms (Rule B). A v3 record declares them under ``supports[].claim_id``."""
+    ids: set[str] = set()
+    for e in evidence.get("entries", []):
+        if not isinstance(e, dict):
+            continue
+        for s in e.get("supports", []) or []:
+            if isinstance(s, dict) and isinstance(s.get("claim_id"), str) and s["claim_id"].strip():
+                ids.add(s["claim_id"].strip())
+    return ids
 
 
 def _evidence_cache_ids(evidence: dict[str, Any]) -> list[str]:
@@ -370,6 +396,7 @@ def validate(project_dir: Path) -> list[str]:
     cache_entries = _cache_entries(cache)
     evidence_by_id = _evidence_by_id(evidence)
     selection_index = _selection_index(pre)
+    known_claim_ids = _claim_ids(evidence)
 
     for fpath in family_files:
         text = fpath.read_text(encoding="utf-8")
@@ -391,6 +418,26 @@ def validate(project_dir: Path) -> list[str]:
                 evidence_by_id=evidence_by_id, selection_index=selection_index,
             )
             if ev_rec is not None and _is_paraphrase_only(ev_rec):
+                continue
+            # Atom-anchored synthesis grounding (Rule B). A Mechanism that cites inline
+            # ``[claim_X]`` atoms is an atom-anchored synthesis: the verbatim proof for
+            # each cited claim is the excerpt span its evidence record anchors (verified by
+            # ``evidence_ledger`` / ``verify_excerpt_anchor``), NOT the displayed sentence —
+            # which legitimately paraphrases or weaves several cited sources. So the
+            # whole-display substring check does not apply; instead every atom must resolve
+            # to an evidence record in the ledger (the display↔evidence link must hold). A
+            # dangling atom (no matching record) is a hard error. This generalizes the
+            # paraphrase exemption above to verbatim-anchored synthesis; the verbatim
+            # guarantee shifts from the display to the per-atom anchor, where it is owned.
+            atoms = list(dict.fromkeys(CLAIM_ATOM_RE.findall(display)))
+            if atoms:
+                short = display[:60] + ("..." if len(display) > 60 else "")
+                dangling = [a for a in atoms if a not in known_claim_ids]
+                if dangling:
+                    errors.append(
+                        f"{fpath.name}: Mechanism cites claim atom(s) {dangling} with no "
+                        f"matching evidence record (dangling display↔evidence link): '{short}'"
+                    )
                 continue
             cached_text, link_err = _resolve_cached_text_for_block(
                 block,

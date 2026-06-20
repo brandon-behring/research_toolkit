@@ -387,6 +387,70 @@ def test_is_paraphrase_only_predicate_edge_cases():
     assert p({"supports": {"extraction_method": "paraphrase"}}) is False
 
 
+# ---------- Rule B: atom-anchored synthesis ----------
+
+
+def _build_atom_project(tmp_path, *, mechanism, evidence_entries):
+    """A strict-live project whose single Mechanism is an atom-anchored synthesis."""
+    project = tmp_path / "proj"
+    (project / "agent_index").mkdir(parents=True)
+    rel = f"text/sha256/{SHA}.txt"
+    (project / rel).parent.mkdir(parents=True, exist_ok=True)
+    (project / rel).write_text(CACHE_PROSE, encoding="utf-8")
+    _dump(project / "cache_manifest.yml", {
+        "schema_version": 2, "topic": "t",
+        "entries": [{"cache_id": "cache_poison", "source_url": "https://example.com/p",
+                     "sha256": SHA, "text_path": rel, "extraction_status": "ok"}]})
+    _dump(project / "evidence_ledger.yml", {"schema_version": 3, "entries": evidence_entries})
+    (project / "agent_index" / "01_x.md").write_text(
+        "\n".join(["- **Source:** https://example.com/p",
+                   f"- **Mechanism:** {mechanism}",
+                   "- **Status:** verified"]) + "\n", encoding="utf-8")
+    return project
+
+
+def _atom_ev(evid, claim_id, excerpt):
+    return {"evidence_id": evid, "cache_ids": ["cache_poison"], "excerpt": excerpt,
+            "supports": [{"claim_id": claim_id, "extraction_method": "verbatim_match",
+                          "excerpt_anchor": {"cache_id": "cache_poison",
+                                             "text_path_offset": [0, 1], "sha256_of_span": "b" * 64}}]}
+
+
+def test_validate_accepts_atom_anchored_synthesis_display(tmp_path):
+    # A synthesis Mechanism that PARAPHRASES (not a verbatim substring of the cache) but cites
+    # [claim_X] atoms that each resolve to a verbatim-anchored evidence record — grounded by
+    # Rule B (the verbatim proof is the per-atom anchor, not the displayed sentence).
+    project = _build_atom_project(
+        tmp_path,
+        mechanism="The attack secretly plants instructions [claim_a] so the agent is hijacked [claim_b].",
+        evidence_entries=[
+            _atom_ev("ev_a", "claim_a", "Tool poisoning attacks embed hidden instructions"),
+            _atom_ev("ev_b", "claim_b", "a connected model executes attacker-controlled actions"),
+        ])
+    assert agent_index_display.validate(project) == []
+
+
+def test_validate_rejects_dangling_claim_atom(tmp_path):
+    # A cited atom with no matching evidence record is a dangling display↔evidence link — a
+    # hard error even under Rule B (the link must hold; never silently passed).
+    project = _build_atom_project(
+        tmp_path,
+        mechanism="A synthesis citing a nonexistent claim [claim_missing] cannot be grounded.",
+        evidence_entries=[_atom_ev("ev_a", "claim_a", "Tool poisoning attacks embed hidden instructions")])
+    errors = agent_index_display.validate(project)
+    assert len(errors) == 1, errors
+    assert "claim_missing" in errors[0] and "dangling" in errors[0]
+
+
+def test_claim_ids_index():
+    ev = {"entries": [
+        {"evidence_id": "e1", "supports": [{"claim_id": "claim_x"}, {"claim_id": "claim_y"}]},
+        {"evidence_id": "e2", "supports": [{"claim_id": "claim_z"}]},
+        {"evidence_id": "e3", "supports": None},  # malformed → ignored, not raised
+    ]}
+    assert agent_index_display._claim_ids(ev) == {"claim_x", "claim_y", "claim_z"}
+
+
 # ---------- Real-data smoke test (oracle) ----------
 
 _SHIPPED = Path.home() / "Claude" / "research_mcp_server_security"
