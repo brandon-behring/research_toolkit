@@ -96,6 +96,22 @@ def is_v3_mapping(data: dict[str, Any]) -> bool:
     return data.get("schema_version") == 3
 
 
+def is_strict_live(data: dict[str, Any]) -> bool:
+    """True only for an IN-SCOPE strict-live artifact: a v2/v3 ``schema_version`` AND the
+    literal ``freshness_policy: strict_live``.
+
+    A dossier that declares a schema_version but a *different* freshness_policy — e.g. a
+    transcription source pool using ``strict_live_cache_index_anchor_on_cite``, or one that
+    omits the field — is deliberately OUT OF SCOPE for the v2 strict-live validators and must
+    be treated as n/a, not failed. ``is_v2_mapping`` (schema_version only) is too weak a gate
+    for that decision: it admits such variants and they then fail every strict-live field
+    check spuriously."""
+    return (
+        data.get("schema_version") in ALLOWED_SCHEMA_VERSIONS
+        and data.get("freshness_policy") == "strict_live"
+    )
+
+
 def resolve_cache_path(
     value: str,
     *,

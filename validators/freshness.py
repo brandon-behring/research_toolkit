@@ -14,6 +14,7 @@ if __package__ in (None, ""):
 from validators import bib_ledger, cache_manifest, dataset_ledger, evidence_ledger
 from validators.v2_common import (
     content_age_warning_for_entry,
+    is_strict_live,
     is_v2_mapping,
     stale_error_for_entry,
 )
@@ -56,7 +57,7 @@ def _strict_live_files(project_dir: Path) -> list[Path]:
         project_dir / "bib_ledger.yml",
         project_dir / "dataset_ledger.yml",
     ]
-    return [p for p in candidates if p.exists() and is_v2_mapping(_load_yaml(p) or {})]
+    return [p for p in candidates if p.exists() and is_strict_live(_load_yaml(p) or {})]
 
 
 def validate(
@@ -76,6 +77,16 @@ def validate(
 
     ledger_paths = _strict_live_files(path)
     if not ledger_paths:
+        # A v2/v3-schema bib/dataset ledger that EXISTS but isn't strict-live (e.g. the
+        # youtube_talks transcription source pool, freshness_policy != 'strict_live') is a
+        # deliberate OUT-OF-SCOPE variant → n/a. A genuinely absent or v1 ledger keeps the
+        # original error.
+        for fname in ("bib_ledger.yml", "dataset_ledger.yml"):
+            fpath = path / fname
+            if fpath.exists():
+                fdata = _load_yaml(fpath) or {}
+                if is_v2_mapping(fdata) and not is_strict_live(fdata):
+                    return []
         return ["no v2 strict-live ledger found (expected bib_ledger.yml or dataset_ledger.yml)"]
 
     evidence_path = path / "evidence_ledger.yml"

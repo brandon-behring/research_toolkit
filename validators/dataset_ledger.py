@@ -58,6 +58,7 @@ if __package__ in (None, ""):
 
 from validators._common import URL_RE, cli_main
 from validators.v2_common import (
+    is_strict_live,
     is_v2_mapping,
     validate_strict_live_entry,
     validate_strict_live_top,
@@ -131,6 +132,11 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
 
     if not isinstance(data, dict) or "entries" not in data:
         return ["top-level must be a mapping with key 'entries:'"]
+
+    # Out-of-scope v2/v3 variant: declares a schema_version but isn't strict-live → n/a. v1
+    # ledgers and genuine strict-live ledgers both fall through to validation.
+    if is_v2_mapping(data) and not is_strict_live(data):
+        return []
 
     v2 = is_v2_mapping(data)
     if v2:

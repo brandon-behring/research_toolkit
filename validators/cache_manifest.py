@@ -13,6 +13,8 @@ if __package__ in (None, ""):
 from validators._common import URL_RE
 from validators.v2_common import (
     ALLOWED_RIGHTS_STATUS,
+    is_strict_live,
+    is_v2_mapping,
     load_yaml_mapping,
     parse_iso_date,
     resolve_cache_path,
@@ -266,6 +268,13 @@ def validate(path: Path) -> list[str]:
     if errors:
         return errors
     assert data is not None
+
+    if is_v2_mapping(data) and not is_strict_live(data):
+        # Out-of-scope v2/v3 variant: a manifest that declares a schema_version but isn't
+        # strict-live (e.g. the youtube_talks transcription source pool, whose entries are
+        # transcript records, not web/PDF captures) is validated by its own pipeline, not the
+        # v2 gate → n/a, not 1-field-per-entry failures.
+        return errors
 
     errors.extend(validate_strict_live_top(data))
     cache_root_value: str | None = None
