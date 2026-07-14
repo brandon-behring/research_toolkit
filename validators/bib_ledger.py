@@ -45,7 +45,12 @@ import yaml
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from validators._common import URL_RE, cli_main
+from validators._common import URL_RE
+from research_toolkit.retrieval_security import (
+    RetrievalSecurityError,
+    durable_value_errors,
+    validate_record_url,
+)
 from validators.v2_common import (
     is_v2_mapping,
     parse_iso_date,
@@ -89,6 +94,14 @@ def _validate_arxiv_url(url: str) -> str | None:
     )
 
 
+def _durable_url_error(url: str) -> str | None:
+    try:
+        validate_record_url(url, allow_public_query=True)
+    except RetrievalSecurityError as exc:
+        return str(exc)
+    return None
+
+
 MEMORY_VERIFIED_THRESHOLD = 50  # ≥ this many entries triggers the anti-cheat check
 
 
@@ -130,6 +143,7 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
 
     if not isinstance(data, dict) or "entries" not in data:
         return ["top-level must be a mapping with key 'entries:'"]
+    errors.extend(durable_value_errors(data, "bib_ledger"))
 
     v2 = is_v2_mapping(data)
     if v2:
@@ -183,6 +197,11 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
             if not URL_PATTERN.match(stripped):
                 errors.append(f"{loc}.primary_url: not a valid http(s) URL: {url!r}")
             else:
+                durable_err = _durable_url_error(stripped)
+                if durable_err is not None:
+                    errors.append(
+                        f"{loc}.primary_url: unsafe durable URL: {durable_err}"
+                    )
                 arxiv_err = _validate_arxiv_url(stripped)
                 if arxiv_err is not None:
                     errors.append(f"{loc}.primary_url: {arxiv_err}")
@@ -193,6 +212,12 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
                 errors.append(
                     f"{loc}.code_url: not a valid http(s) URL: {code_url!r}"
                 )
+            else:
+                durable_err = _durable_url_error(code_url.strip())
+                if durable_err is not None:
+                    errors.append(
+                        f"{loc}.code_url: unsafe durable URL: {durable_err}"
+                    )
 
         status = entry.get("status")
         if isinstance(status, str) and status not in ALLOWED_STATUS:

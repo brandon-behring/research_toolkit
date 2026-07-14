@@ -9,6 +9,7 @@ import sys
 from urllib.error import URLError
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
@@ -210,7 +211,20 @@ def test_main_prints_manifest_yaml(
     assert "- cache_id: cache_" in captured.out
     assert "source_url: https://example.com/yaml" in captured.out
     assert "content_type: text/html" in captured.out
-    assert "restricted: false" in captured.out
+    assert "restricted: true" in captured.out
+
+
+def test_manifest_yaml_serializer_preserves_special_characters(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    entry = {
+        "cache_id": "cache_demo",
+        "source_url": "https://example.com/source?view=REDACTED",
+        "license": "custom terms # caveat\nsecond line: retained",
+        "restricted": True,
+    }
+    cache_source._print_yaml_entry(entry)
+    assert yaml.safe_load(capsys.readouterr().out) == [entry]
 
 
 def test_cache_one_emits_etag_and_last_modified_on_capture(
@@ -305,52 +319,30 @@ def test_cache_one_new_content_emits_capture_linked_to_prior(
     assert entry["refers_to_cache_id"] == "cache_oldhash_v1"  # back-link recorded
 
 
-# ----- v2.2.1: Playwright escalation -----
+# ----- Browser escalation is fail-closed -----
 
 
-def test_v221_urllib_fast_path_no_escalation(
+def test_browser_escalation_flag_is_disabled_before_network(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """When urllib returns substantial content, no Playwright escalation."""
-    raw = b"<html><body>" + (b"real content " * 100) + b"</body></html>"
-    _patch_fetch(monkeypatch, raw, "text/html")
-    entry = cache_source.cache_one(
-        "https://example.com/static",
-        cache_root=tmp_path,
-        fetched_at="2026-05-20",
-        topic="test",
-        escalate_on_failure=True,
-    )
-    # urllib default — fetch_method omitted from entry (backward compat)
-    assert "fetch_method" not in entry
-    assert entry["record_type"] == "capture"
+    called = False
 
+    def unexpected(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        return (200, b"unexpected", "text/plain", None, None)
 
-def test_v221_escalates_on_http_403(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """403 from urllib with --escalate-on-failure → Playwright fallback."""
-    from urllib.error import HTTPError
-
-    rendered_raw = b"<html><body>" + (b"playwright content " * 100) + b"</body></html>"
-
-    def fake_urllib(*_a, **_kw):
-        raise HTTPError("https://example.com/sso", 403, "Forbidden", {}, None)
-
-    monkeypatch.setattr(cache_source, "_fetch", fake_urllib)
-    monkeypatch.setattr(
-        cache_source, "_fetch_via_playwright",
-        lambda _u: (200, rendered_raw, "text/html", None, None),
-    )
-    entry = cache_source.cache_one(
-        "https://example.com/sso",
-        cache_root=tmp_path,
-        fetched_at="2026-05-20",
-        topic="test",
-        escalate_on_failure=True,
-    )
-    assert entry["fetch_method"] == "playwright_rendered"
-    assert entry["bytes"] == len(rendered_raw)
+    monkeypatch.setattr(cache_source, "_fetch", unexpected)
+    monkeypatch.setattr(cache_source, "_fetch_via_playwright", unexpected)
+    with pytest.raises(cache_source.PlaywrightUnavailable, match="disabled"):
+        cache_source.cache_one(
+            "https://example.com/static",
+            cache_root=tmp_path,
+            fetched_at="2026-05-20",
+            topic="test",
+            escalate_on_failure=True,
+        )
+    assert called is False
 
 
 def test_v221_does_not_escalate_without_flag(
@@ -373,49 +365,40 @@ def test_v221_does_not_escalate_without_flag(
         )
 
 
-def test_v221_escalates_on_suspect_short_content(
+def test_suspect_short_content_is_a_stub_without_browser_execution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """urllib returns 200 with very short text → Playwright fallback."""
+    """A short JS shell remains a visible stub; it is never executed."""
     short_raw = b"<html><body>Loading</body></html>"  # < 500 chars
-    rendered_raw = b"<html><body>" + (b"hydrated SPA " * 100) + b"</body></html>"
     _patch_fetch(monkeypatch, short_raw, "text/html")
-    monkeypatch.setattr(
-        cache_source, "_fetch_via_playwright",
-        lambda _u: (200, rendered_raw, "text/html", None, None),
-    )
     entry = cache_source.cache_one(
         "https://example.com/spa",
         cache_root=tmp_path,
         fetched_at="2026-05-20",
         topic="test",
-        escalate_on_failure=True,
+        escalate_on_failure=False,
     )
-    assert entry["fetch_method"] == "playwright_rendered"
+    assert entry["extraction_status"] == "stub"
+    assert "fetch_method" not in entry
 
 
-def test_v221_escalates_on_js_required_marker(
+def test_js_required_marker_is_a_stub_without_browser_execution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """urllib returns 200 with JS-required marker → Playwright fallback."""
+    """A JS-required response remains a visible stub."""
     js_required = (
         b"<html><body>" + b"please enable javascript " * 30
         + b"<noscript>x</noscript></body></html>"
     )
-    rendered_raw = b"<html><body>" + (b"hydrated content " * 100) + b"</body></html>"
     _patch_fetch(monkeypatch, js_required, "text/html")
-    monkeypatch.setattr(
-        cache_source, "_fetch_via_playwright",
-        lambda _u: (200, rendered_raw, "text/html", None, None),
-    )
     entry = cache_source.cache_one(
         "https://example.com/spa",
         cache_root=tmp_path,
         fetched_at="2026-05-20",
         topic="test",
-        escalate_on_failure=True,
+        escalate_on_failure=False,
     )
-    assert entry["fetch_method"] == "playwright_rendered"
+    assert entry["extraction_status"] == "stub"
 
 
 def test_v221_content_is_suspect_heuristics() -> None:
@@ -438,58 +421,28 @@ def test_v221_content_is_suspect_heuristics() -> None:
     assert is_suspect
 
 
-# ----- v2.4.1: graceful degradation when Playwright is unavailable (#18) -----
-# Escalation is default-on at the skill level in v2.4.1, so passing
-# --escalate-on-failure must NOT hard-crash installs that lack Playwright.
+# ----- Disabled browser CLI contract -----
 
 
-def test_v241_403_degrades_when_playwright_missing(
+def test_browser_cli_flag_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """403 + escalate, but Playwright not installed → re-raise the original
-    HTTPError (degrade to non-escalated) with a stderr WARN, not a crash."""
-    from urllib.error import HTTPError
-
-    def fake_urllib(*_a, **_kw):
-        raise HTTPError("https://example.com/sso", 403, "Forbidden", {}, None)
-
-    def raise_unavailable(_u):
-        raise cache_source.PlaywrightUnavailable("playwright not installed")
-
-    monkeypatch.setattr(cache_source, "_fetch", fake_urllib)
-    monkeypatch.setattr(cache_source, "_fetch_via_playwright", raise_unavailable)
-    with pytest.raises(HTTPError):
-        cache_source.cache_one(
-            "https://example.com/sso",
-            cache_root=tmp_path,
-            fetched_at="2026-05-24",
-            topic="test",
-            escalate_on_failure=True,
-        )
-    assert "Playwright escalation" in capsys.readouterr().err
-
-
-def test_v241_suspect_degrades_to_stub_when_playwright_missing(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """Suspect content + escalate, but Playwright not installed → fall back to a
-    stub record (same as no-escalation) with a stderr WARN."""
-    short_raw = b"<html><body>Loading</body></html>"  # < 500 chars trips suspect
-
-    def raise_unavailable(_u):
-        raise cache_source.PlaywrightUnavailable("playwright not installed")
-
-    _patch_fetch(monkeypatch, short_raw, "text/html")
-    monkeypatch.setattr(cache_source, "_fetch_via_playwright", raise_unavailable)
-    entry = cache_source.cache_one(
-        "https://example.com/spa",
-        cache_root=tmp_path,
-        fetched_at="2026-05-24",
-        topic="test",
-        escalate_on_failure=True,
+    monkeypatch.setattr(
+        cache_source,
+        "_fetch",
+        lambda *_args, **_kwargs: pytest.fail("network must not be reached"),
     )
-    assert entry["extraction_status"] == "stub"
-    assert "Playwright escalation" in capsys.readouterr().err
+    rc = cache_source.main(
+        [
+            "cache_source.py",
+            "https://example.com/spa",
+            "--cache-root",
+            str(tmp_path),
+            "--escalate-on-failure",
+        ]
+    )
+    assert rc == 1
+    assert "browser escalation is disabled" in capsys.readouterr().err
 
 
 # ----- v2.3 A2: PDF extraction cascade (#11) -----
@@ -581,21 +534,21 @@ def test_pdf_extraction_failure_marks_failed(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_no_extract_pdfs_returns_raw_only(plain_text_pdf_bytes: bytes) -> None:
-    """--no-extract-pdfs preserves the pre-v2.3 raw_only behavior."""
+    """The default-safe PDF path is raw-only."""
     text, status, warnings = cache_source._safe_text(
         plain_text_pdf_bytes, "application/pdf", extract_pdfs=False
     )
     assert status == "raw_only"
-    assert "extraction skipped" in text
+    assert "extraction disabled by default" in text
     assert warnings == []
 
 
 def test_safe_text_dispatches_pdf(
     plain_text_pdf_bytes: bytes,
 ) -> None:
-    """_safe_text routes application/pdf to the cascade."""
+    """Explicit opt-in routes application/pdf to the parser cascade."""
     text, status, warnings = cache_source._safe_text(
-        plain_text_pdf_bytes, "application/pdf"
+        plain_text_pdf_bytes, "application/pdf", extract_pdfs=True
     )
     assert status == "ok"
     assert "synthetic plain-text test PDF" in text
@@ -659,6 +612,8 @@ def test_extraction_log_appends_per_call(tmp_path: Path, monkeypatch: pytest.Mon
     assert record["run_id"] == "abc123"
     assert record["source_url"] == "https://example.com/log-test"
     assert "hostname" in record
+    assert log_path.stat().st_mode & 0o777 == 0o600
+    assert log_path.parent.stat().st_mode & 0o777 == 0o700
 
 
 def test_default_extraction_log_path_is_per_host(tmp_path: Path) -> None:
@@ -713,31 +668,6 @@ def test_js_shell_marked_stub_without_escalation(
     captured = capsys.readouterr()
     assert "WARN" in captured.err
     assert "stub" in captured.err
-
-
-def test_js_shell_escalates_with_flag(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """v2.3 #10: when --escalate-on-failure is set, suspect content triggers
-    Playwright (existing v2.2.1 behavior) and the stub status is NOT set."""
-    short_raw = b"<html><body>Loading</body></html>"
-    rendered_raw = b"<html><body>" + (b"hydrated " * 100) + b"</body></html>"
-    _patch_fetch(monkeypatch, short_raw, "text/html")
-    monkeypatch.setattr(
-        cache_source,
-        "_fetch_via_playwright",
-        lambda url: (200, rendered_raw, "text/html", None, None),
-    )
-
-    entry = cache_source.cache_one(
-        "https://example.com/spa",
-        cache_root=tmp_path,
-        fetched_at="2026-05-23",
-        topic="t",
-        escalate_on_failure=True,
-    )
-    assert entry["extraction_status"] == "ok"  # not stub — Playwright rendered fine
-    assert entry["fetch_method"] == "playwright_rendered"
 
 
 # ----- v2.3 --strict-extraction exit code -----

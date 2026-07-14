@@ -40,7 +40,7 @@ def test_migrate_strips_cache_root_prefix(tmp_path: Path) -> None:
             "raw_path": "~/Claude/research_cache/blobs/sha256/aaaa",
             "text_path": "~/Claude/research_cache/text/sha256/aaaa.txt",
             "metadata_path": "~/Claude/research_cache/metadata/sha256/aaaa.json",
-            "restricted": False,
+            "restricted": True,
             "rights_status": "private_use",
             "extraction_status": "ok",
         }
@@ -70,7 +70,7 @@ def test_migrate_is_idempotent(tmp_path: Path) -> None:
             "raw_path": "blobs/sha256/aaaa",
             "text_path": "text/sha256/aaaa.txt",
             "metadata_path": "metadata/sha256/aaaa.json",
-            "restricted": False,
+            "restricted": True,
             "rights_status": "private_use",
             "extraction_status": "ok",
         }
@@ -99,7 +99,7 @@ def test_migrate_dry_run_does_not_write(tmp_path: Path) -> None:
             "raw_path": "~/Claude/research_cache/blobs/sha256/aaaa",
             "text_path": "~/Claude/research_cache/text/sha256/aaaa.txt",
             "metadata_path": "~/Claude/research_cache/metadata/sha256/aaaa.json",
-            "restricted": False,
+            "restricted": True,
             "rights_status": "private_use",
             "extraction_status": "ok",
         }
@@ -129,7 +129,7 @@ def test_migrate_warns_on_out_of_root_paths(
             "raw_path": "/tmp/totally-unrelated/aaaa",
             "text_path": "blobs/sha256/aaaa.txt",
             "metadata_path": "blobs/sha256/aaaa.json",
-            "restricted": False,
+            "restricted": True,
             "rights_status": "private_use",
             "extraction_status": "ok",
         }
@@ -177,7 +177,7 @@ def test_migrate_skips_revisit_entries(tmp_path: Path) -> None:
             "raw_path": "~/Claude/research_cache/blobs/sha256/aaaa",
             "text_path": "~/Claude/research_cache/text/sha256/aaaa.txt",
             "metadata_path": "~/Claude/research_cache/metadata/sha256/aaaa.json",
-            "restricted": False,
+            "restricted": True,
             "rights_status": "private_use",
             "extraction_status": "ok",
         },

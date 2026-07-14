@@ -7,6 +7,7 @@ declared console entry point (``scripts.cli:main``) is importlib-loadable +
 callable (i.e. ``pip install -e .`` would expose it). No network, no
 unittest.mock.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -32,7 +33,14 @@ def test_cli_help_lists_subcommands(capsys) -> None:
     assert rc == 0
     out = capsys.readouterr().out
     # A representative spread of the core pipeline verbs must be listed.
-    for verb in ("assemble", "render-index", "verify-citations", "freshness", "export"):
+    for verb in (
+        "assemble",
+        "render-index",
+        "verify-citations",
+        "freshness",
+        "export",
+        "import-legacy",
+    ):
         assert verb in out, f"--help missing subcommand {verb!r}"
     for workflow in ("research run", "audit", "freshness poll", "release check"):
         assert workflow in out, f"--help missing workflow {workflow!r}"
@@ -42,6 +50,13 @@ def test_cli_no_args_prints_help(capsys) -> None:
     rc = cli.main([])
     assert rc == 0
     assert "subcommand" in capsys.readouterr().out
+
+
+def test_cli_console_entrypoint_defaults_to_process_argv(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["research-toolkit", "--help"])
+    rc = cli.main()
+    assert rc == 0
+    assert "canonical workflows" in capsys.readouterr().out
 
 
 def test_cli_rejects_unknown_subcommand(capsys) -> None:
@@ -85,6 +100,13 @@ def test_cli_nested_workflow_help_delegates(capsys) -> None:
     assert "--initialize" in out and "--run-id" in out
 
 
+def test_cli_validate_topic_backlog_help_uses_fallback(capsys) -> None:
+    rc = cli.main(["validate-topic-backlog", "--help"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "validate-topic-backlog" in out and "--strict" in out
+
+
 # ---------- real subcommand run ----------
 
 
@@ -103,6 +125,14 @@ def test_cli_verify_citations_runs_on_fixture(tmp_path, capsys) -> None:
     out = capsys.readouterr().out
     assert "substring_pass" in out  # the metrics JSON was printed
     assert (proj / "citation_audit_report.md").exists()
+
+
+def test_cli_validate_topic_backlog_runs_on_shipped_template(capsys) -> None:
+    target = REPO_ROOT / "templates" / "topic_backlog.template.yml"
+    rc = cli.main(["validate-topic-backlog", "--strict", str(target)])
+    err = capsys.readouterr().err
+    assert rc == 0, err
+    assert "OK:" in err
 
 
 def test_cli_dispatch_translates_systemexit(monkeypatch, capsys) -> None:
@@ -149,10 +179,25 @@ def test_pyproject_declares_console_entry_point() -> None:
     assert 'research-toolkit = "scripts.cli:main"' in text
 
 
-@pytest.mark.parametrize("verb", sorted({
-    "cache-source", "assemble", "render-index", "build-claim-graph",
-    "verify-citations", "build-dashboard", "freshness", "export",
-    "backlog-stamp", "resume-gather", "compose-kg",
-}))
+@pytest.mark.parametrize(
+    "verb",
+    sorted(
+        {
+            "cache-source",
+            "assemble",
+            "render-index",
+            "build-claim-graph",
+            "verify-citations",
+            "build-dashboard",
+            "freshness",
+            "export",
+            "backlog-stamp",
+            "resume-gather",
+            "compose-kg",
+            "import-legacy",
+            "validate-topic-backlog",
+        }
+    ),
+)
 def test_cli_core_verbs_registered(verb: str) -> None:
     assert verb in cli._REGISTRY

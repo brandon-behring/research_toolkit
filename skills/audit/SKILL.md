@@ -21,9 +21,9 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 3. Run the deterministic boundary first:
 
    ```bash
-   research-toolkit audit <dossier> --json
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" audit <dossier> --json
    # or
-   research-toolkit corpus check <corpus-root> --json
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" corpus check <corpus-root> --json
    ```
 
 4. Review each claim in complete source context. Distinguish byte presence from
@@ -31,20 +31,26 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 5. Assess methods and risk of bias separately from publisher authority. Check
    sampling, comparison, measurement, statistical uncertainty, limitations,
    conflicts, and applicability when relevant.
-6. Review synthesis prose and result sentences even when they are absent from
+6. Audit source provenance as a separate gate. Reject persisted credentials,
+   signed URLs, unsanitized query values, URL-derived hashes, and missing
+   `final_url` on a changed effective URL. Do not treat requested or final
+   provenance as semantically canonical without review. Flag any current-run browser capture,
+   because browser execution is disabled pending a verified OS/network sandbox;
+   flag parsed PDFs that lack an explicit source-specific risk decision.
+7. Review synthesis prose and result sentences even when they are absent from
    an older claim graph.
-7. Independently review every proposed `narrow`, `rewrite`, `remove`, or
+8. Independently review every proposed `narrow`, `rewrite`, `remove`, or
    `unresolved` disposition and all high-consequence claims. Preserve the raw
    question, snapshot hash, answer, and adjudication.
-8. Write `ClaimReviewRecord` entries. Keep audit findings separate from fixes;
+9. Write `ClaimReviewRecord` entries. Keep audit findings separate from fixes;
    apply only adjudicated corrections to canonical records.
-9. Run impact analysis before accepting a removal or supersession:
+10. Run impact analysis before accepting a removal or supersession:
 
    ```bash
-   research-toolkit impact <dossier> --claim-id <claim-id>
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" impact <dossier> --claim-id <claim-id>
    ```
 
-10. Rebuild derived artifacts and rerun deterministic validation.
+11. Rebuild derived artifacts and rerun deterministic validation.
 
 **HARD RULE:** A supporting URL, matching substring, or valid claim ID never
 substitutes for a semantic entailment decision.
@@ -52,7 +58,7 @@ substitutes for a semantic entailment decision.
 ## Validation
 
 ```bash
-research-toolkit audit <dossier>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" audit <dossier>
 ```
 
 ## Output / handoff

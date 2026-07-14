@@ -79,7 +79,9 @@ records with dates and confidence factors instead of flattening the conflict.
 
 Default cache root: `~/Claude/research_cache/`.
 
-Store:
+The supported default stores bounded raw bytes. Current skills invoke
+`cache-source` with `--no-extract-pdfs`; parser-generated derivatives are an
+explicit opt-in, not part of ordinary capture. Store:
 
 - raw blob
 - extracted text/Markdown derivative
@@ -96,16 +98,21 @@ content.
 For GitHub/code sources, cache an archive snapshot at a resolved commit/tag
 where possible, plus README/license/release metadata.
 
-For restricted/authenticated sources, cache when your access and terms allow it.
-Mark `restricted: true` and record access/rights notes in metadata.
+The generic cache path is public-only. Restricted or authenticated retrieval
+requires both human approval and a separately reviewed adapter; do not add
+credentials or signed URLs to `cache-source`. If an approved adapter later
+captures such a source, mark `restricted: true`, record access/rights notes, and
+keep the body out of exports.
 
-### v2.3+ extraction cascade (#11)
+### Optional v2.3+ extraction cascade (#11)
 
-For `application/pdf` sources, `scripts/cache_source.py` runs a two-stage
-cascade:
+When a user explicitly accepts in-process parser risk, installs a PDF extra,
+and omits `--no-extract-pdfs`, `scripts/cache_source.py` can run a two-stage
+cascade. It is not the default supported workflow:
 
-1. **pdfplumber** (Stage 1, always tried first) — pure-Python, fast text
-   extraction.
+1. **pdfplumber** (Stage 1 when the `pdf` or `rich-pdf` extra is installed) —
+   fast text extraction. Without it, the PDF is cached as `raw_only` with an
+   explicit warning.
 2. **Docling** (Stage 2, lazy-imported when math is detected) — preserves
    equations as LaTeX. ~600 MB models downloaded on first use.
 
@@ -120,14 +127,15 @@ cascade:
 | `partial` | encrypted PDF | **Phase 2a SKIPS** this entry |
 | `failed` | both extractors errored | **Phase 2a SKIPS** this entry |
 | `raw_only` | non-PDF binary OR `--no-extract-pdfs` | **Phase 2a SKIPS** this entry |
-| `stub` (#10) | JS-shell HTML detected without Playwright | **Phase 2a SKIPS** this entry |
+| `stub` (#10) | JS-shell HTML; browser execution is disabled | **Phase 2a SKIPS** this entry |
 
-Authors should treat `degraded`/`partial`/`failed`/`stub` entries as
-sources that need re-fetching (find a non-paywalled / non-encrypted /
-non-image alternative), not as silently lossy supports. `cache_source.py`
-emits a stderr WARN for any non-ideal status; the optional PDF-caching
-step of `/research-gather` reads `<cache_root>/extraction_log_<hostname>.jsonl`
-and prints an aggregated end-of-run summary.
+Authors should treat `degraded`/`partial`/`failed`/`stub` entries as sources that
+need a safer static, non-paywalled, non-encrypted, or non-image alternative, not
+as silently lossy supports. Do not respond to a `stub` by enabling browser
+execution; leave it unresolved if no static source exists. `cache_source.py`
+emits a stderr warning for any non-ideal status. Cache files and the extraction
+log are owner-only beneath owner-only directories; mode-enforcement failure
+aborts before sensitive content is written.
 
 ### Path portability (v2.3 / #13)
 

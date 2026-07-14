@@ -126,6 +126,18 @@ def test_topic_backlog_rejects_invalid_seed_source_url(tmp_path: Path) -> None:
     assert any("seed_sources" in e and "not a valid" in e for e in errors), errors
 
 
+def test_topic_backlog_rejects_secret_url_in_seed_or_free_text(tmp_path: Path) -> None:
+    entry = _deepen_entry()
+    entry["seed_sources"] = ["https://example.com/source?token=TOP-SECRET"]
+    entry["notes"] = "See https://example.org/private?signature=TOP-SECRET"
+    errors = topic_backlog.validate(
+        _write(tmp_path, _minimal_backlog([entry, _adjacent_entry()]))
+    )
+    assert any("seed_sources" in error for error in errors), errors
+    assert any("notes.embedded_url" in error for error in errors), errors
+    assert all("TOP-SECRET" not in error for error in errors)
+
+
 def test_topic_backlog_rejects_missing_required_field(tmp_path: Path) -> None:
     entry = _adjacent_entry()
     del entry["rationale"]
@@ -192,6 +204,16 @@ def test_topic_backlog_accepts_research_program_minimal_candidate(tmp_path: Path
     # Only id + label are required; optional parent/seed/note/status omitted.
     data = _rp_backlog([{"id": "instruction-budget", "label": "Instruction budget"}])
     assert topic_backlog.validate(_write(tmp_path, data)) == []
+
+
+def test_topic_backlog_research_program_keeps_durable_url_errors(
+    tmp_path: Path,
+) -> None:
+    data = _rp_backlog()
+    data["note"] = "Inspect https://example.com/private?token=TOP-SECRET"
+    errors = topic_backlog.validate(_write(tmp_path, data))
+    assert any("note.embedded_url" in error for error in errors), errors
+    assert all("TOP-SECRET" not in error for error in errors)
 
 
 def test_topic_backlog_accepts_real_research_program_file() -> None:

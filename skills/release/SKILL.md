@@ -22,21 +22,27 @@ allowed-tools: Read, Write, Edit, Bash
    wherever policy requires it. Block unwaived Critical or High findings.
 4. Require source watches to be current at the release cutoff and replay full
    discovery when quarterly or pre-release policy requires it.
-5. Verify rights and visibility before export. Restricted bodies remain local;
+5. Fail closed on retrieval provenance. Reject persisted credentials, signed or
+   unsanitized query values, URL-derived hashes, missing changed `final_url`,
+   unreviewed identity-changing redirects, and any current-run browser capture. Browser execution is
+   disabled pending a verified process sandbox and default-deny network
+   boundary. Require an explicit risk decision for every parsed PDF; raw-only
+   captures remain the default.
+6. Verify rights and visibility before export. Restricted bodies remain local;
    exports contain only permitted metadata, hashes, citations, and excerpts.
-6. Rebuild every `derived/` artifact from canonical records. Generate consumer
+7. Rebuild every `derived/` artifact from canonical records. Generate consumer
    bindings, deletion-aware tombstones, the release manifest, and downstream
    `research-lock.json` records.
-7. Run the complete deterministic gate:
+8. Run the complete deterministic gate:
 
    ```bash
-   research-toolkit audit <dossier> --release
-   research-toolkit release check <dossier>
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" audit <dossier> --release
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" release check <dossier>
    ```
 
-8. Rebuild a second time from the same inputs and require byte-identical
+9. Rebuild a second time from the same inputs and require byte-identical
    outputs. Confirm all manifest and lock hashes agree.
-9. Present the release evidence and unresolved waivers to the user. Do not
+10. Present the release evidence and unresolved waivers to the user. Do not
    publish, push, merge, or ingest into an external system without explicit
    authorization.
 
@@ -46,7 +52,7 @@ never be used to waive or conceal a red gate.
 ## Validation
 
 ```bash
-research-toolkit release check <dossier>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" release check <dossier>
 ```
 
 ## Output / handoff

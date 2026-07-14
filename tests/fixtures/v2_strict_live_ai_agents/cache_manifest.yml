@@ -15,6 +15,7 @@ entries:
   raw_path: raw/agent_security.html
   text_path: text/agent_security.txt
   metadata_path: metadata/agent_security.json
-  restricted: false
+  restricted: true
   rights_status: private_use
+  visibility: public
   extraction_status: ok

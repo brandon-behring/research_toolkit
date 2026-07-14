@@ -17,7 +17,7 @@ import sys
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from validators import research_kb_export
+from validators import cache_manifest, research_kb_export
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -30,11 +30,79 @@ def _read_jsonl(path: Path) -> list[dict]:
     return records
 
 
+def _prepare_metadata_records(project_dir: Path) -> list[dict]:
+    """Load and rights-gate claim-graph metadata for export.
+
+    Restricted, private-use, and unknown cache entries remain eligible because
+    this envelope contains no cached bodies.  Their explicit policy travels on
+    the corresponding ``cache_blob`` record so downstream consumers cannot
+    mistake identifier reachability for redistribution permission.
+    """
+    manifest_path = project_dir / "cache_manifest.yml"
+    if not manifest_path.is_file():
+        raise SystemExit(f"cache_manifest.yml missing in {project_dir}")
+    policies, policy_errors = cache_manifest.load_access_policies(manifest_path)
+    if policy_errors:
+        raise SystemExit(
+            "cache_manifest.yml access policy failed validation:\n"
+            + "\n".join(policy_errors)
+        )
+
+    records = _read_jsonl(project_dir / "claim_graph.jsonl")
+    if not records:
+        raise SystemExit(f"no claim_graph.jsonl records found in {project_dir}")
+
+    referenced: set[str] = set()
+    cache_blob_ids: set[str] = set()
+    prepared: list[dict] = []
+    for index, original in enumerate(records):
+        record = dict(original)
+        record_type = record.get("record_type", "claim")
+        record_cache_ids = research_kb_export.referenced_cache_ids(record)
+        referenced.update(record_cache_ids)
+
+        metadata_errors = research_kb_export.validate_metadata_only_payload(
+            record,
+            loc=f"claim_graph.jsonl record {index + 1}",
+            allow_rights_policy=False,
+        )
+        if metadata_errors:
+            raise SystemExit(
+                "claim_graph.jsonl metadata-only export policy failed:\n"
+                + "\n".join(metadata_errors)
+            )
+
+        if record_type == "cache_blob":
+            cache_id = record.get("cache_id")
+            if not isinstance(cache_id, str) or cache_id not in policies:
+                raise SystemExit(
+                    f"claim_graph.jsonl cache_blob record {index + 1} references "
+                    f"unknown cache_id {cache_id!r}"
+                )
+            cache_blob_ids.add(cache_id)
+            record["rights_policy"] = policies[cache_id]
+        prepared.append(record)
+
+    unknown = sorted(referenced - set(policies))
+    if unknown:
+        raise SystemExit(
+            "claim_graph.jsonl references cache_ids absent from cache_manifest.yml: "
+            f"{unknown}"
+        )
+    missing_policy_records = sorted(referenced - cache_blob_ids)
+    if missing_policy_records:
+        raise SystemExit(
+            "claim_graph.jsonl cache references lack cache_blob policy records: "
+            f"{missing_policy_records}"
+        )
+    return prepared
+
+
 def export_project(project_dir: Path, *, output: Path, exported_at: str) -> None:
     source_project = project_dir.name
     records: list[dict] = []
 
-    for record in _read_jsonl(project_dir / "claim_graph.jsonl"):
+    for record in _prepare_metadata_records(project_dir):
         record_type = record.get("record_type", "claim")
         record_id = record.get("id", f"{record_type}_{len(records)}")
         records.append(
@@ -47,9 +115,6 @@ def export_project(project_dir: Path, *, output: Path, exported_at: str) -> None
                 "payload": record,
             }
         )
-
-    if not records:
-        raise SystemExit(f"no claim_graph.jsonl records found in {project_dir}")
 
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(

@@ -57,7 +57,11 @@ import yaml
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from validators._common import URL_RE
+from research_toolkit.retrieval_security import (
+    RetrievalSecurityError,
+    durable_value_errors,
+    validate_record_url,
+)
 
 ALLOWED_KIND = {"deepen", "adjacent"}
 ALLOWED_PRIORITY = {"P0", "P1", "P2"}
@@ -78,7 +82,6 @@ NULLABLE_STRING_FIELDS = ("dossier_path",)
 TOP_LEVEL_REQUIRED = ("schema_version", "source_corpus", "generated_at")
 
 KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-URL_PATTERN = re.compile(rf"^{URL_RE}$")
 
 MIN_CLAIM_FAMILY_SEEDS = 3
 BOTH_KINDS_THRESHOLD = 8  # ≥ this many entries triggers the shape heuristics
@@ -238,9 +241,16 @@ def _validate_entry(entry: dict, loc: str, seen: set[str]) -> list[str]:
             errors.append(f"{loc}.seed_sources: must be a list")
         else:
             for k, url in enumerate(sources):
-                if not isinstance(url, str) or not URL_PATTERN.match(url.strip()):
+                if not isinstance(url, str):
                     errors.append(
-                        f"{loc}.seed_sources[{k}]: not a valid http(s) URL: {url!r}"
+                        f"{loc}.seed_sources[{k}]: must be a string URL"
+                    )
+                    continue
+                try:
+                    validate_record_url(url.strip(), allow_public_query=True)
+                except RetrievalSecurityError as exc:
+                    errors.append(
+                        f"{loc}.seed_sources[{k}]: not a valid/safe http(s) URL: {exc}"
                     )
 
     return errors
@@ -325,6 +335,7 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
 
     if not isinstance(data, dict):
         return ["top-level must be a mapping with key 'entries:'"]
+    errors.extend(durable_value_errors(data, "topic_backlog"))
 
     # Schema discriminator: the research-program's hand-authored backlog
     # (kind: topic-backlog + candidates:) is a legitimately different artifact
@@ -332,10 +343,10 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
     if data.get("kind") == "topic-backlog" or (
         "candidates" in data and "entries" not in data
     ):
-        return _validate_research_program_backlog(data)
+        return errors + _validate_research_program_backlog(data)
 
     if "entries" not in data:
-        return ["top-level must be a mapping with key 'entries:'"]
+        return errors + ["top-level must be a mapping with key 'entries:'"]
 
     for field in TOP_LEVEL_REQUIRED:
         value = data.get(field)
@@ -354,7 +365,7 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
 
     entries = data["entries"]
     if not isinstance(entries, list) or not entries:
-        return ["'entries' must be a non-empty list"]
+        return errors + ["'entries' must be a non-empty list"]
 
     seen: set[str] = set()
     for idx, entry in enumerate(entries):

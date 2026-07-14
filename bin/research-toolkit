@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+set -eu
+
+# A symlinked launcher makes its apparent parent attacker-controlled and can
+# redirect the uvx fallback's --from path. Installed plugin launchers are real
+# files; fail closed instead of guessing which external symlink is trusted.
+if [ -L "$0" ]; then
+  printf '%s\n' \
+    'error: refusing symlinked research-toolkit launcher; invoke the real plugin file' >&2
+  exit 2
+fi
+
+PLUGIN_ROOT=$(CDPATH= cd -P -- "$(dirname -- "$0")/.." && pwd -P)
+PYTHON_BIN=${RESEARCH_TOOLKIT_PYTHON:-python3}
+
+# Never let the target repository influence imports. Python isolated mode
+# ignores the current directory, PYTHONPATH, PYTHONHOME, and the user site; the
+# bundled bootstrap adds only this trusted plugin root before dispatching.
+unset PYTHONPATH PYTHONHOME
+
+# A normal Python with the small core dependency is the fastest path. Keep the
+# dependency preflight isolated too: importing yaml from an untrusted working
+# directory would already be arbitrary code execution.
+if command -v "$PYTHON_BIN" >/dev/null 2>&1 \
+  && "$PYTHON_BIN" -I -c \
+    'import sys, yaml; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' \
+    >/dev/null 2>&1; then
+  exec "$PYTHON_BIN" -I "$PLUGIN_ROOT/bin/research_toolkit_bootstrap.py" "$@"
+fi
+
+# uv can materialize the small core package in its user cache without writing
+# into Claude's installed-plugin copy. Refreshing the local package prevents a
+# same-version cached wheel from masking updates to an installed plugin copy.
+if command -v uvx >/dev/null 2>&1; then
+  UV_CACHE=${UV_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/research-toolkit/uv}
+  if ! mkdir -p "$UV_CACHE" 2>/dev/null; then
+    UV_CACHE=${TMPDIR:-/tmp}/research-toolkit-uv-cache
+    mkdir -p "$UV_CACHE"
+  fi
+  UV_CACHE_DIR="$UV_CACHE" UV_TOOL_DIR="$UV_CACHE/tools" \
+    UV_PYTHON_INSTALL_DIR="$UV_CACHE/python" \
+    exec uvx --quiet --isolated --refresh-package research-toolkit \
+    --from "$PLUGIN_ROOT" research-toolkit "$@"
+fi
+
+printf '%s\n' \
+  'error: research-toolkit needs Python 3.11+ and PyYAML.' \
+  'Install the core package with: python3 -m pip install research_toolkit' \
+  'Optional trusted-PDF extras: research_toolkit[pdf] or research_toolkit[rich-pdf].' >&2
+exit 2

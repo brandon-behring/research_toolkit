@@ -15,6 +15,7 @@ entries:
   raw_path: raw/paper.html
   text_path: text/paper.txt
   metadata_path: metadata/paper.json
-  restricted: false
+  restricted: true
   rights_status: private_use
+  visibility: public
   extraction_status: ok

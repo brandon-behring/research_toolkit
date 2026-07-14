@@ -4,7 +4,7 @@
   "content_type": "text/html",
   "extraction_status": "ok",
   "fetched_at": "2026-05-19",
-  "restricted": false,
+  "restricted": true,
   "rights_status": "private_use",
   "schema_version": 2,
   "sha256": "4aead4e236a4cabe4a01fa92b83008d48bb5a4bff95c17c16a6532dc0c04b17e",

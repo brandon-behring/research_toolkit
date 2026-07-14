@@ -51,7 +51,7 @@ def _scaffold_raw_only_pdf_cache(
         "raw_path": f"blobs/sha256/{digest}",
         "text_path": f"text/sha256/{digest}.txt",
         "metadata_path": f"metadata/sha256/{digest}.json",
-        "restricted": False,
+        "restricted": True,
         "rights_status": "private_use",
         "extraction_status": "raw_only",
     }

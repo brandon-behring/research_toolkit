@@ -37,8 +37,10 @@ all declared artifact hashes.
 Use the one-time importer for legacy v2/v3 dossiers:
 
 ```bash
-python -m research_toolkit.legacy_import <legacy-dir> <new-dir>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" import-legacy \
+  <legacy-dir> <new-dir>
 ```
 
-The importer is idempotent and intentionally marks claims `unresolved`; it does
-not convert structural provenance into a semantic approval.
+The importer is idempotent, validates a complete staging tree before target
+writes, omits untrusted legacy derived bytes, and intentionally marks claims
+`unresolved`; it does not convert structural provenance into semantic approval.

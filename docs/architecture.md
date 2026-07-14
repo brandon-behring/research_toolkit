@@ -91,9 +91,11 @@ Flat CLI commands continue to dispatch to them so existing dossiers can be
 rebuilt while they migrate. They are not exposed as Claude skill aliases.
 
 The one-way importer reads legacy `bib_ledger.yml`, `evidence_ledger.yml`, and
-`claim_graph.jsonl`, then emits the canonical boundary. It preserves available
-derived bytes but marks all imported claims unresolved because old structural
-validation is not semantic approval.
+`claim_graph.jsonl`, then emits the canonical boundary through the isolated
+bundled launcher. It redacts durable URL query values, assigns source IDs
+without URL hashes, validates a complete staging tree before target writes, and
+does not copy legacy derived bytes across the trust boundary. Imported claims
+remain unresolved because old structural validation is not semantic approval.
 
 ## Freshness boundary
 
@@ -103,10 +105,38 @@ then the normal research, impact, audit, rebuild, and release gates run.
 
 ## Security and rights
 
-Fetched material is untrusted data. Retrieval must reject private-network and
-metadata targets before and after redirects, bound size/time/redirects, redact
-secrets, and constrain JavaScript. Visibility, license, access, and
-redistribution rights are separate fields. Restricted bodies remain local.
+Fetched material is untrusted data. The supported capture path uses
+`research_toolkit.retrieval_security`: GET/HEAD HTTP(S), public-only DNS
+answers, direct connections pinned to a validated address, TLS hostname
+verification, redirect revalidation, standard ports, five redirects, and a
+25 MiB response bound. Ambient proxies are disabled. One absolute deadline
+covers DNS, connection, response headers, and incremental body reads. Because
+portable cancellation is unavailable for some OS resolver/header calls, their
+watchdog workers are concurrency-capped; a wedged worker can deny later reads
+until it returns, but cannot create an unbounded thread population.
+Split-horizon networks that route nominally global space internally remain
+outside what IP classification alone can prove.
+
+Browser execution is disabled pending a verified process sandbox and
+default-deny network boundary. Supported skills cache raw bytes and pass
+`--no-extract-pdfs`; PDF parsing is a separate explicit opt-in. Treat every URL
+query value as potentially sensitive, reject credentials and signed URLs, and
+record only sanitized provenance. Generic query strings fail before DNS; a
+small domain-specific allowlist covers public resource IDs. Any other durable
+query is represented only by the exact marker `?redacted=REDACTED`; recursive
+validation also rejects embedded unsafe URLs and URL/request fingerprints.
+Cache records keep
+sanitized requested provenance and include sanitized `final_url` whenever a
+redirect or approved fallback changes the effective URL. Visibility, license,
+access, source authority, and redistribution rights are separate fields;
+rights default to `unknown`. The full boundary is in
+`references/security_and_rights.md`.
+
+Canonical assembly and legacy import create owner-only directories (`0700`)
+and files (`0600`) atomically; the four strict-live ledgers commit as one
+rollback-protected set. Strict exports use explicit record-type and
+field allowlists, so removing a cache identifier cannot make a body field
+exportable.
 
 ## Release boundary
 

@@ -10,6 +10,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from validators._common import URL_RE
+from research_toolkit.retrieval_security import (
+    RetrievalSecurityError,
+    durable_value_errors,
+    validate_record_url,
+)
 from validators.v2_common import (
     ALLOWED_RIGHTS_STATUS,
     ALLOWED_VERIFICATION_METHODS,
@@ -227,8 +232,15 @@ def _validate_entry(
             if err:
                 errors.append(err)
 
-    if isinstance(entry.get("source_url"), str) and not URL_PATTERN.match(entry["source_url"]):
-        errors.append(f"{loc}.source_url: not a valid http(s) URL: {entry['source_url']!r}")
+    source_url = entry.get("source_url")
+    if isinstance(source_url, str):
+        if not URL_PATTERN.match(source_url):
+            errors.append(f"{loc}.source_url: not a valid http(s) URL: {source_url!r}")
+        else:
+            try:
+                validate_record_url(source_url, allow_public_query=True)
+            except RetrievalSecurityError as exc:
+                errors.append(f"{loc}.source_url: unsafe durable URL: {exc}")
 
     if "retrieved_at" in entry:
         _, err = parse_iso_date(entry["retrieved_at"], f"{loc}.retrieved_at")
@@ -313,6 +325,7 @@ def validate(path: Path) -> list[str]:
         return errors
     assert data is not None
 
+    errors.extend(durable_value_errors(data, "evidence_ledger"))
     errors.extend(validate_strict_live_top(data))
     entries = data.get("entries")
     if not isinstance(entries, list) or not entries:

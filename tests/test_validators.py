@@ -356,7 +356,7 @@ def _scaffold_cache(cache_root: Path, body: bytes, name: str = "aaaa") -> dict:
         "raw_path": f"blobs/sha256/{digest}",
         "text_path": f"text/sha256/{digest}.txt",
         "metadata_path": f"metadata/sha256/{digest}.json",
-        "restricted": False,
+        "restricted": True,
         "rights_status": "private_use",
         "extraction_status": "ok",
     }
@@ -490,7 +490,7 @@ def test_cache_manifest_falls_back_to_manifest_local_for_derived_artifacts(
         "raw_path": "papers/debenedetti2025camel.pdf",
         "text_path": "cache/body_text/debenedetti2025camel.txt",
         "metadata_path": "cache/body_meta/debenedetti2025camel.json",
-        "restricted": False,
+        "restricted": True,
         "rights_status": "private_use",
         "extraction_status": "ok",
     }
@@ -632,7 +632,7 @@ def test_evidence_ledger_validates_dossier_local_body_anchor_with_cache_root(
                 "raw_path": "papers/demo_paper.pdf",
                 "text_path": "cache/body_text/demo_paper.txt",
                 "metadata_path": "cache/body_meta/demo_paper.json",
-                "restricted": False,
+                "restricted": True,
                 "rights_status": "private_use",
                 "extraction_status": "ok",
             }
@@ -737,3 +737,86 @@ def test_cache_manifest_rejects_malformed_published_online(tmp_path: Path) -> No
     manifest = _write_cache_manifest_with(tmp_path, {"published_online": "not-a-date"})
     errors = cache_manifest.validate(manifest)
     assert any("published_online" in e and "YYYY-MM-DD" in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "request_url_sha256",
+        "source_url_digest",
+        "final_url_fingerprint",
+        "url_hash",
+        "source_uri_sha256",
+        "request_fingerprint",
+        "url_checksum",
+        "url_md5",
+    ),
+)
+def test_cache_manifest_rejects_all_url_fingerprint_fields(
+    tmp_path: Path, field: str
+) -> None:
+    manifest = _write_cache_manifest_with(tmp_path, {field: "0" * 64})
+    errors = cache_manifest.validate(manifest)
+    assert any(
+        field in error and "offline guessing oracles" in error for error in errors
+    ), errors
+
+
+def test_cache_manifest_rejects_nested_url_fingerprint_field(tmp_path: Path) -> None:
+    manifest = _write_cache_manifest_with(
+        tmp_path, {"legacy_provenance": {"request_url_hash": "0" * 64}}
+    )
+    errors = cache_manifest.validate(manifest)
+    assert any(
+        "legacy_provenance.request_url_hash" in error
+        and "offline guessing oracles" in error
+        for error in errors
+    ), errors
+
+
+def test_cache_manifest_scans_top_level_fingerprint_fields(tmp_path: Path) -> None:
+    manifest = _write_cache_manifest_with(tmp_path, {})
+    payload = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    payload["request_fingerprint"] = "0" * 64
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    errors = cache_manifest.validate(manifest)
+    assert any("request_fingerprint" in error for error in errors), errors
+
+
+def test_cache_manifest_scans_metadata_sidecar_durable_values(tmp_path: Path) -> None:
+    manifest = _write_cache_manifest_with(tmp_path, {})
+    payload = yaml.safe_load(manifest.read_text(encoding="utf-8"))
+    entry = payload["entries"][0]
+    cache_root = Path(payload["cache_root"])
+    metadata_path = cache_root / entry["metadata_path"]
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "source_url": "https://example.com/source?token=TOP-SECRET",
+                "source_uri_sha256": "0" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+    errors = cache_manifest.validate(manifest)
+    assert any("metadata_path.source_url.embedded_url" in error for error in errors), errors
+    assert any("metadata_path.source_uri_sha256" in error for error in errors), errors
+    assert all("TOP-SECRET" not in error for error in errors)
+
+
+def test_cache_manifest_rejects_quarantined_browser_method(tmp_path: Path) -> None:
+    manifest = _write_cache_manifest_with(
+        tmp_path, {"fetch_method": "playwright_rendered"}
+    )
+    errors = cache_manifest.validate(manifest)
+    assert any(
+        "fetch_method" in error and "playwright_rendered" in error
+        for error in errors
+    ), errors
+
+
+def test_cache_manifest_allows_exact_public_identifier_query(tmp_path: Path) -> None:
+    manifest = _write_cache_manifest_with(
+        tmp_path, {"source_url": "https://www.youtube.com/watch?v=public-id"}
+    )
+    assert cache_manifest.validate(manifest) == []

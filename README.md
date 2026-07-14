@@ -30,6 +30,28 @@ claude plugin validate --strict .
 .venv/bin/pytest
 ```
 
+The core and development installs do not activate document parsers. The
+supported default is bounded raw-byte caching with `--no-extract-pdfs`.
+Installing either PDF extra is an explicit opt-in to processing untrusted PDF
+bytes in-process and requires a source-specific risk decision:
+
+```bash
+pip install -e ".[pdf]"       # pdfplumber text extraction
+pip install -e ".[rich-pdf]"  # PDF extraction + optional Docling math/OCR
+```
+
+Browser execution is disabled in the supported workflow. Do not pass
+`--escalate-on-failure` or install a browser runtime for this plugin until a
+separate browser worker has a verified process sandbox and default-deny network
+boundary. Prefer a static/official source, cache raw bytes, or leave a JS-only
+source unresolved.
+
+Each skill calls `${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit`. The wrapper runs
+the copied plugin directly when Python and PyYAML are available, otherwise it
+can materialize the small core package through `uvx` without writing into the
+installed-plugin directory. It fails with an actionable preflight message when
+neither path exists; it never silently skips validation.
+
 Install the plugin from an approved local/team marketplace or use the path as a
 development plugin according to Claude Code's plugin workflow. Do not create
 global `~/.claude/skills/*.md` symlinks.
@@ -87,12 +109,15 @@ Existing v2.6 deterministic commands such as `assemble`, `render-index`,
 Use the one-time importer to create a separate canonical dossier:
 
 ```bash
-python -m research_toolkit.legacy_import <legacy-dossier> <canonical-dossier>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" import-legacy \
+  <legacy-dossier> <canonical-dossier>
 ```
 
-The importer is idempotent, refuses to overwrite differing outputs, preserves
-legacy graph/export bytes when present, and marks imported claims unresolved.
-It never turns a structural cache check into semantic approval.
+The importer builds and validates a staging tree before any target artifact is
+written, redacts durable URL query values, refuses URL-derived identifiers and
+differing outputs, and marks imported claims unresolved. Legacy derived files
+are not copied across this trust boundary; rebuild them from canonical records.
+The importer never turns a structural cache check into semantic approval.
 
 ## Validation and safety
 
@@ -102,9 +127,24 @@ research-toolkit release check <dossier>
 research-toolkit corpus check <corpus-root>
 ```
 
-Retrieval treats fetched content as untrusted, keeps restricted source bodies
-local, and separates access from redistribution rights. Freshness polling is
-read-only; human review is required before claims or consumers change.
+Retrieval treats fetched content as untrusted. The supported path is public,
+read-only HTTP(S) raw caching with public-address validation and connection
+pinning, redirect revalidation, standard ports, five redirects, a 25 MiB wire
+limit, identity encoding, an absolute DNS/header/body deadline, and no ambient
+proxy. Generic query strings are rejected before DNS; only a small
+host-and-key allowlist of public resource identifiers is accepted. Use a clean
+canonical URL and never a signed/authenticated URL. Durable redaction removes
+userinfo and fragments, then replaces every non-allowlisted query with the
+single fixed marker `?redacted=REDACTED`; no attacker-controlled query key or
+value is retained. Canonical records and derived exports are scanned
+recursively for embedded URLs and URL/request fingerprint aliases.
+Redirects are revalidated and a sanitized `final_url` is recorded whenever the
+effective request URL changes. OS calls without portable cancellation are
+watchdog-bounded and concurrency-capped; split-horizon routing of nominally
+global addresses remains an environmental residual. Browser execution is
+disabled. Cache rights default to `unknown`; access, license, redistribution
+rights, and source authority remain separate. See
+`references/security_and_rights.md` for the exact boundary and residual risks.
 
 For architecture and trust boundaries, read `docs/architecture.md`. For a
 walkthrough, read `docs/getting_started.md`. Historical v1/v2 plans and burn-in

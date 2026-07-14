@@ -1029,6 +1029,13 @@ the user had hit WebFetch failures repeatedly on JS-rendered sites — known
 problem, deferred too long.
 
 ### Design
+
+> **Historical, quarantined design record:** the browser path described below
+> has been removed. Current cache validation rejects `playwright_rendered`, and
+> old browser records and bytes belong in a separately labelled, read-only
+> quarantine rather than a current manifest. These bullets remain only to
+> document what the burn-in exercise tested at that time.
+
 - urllib stays the default fast path. Playwright is a fallback gated by
   `--escalate-on-failure`.
 - Detection heuristics: HTTP 403/429 escalates immediately; HTTP 200 with

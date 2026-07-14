@@ -75,6 +75,7 @@ def _build_project(
                     "metadata_path": f"meta/sha256/{SHA}.json",
                     "restricted": False,
                     "rights_status": "public",
+                    "visibility": "public",
                     "extraction_status": "ok",
                 }
             ],

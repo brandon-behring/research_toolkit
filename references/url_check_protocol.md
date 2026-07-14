@@ -2,6 +2,13 @@
 
 Detailed protocol for `/url-freshness-check`. Deterministic HEAD-checking with GET retry; bot-blocked allowlist; categorized output.
 
+> Historical compatibility reference: `/url-freshness-check` is not one of the
+> six current plugin skills, and its raw `curl` examples are not the approved
+> source-capture boundary. Current dossier refreshes use
+> `/research-toolkit:freshness` and the public-only raw cache path. Browser
+> execution is disabled pending a verified process sandbox and default-deny
+> network boundary.
+
 ## When to use this vs. `/freshness-audit`
 
 This protocol covers **HTTP liveness** on any markdown folder: 2xx / 3xx / 4xx / 5xx / timeout categorization, with retries and bot-blocked allowlist handling. It works on `docs/`, blog folders, or any place URLs are embedded.
@@ -14,24 +21,30 @@ The two are orthogonal and often run together on v2 projects:
 
 Both stay in scope; neither subsumes the other.
 
-## The cache is content-addressed: one URL can have two valid cache_ids
+## The cache is content-addressed: one URL can have multiple valid cache_ids
 
 `scripts/cache_source.py` keys the cache by **content hash, not URL**. The same
-URL fetched via urllib versus via Playwright (the `--escalate-on-failure` path)
-yields a *different render* — different bytes → different `sha256` →
-different `cache_id`. **Both captures are valid**; they are two faithful
-snapshots of the same page taken two different ways. This is by design, not a
-duplicate to be collapsed.
+URL can return different raw bytes at different dates or after a redirect, so
+different bytes produce different `sha256` and `cache_id` values. Historical
+material may also contain `playwright_rendered` captures from the retired
+browser path. Move those records and bytes to a separately labelled, read-only
+quarantine: the current manifest validator rejects that method. Do not create
+new browser captures or interpret the legacy method as a current safety approval.
 
 Practical consequences when reasoning about a cache:
 
 - Do **not** treat two cache entries that share a `source_url` as a bug or a
-  dedup target — they may be a urllib capture and a Playwright capture of the
-  same page, each anchoring its own excerpts.
+  dedup target; each byte snapshot may anchor different excerpts.
 - An excerpt anchored against one render verifies only against *that* render's
   cached bytes; the offsets are not portable between the two captures.
-- `cache_manifest.yml` records `fetch_method` (`urllib` / `playwright_rendered`)
-  so the two captures are distinguishable.
+- A current `cache_manifest.yml` may record only the static `urllib` method.
+  Legacy browser records belong in quarantine, not a validated current manifest.
+
+The cache command records sanitized requested provenance in `source_url` and a
+sanitized `final_url` whenever its effective URL changes. A liveness report's
+curl `url_effective` belongs to a separate request and does not retroactively
+establish cache provenance. Keep requested, canonical, and final identity
+decisions distinct.
 
 (Surfaced as `ctxasm-3` in the context-assembly pilot.)
 
@@ -56,13 +69,17 @@ grep -hroE 'https?://[a-zA-Z0-9./?=&_~%#:+-]+' "$TARGET_FOLDER" \
 split -l 50 .url_check_tmp/urls.txt .url_check_tmp/chunk_
 
 # Step 3: HEAD-check each chunk in parallel.
+# Output columns: status<TAB>effective_url<TAB>requested_url.
 for chunk in .url_check_tmp/chunk_*; do
   (
     while IFS= read -r url; do
-      status=$(curl -s -o /dev/null -w "%{http_code}" -L -m 15 \
-                    -A "Mozilla/5.0 research_toolkit/2.0" \
-                    -I "$url" 2>/dev/null || echo "000")
-      echo "$status $url"
+      result=$(curl -s -o /dev/null -w $'%{http_code}\t%{url_effective}' \
+                    -L -m 15 -A "Mozilla/5.0 research_toolkit/2.0" \
+                    -I "$url" 2>/dev/null)
+      if [[ $? -ne 0 || -z "$result" ]]; then
+        result=$'000\t'"$url"
+      fi
+      printf '%s\t%s\n' "$result" "$url"
     done < "$chunk" > "$chunk.results"
   ) &
 done
@@ -78,19 +95,26 @@ Some sites (OpenAI, Microsoft Learn, Cloudflare-fronted) reject HEAD requests bu
 
 ```bash
 while IFS= read -r line; do
-  status="${line%% *}"
-  url="${line#* }"
+  IFS=$'\t' read -r status effective_url requested_url <<< "$line"
   if [[ "$status" =~ ^4 ]]; then
-    retry=$(curl -s -o /dev/null -w "%{http_code}" -L -m 15 \
-                 -A "Mozilla/5.0 research_toolkit/2.0" \
-                 -H "Range: bytes=0-1024" \
-                 "$url" 2>/dev/null || echo "000")
-    echo "$retry $url"  # use retry status; if still 4xx → real broken
+    retry=$(curl -s -o /dev/null -w $'%{http_code}\t%{url_effective}' \
+                 -L -m 15 -A "Mozilla/5.0 research_toolkit/2.0" \
+                 -H "Range: bytes=0-1024" "$requested_url" 2>/dev/null)
+    if [[ $? -ne 0 || -z "$retry" ]]; then
+      retry=$'000\t'"$requested_url"
+    fi
+    printf '%s\t%s\n' "$retry" "$requested_url"
   else
-    echo "$status $url"
+    printf '%s\t%s\t%s\n' "$status" "$effective_url" "$requested_url"
   fi
 done < .url_check_tmp/results.txt > .url_check_tmp/results_retry.txt
 ```
+
+This liveness-only compatibility report now captures curl's effective URL. It
+must not copy query credentials into a committed report: inspect or remove
+query-bearing URLs before the check. The effective URL is evidence about this
+specific liveness request only and is not interchangeable with a cache
+capture's missing final-URL provenance.
 
 ## Bot-blocked allowlist
 
@@ -140,7 +164,7 @@ Target: docs/prompt_injection_research/
 - https://openai.com/blog/some-post (allowlisted: openai.com)
 - ...
 
-## Redirected URLs (final URL recorded)
+## Redirected URLs (effective liveness URL recorded)
 
 - https://example.com/old → https://example.com/new
 - ...

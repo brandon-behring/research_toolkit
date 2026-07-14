@@ -16,6 +16,7 @@ Usage::
 Exit codes mirror the dispatched script (0 success; 1 data/schema; 2 usage;
 3 upstream/network). ``2`` is also returned for an unknown/missing subcommand.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -48,6 +49,12 @@ _REGISTRY: dict[str, tuple[str, str, str]] = {
     "backlog-stamp": ("scripts.backlog_stamp", "main", SHAPE_FULL),
     "resume-gather": ("scripts.resume_gather_from_cache", "main", SHAPE_SLICED),
     "compose-kg": ("scripts.compose_cross_project_kg", "main", SHAPE_SLICED),
+    "import-legacy": ("research_toolkit.legacy_import", "main", SHAPE_SLICED),
+    "validate-topic-backlog": (
+        "validators.topic_backlog",
+        "_cli_with_strict",
+        SHAPE_FULL,
+    ),
 }
 
 # One-line help shown by ``research-toolkit --help`` (no module import needed).
@@ -63,6 +70,8 @@ _SUMMARIES: dict[str, str] = {
     "backlog-stamp": "Stamp a topic_backlog.yml entry as handed off / done.",
     "resume-gather": "Rebuild a sources-JSON skeleton from the content-addressed cache.",
     "compose-kg": "Merge per-project claim graphs into a cross-project KG snapshot.",
+    "import-legacy": "Stage, validate, and import one legacy dossier into v1 records.",
+    "validate-topic-backlog": "Validate a topic_backlog.yml file (optionally --strict).",
 }
 
 # Clean-break workflow surfaces. These commands validate and operate on the v1
@@ -117,6 +126,9 @@ def _match_workflow(argv: list[str]) -> tuple[tuple[str, ...], list[str]] | None
 # ``research-toolkit <sub> --help`` is consistent across every verb.
 _HELP_FALLBACK: dict[str, str] = {
     "freshness": "usage: research-toolkit freshness [--strict] [--today YYYY-MM-DD] <project_dir>",
+    "validate-topic-backlog": (
+        "usage: research-toolkit validate-topic-backlog [--strict] <path>"
+    ),
 }
 
 
@@ -167,7 +179,10 @@ def _print_top_help(stream: object) -> None:
     )
 
 
-def main(argv: list[str]) -> int:
+def main(argv: list[str] | None = None) -> int:
+    """Dispatch CLI arguments, defaulting to the installed console-script argv."""
+    if argv is None:
+        argv = sys.argv[1:]
     if not argv or argv[0] in ("-h", "--help", "help"):
         # ``help`` with no topic, or no args at all -> top-level help on stdout.
         if len(argv) >= 2 and argv[0] == "help" and argv[1] in _REGISTRY:

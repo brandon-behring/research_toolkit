@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 """Cache public source artifacts into the strict-live global content cache.
 
-Default path is dependency-free (urllib). v2.2.1 adds optional Playwright
-escalation for JS-rendered sites that urllib can't see — gated behind
-``--escalate-on-failure`` so the script stays usable without Playwright
-installed.
+The network path is dependency-light (urllib). Browser execution is
+intentionally disabled: request interception is not an egress firewall, and an
+untrusted page must not execute until a verified OS and network sandbox exists.
 
 Stores raw bytes, a best-effort text derivative, and metadata JSON under
 a content-addressed cache root. Prints manifest-ready YAML entries; a
 gather/freshness skill is responsible for appending them deliberately.
+
+All network reads pass through the public-only retrieval boundary: DNS-pinned
+HTTP(S), redirect revalidation, fixed time/size limits, no ambient proxy, and
+GET/HEAD only. Rights default to unknown and are recorded separately from
+access. PDF parsing is opt-in because parser work needs a stronger resource
+sandbox than byte retrieval.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,20 +27,34 @@ import os
 from pathlib import Path
 import re
 import socket
+import stat
 import sys
+import time
 from typing import Any
 import uuid
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+import yaml
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from validators._common import ARXIV_ID_RE, ARXIV_OLD_ID_RE, DOI_RE
+from research_toolkit.retrieval_security import (
+    DEFAULT_MAX_RESPONSE_BYTES,
+    DEFAULT_TIMEOUT_SECONDS,
+    read_response_limited,
+    record_safe_url,
+    redact_exception,
+    redact_url,
+    secure_urlopen as urlopen,
+    validate_retrieval_url,
+)
 
 
-# Detection heuristics for when urllib's result is suspect and Playwright
-# might do better. Tuned conservatively: a 500-char minimum catches blank
+# Detection heuristics for when urllib's result is an unusable JS shell. Tuned
+# conservatively: a 500-char minimum catches blank
 # SPAs and "Please enable JavaScript" placeholders without false-positiving
 # legitimate short pages (most useful sources are >1k chars after
 # extraction).
@@ -44,16 +64,24 @@ SUSPECT_JS_MARKERS = (
     "Please enable Javascript",
     "JavaScript is required",
     "<noscript>",
-    "id=\"__next\"></div>",  # next.js empty mount
-    "id=\"root\"></div>",  # CRA empty mount
+    'id="__next"></div>',  # next.js empty mount
+    'id="root"></div>',  # CRA empty mount
 )
-ESCALATABLE_HTTP_STATUSES = (403, 429)
-PLAYWRIGHT_FETCH_METHOD = "playwright_rendered"
 URLLIB_FETCH_METHOD = "urllib"
+USER_AGENT = "research_toolkit/3.0 strict-live cache"
+ALLOWED_CACHE_RIGHTS_STATUS = {
+    "public",
+    "private_use",
+    "restricted",
+    "unknown",
+    "cache_only",
+}
+ALLOWED_VISIBILITY = {"public", "authenticated", "private"}
 
-# v2.3 PDF extraction (closes #11). Cascade: pdfplumber for fast text + Docling
-# (lazy-imported) when equation richness is detected. Both are pyproject hard
-# deps so the cascade Just Works on a clean install.
+# v2.3 PDF extraction (closes #11). The opt-in ``pdf`` extra supplies
+# pdfplumber for fast text; ``rich-pdf`` also supplies lazy-loaded Docling for
+# equation/OCR-sensitive work. The small core install still caches PDF bytes
+# and reports ``raw_only`` rather than silently installing an ML stack.
 #
 # Unicode math chars + commonly-used Greek letters (subset — keeps the regex
 # fast; expand if false-negative rate is high in practice). Latin-1 superscript
@@ -145,7 +173,9 @@ def _detect_equation_richness(text: str) -> tuple[bool, str]:
     return False, ""
 
 
-def _extract_pdf_text(raw: bytes, *, docling_cache_dir: str | None = None) -> tuple[str, str, list[str]]:
+def _extract_pdf_text(
+    raw: bytes, *, docling_cache_dir: str | None = None
+) -> tuple[str, str, list[str]]:
     """v2.3 cascade: pdfplumber → equation detection → Docling escalation.
 
     Returns ``(text, extraction_status, warnings)`` where:
@@ -158,13 +188,13 @@ def _extract_pdf_text(raw: bytes, *, docling_cache_dir: str | None = None) -> tu
     """
     warnings: list[str] = []
 
-    # Stage 1: pdfplumber (fast path, always tried first).
+    # Stage 1: pdfplumber (fast path when the pdf/rich-pdf extra is installed).
     try:
         import pdfplumber
         from io import BytesIO
     except ImportError:
         warnings.append(
-            "pdfplumber not installed (pip install -e \".\") — falling back to raw_only"
+            'pdfplumber not installed (pip install -e ".[pdf]") — falling back to raw_only'
         )
         return (
             "[PDF cached; pdfplumber unavailable, install pdfplumber>=0.11]\n",
@@ -196,14 +226,14 @@ def _extract_pdf_text(raw: bytes, *, docling_cache_dir: str | None = None) -> tu
             # Confirm via pypdf which has clearer encryption signaling
             try:
                 from pypdf import PdfReader
-                from pypdf.errors import PdfReadError
+
                 reader = PdfReader(BytesIO(raw))
                 if reader.is_encrypted:
                     warnings.append(
                         f"PDF encrypted; pdfplumber refused extraction: {exc.__class__.__name__}"
                     )
                     return (
-                        f"[PDF encrypted; install password OR use a non-encrypted source]\n",
+                        "[PDF encrypted; install password OR use a non-encrypted source]\n",
                         EXTRACTION_STATUS_PARTIAL,
                         warnings,
                     )
@@ -249,11 +279,17 @@ def _extract_pdf_text(raw: bytes, *, docling_cache_dir: str | None = None) -> tu
                 raw, docling_cache_dir=docling_cache_dir
             )
             warnings.extend(docling_warnings)
-            if docling_status == EXTRACTION_STATUS_RICH and len(docling_text) > len(text):
+            if docling_status == EXTRACTION_STATUS_RICH and len(docling_text) > len(
+                text
+            ):
                 return docling_text, docling_status, warnings
         except Exception as exc:
             warnings.append(f"Docling fallback also failed: {exc}")
-        return text or "[PDF text extraction yielded near-empty result]\n", EXTRACTION_STATUS_DEGRADED, warnings
+        return (
+            text or "[PDF text extraction yielded near-empty result]\n",
+            EXTRACTION_STATUS_DEGRADED,
+            warnings,
+        )
 
     # Stage 2: equation richness check → Docling escalation
     is_math_rich, reason = _detect_equation_richness(text)
@@ -273,7 +309,7 @@ def _extract_pdf_text(raw: bytes, *, docling_cache_dir: str | None = None) -> tu
         warnings.append(
             f"equations detected ({reason}) but docling not installed; "
             f"text-only output may lose equation fidelity. "
-            f"Install with: pip install docling"
+            'Install with: pip install -e ".[rich-pdf]"'
         )
     except Exception as exc:
         warnings.append(
@@ -284,7 +320,9 @@ def _extract_pdf_text(raw: bytes, *, docling_cache_dir: str | None = None) -> tu
     return text, EXTRACTION_STATUS_OK_TEXT_ONLY, warnings
 
 
-def _extract_via_docling(raw: bytes, *, docling_cache_dir: str | None = None) -> tuple[str, str, list[str]]:
+def _extract_via_docling(
+    raw: bytes, *, docling_cache_dir: str | None = None
+) -> tuple[str, str, list[str]]:
     """Stage 2 of the v2.3 PDF cascade — lazy import + run Docling.
 
     Returns ``(text, extraction_status, warnings)``. Raises ``ImportError`` if
@@ -296,12 +334,12 @@ def _extract_via_docling(raw: bytes, *, docling_cache_dir: str | None = None) ->
         os.environ.setdefault("HF_HOME", str(Path(docling_cache_dir).expanduser()))
 
     from docling.document_converter import DocumentConverter
-    from io import BytesIO
 
     warnings: list[str] = []
     converter = DocumentConverter()
     # Docling's API accepts a path or stream; some versions need a tmp file.
     import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(raw)
         tmp_path = tmp.name
@@ -320,7 +358,7 @@ def _safe_text(
     data: bytes,
     content_type: str,
     *,
-    extract_pdfs: bool = True,
+    extract_pdfs: bool = False,
     docling_cache_dir: str | None = None,
 ) -> tuple[str, str, list[str]]:
     """Dispatch text extraction by content_type.
@@ -330,12 +368,16 @@ def _safe_text(
     ``extract_pdfs`` is True; otherwise PDFs land at ``raw_only`` for
     byte-stable backward compat.
     """
-    if content_type.startswith("text/") or "json" in content_type or "html" in content_type:
+    if (
+        content_type.startswith("text/")
+        or "json" in content_type
+        or "html" in content_type
+    ):
         return data.decode("utf-8", errors="replace"), EXTRACTION_STATUS_OK, []
     if content_type == "application/pdf" or content_type.endswith("/pdf"):
         if not extract_pdfs:
             return (
-                "[PDF cached; extraction skipped (--no-extract-pdfs)]\n",
+                "[PDF cached; extraction disabled by default; use --extract-pdfs only for trusted inputs]\n",
                 EXTRACTION_STATUS_RAW_ONLY,
                 [],
             )
@@ -368,9 +410,11 @@ def _append_extraction_log(
         "run_id": run_id,
         "hostname": socket.gethostname(),
     }
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record, sort_keys=True) + "\n")
+    fd = _open_private_fd(log_path, os.O_WRONLY | os.O_APPEND)
+    with os.fdopen(fd, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def _default_extraction_log_path(cache_root: Path) -> Path:
@@ -384,32 +428,67 @@ def _fetch(
     *,
     if_etag: str | None = None,
     if_last_modified: str | None = None,
-    timeout: int = 30,
-) -> tuple[int, bytes, str, str | None, str | None]:
-    """Fetch a URL with optional conditional headers.
+    timeout: int = DEFAULT_TIMEOUT_SECONDS,
+    max_bytes: int = DEFAULT_MAX_RESPONSE_BYTES,
+) -> tuple[int, bytes, str, str | None, str | None, str]:
+    """Fetch a public URL with conditional headers and hard safety bounds.
 
-    Returns (status_code, body_bytes, content_type, etag, last_modified).
+    Returns (status_code, body_bytes, content_type, etag, last_modified,
+    final_url).
     On a 304 Not Modified response, body_bytes is empty. ``timeout`` (seconds)
     bounds the request; the publication-date lookups pass a shorter value so a
-    slow API can't stall caching.
+    slow API can't stall caching. DNS is validated and pinned by ``urlopen``;
+    every redirect is revalidated, ambient proxies are disabled, and the body
+    is read incrementally under ``max_bytes``.
     """
-    headers = {"User-Agent": "research_toolkit/2.6.0 strict-live cache"}
+    headers = {"User-Agent": USER_AGENT, "Accept-Encoding": "identity"}
     if if_etag:
         headers["If-None-Match"] = if_etag
     if if_last_modified:
         headers["If-Modified-Since"] = if_last_modified
     req = Request(source_url, headers=headers)
+    deadline = time.monotonic() + timeout
     try:
-        with urlopen(req, timeout=timeout) as response:  # noqa: S310
-            status = response.status if hasattr(response, "status") else response.getcode()
-            content_type = response.headers.get_content_type() or "application/octet-stream"
+        with urlopen(req, timeout=timeout) as response:
+            status = (
+                response.status if hasattr(response, "status") else response.getcode()
+            )
+            content_type = (
+                response.headers.get_content_type() or "application/octet-stream"
+            )
             etag = response.headers.get("ETag")
             last_modified = response.headers.get("Last-Modified")
-            return status, response.read(), content_type, etag, last_modified
+            body = read_response_limited(
+                response, max_bytes=max_bytes, deadline=deadline
+            )
+            final_url = (
+                response.geturl() if hasattr(response, "geturl") else source_url
+            )
+            return status, body, content_type, etag, last_modified, final_url
     except HTTPError as exc:
         if exc.code == 304:
-            return 304, b"", exc.headers.get_content_type() or "", exc.headers.get("ETag"), exc.headers.get("Last-Modified")
+            return (
+                304,
+                b"",
+                exc.headers.get_content_type() or "",
+                exc.headers.get("ETag"),
+                exc.headers.get("Last-Modified"),
+                exc.geturl() if hasattr(exc, "geturl") else source_url,
+            )
         raise
+
+
+def _unpack_fetch_result(
+    result: tuple[Any, ...], requested_url: str
+) -> tuple[int, bytes, str, str | None, str | None, str]:
+    """Accept legacy five-field test adapters while preserving final URLs."""
+    if len(result) == 5:
+        status, body, content_type, etag, last_modified = result
+        return status, body, content_type, etag, last_modified, requested_url
+    if len(result) == 6:
+        status, body, content_type, etag, last_modified, final_url = result
+        return status, body, content_type, etag, last_modified, final_url
+    raise ValueError(f"fetch adapter returned {len(result)} fields; expected 5 or 6")
 
 
 def _content_is_suspect(raw: bytes, content_type: str) -> tuple[bool, str]:
@@ -424,7 +503,10 @@ def _content_is_suspect(raw: bytes, content_type: str) -> tuple[bool, str]:
         except Exception:
             return False, ""
         if len(text) < SUSPECT_TEXT_MIN_CHARS:
-            return True, f"extracted text only {len(text)} chars (< {SUSPECT_TEXT_MIN_CHARS} threshold)"
+            return (
+                True,
+                f"extracted text only {len(text)} chars (< {SUSPECT_TEXT_MIN_CHARS} threshold)",
+            )
         for marker in SUSPECT_JS_MARKERS:
             if marker in text:
                 return True, f"contains JS-required marker {marker!r}"
@@ -529,7 +611,9 @@ def _arxiv_published_date(
     fetcher = fetch or _fetch
     api = f"http://export.arxiv.org/api/query?id_list={arxiv_id}"
     try:
-        status, body, _ctype, _etag, _last = fetcher(api, timeout=timeout)
+        status, body, _ctype, _etag, _last, _final = _unpack_fetch_result(
+            fetcher(api, timeout=timeout), api
+        )
     except Exception:  # noqa: BLE001 — a date lookup must never break caching
         return None
     if status != 200 or not body:
@@ -557,7 +641,9 @@ def _crossref_published_date(
     fetcher = fetch or _fetch
     api = f"https://api.crossref.org/works/{doi}"
     try:
-        status, body, _ctype, _etag, _last = fetcher(api, timeout=timeout)
+        status, body, _ctype, _etag, _last, _final = _unpack_fetch_result(
+            fetcher(api, timeout=timeout), api
+        )
     except Exception:  # noqa: BLE001
         return None
     if status != 200 or not body:
@@ -626,70 +712,55 @@ def _published_online_for(
     return None
 
 
-class PlaywrightUnavailable(RuntimeError):
-    """Playwright escalation was requested but the package isn't installed.
-
-    Callers catch this to degrade gracefully (urllib stub / re-raised HTTP
-    error) instead of failing hard, preserving the "usable without
-    Playwright" contract even when escalation is default-on. Genuine
-    Playwright *runtime* failures (browser launch, navigation timeout) are
-    NOT this type and still propagate as errors.
-    """
+class PlaywrightUnavailable(ValueError):
+    """Browser escalation is disabled until an audited sandbox exists."""
 
 
-def _fetch_via_playwright(source_url: str) -> tuple[int, bytes, str, str | None, str | None]:
-    """Render with headless Chromium. Lazy-imports playwright so the script
-    stays usable without Playwright installed.
+def _fetch_via_playwright(source_url: str) -> tuple[()]:
+    """Fail closed; request interception alone cannot contain browser egress."""
+    del source_url
+    raise PlaywrightUnavailable(
+        "browser escalation is disabled: Chromium requires a verified process, "
+        "resource, and default-deny network sandbox before it may execute "
+        "untrusted source content"
+    )
 
-    Returns the same tuple shape as ``_fetch``: (status, body_bytes,
-    content_type, etag, last_modified). etag/last_modified are None
-    because Playwright doesn't expose the conditional-GET headers from
-    the response cleanly via its high-level API.
 
-    Raises ``PlaywrightUnavailable`` when the package is not installed so
-    callers can degrade gracefully.
-    """
+def _ensure_private_directory(path: Path) -> None:
+    """Create or tighten a cache directory, failing before sensitive writes."""
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(path, 0o700)
+    if path.stat().st_mode & 0o077:
+        raise PermissionError(f"cache directory is not private: {path}")
+
+
+def _open_private_fd(path: Path, flags: int) -> int:
+    """Open a regular cache file as 0600 without following a final symlink."""
+    _ensure_private_directory(path.parent)
+    safe_flags = flags | os.O_CREAT
+    if hasattr(os, "O_NOFOLLOW"):
+        safe_flags |= os.O_NOFOLLOW
+    fd = os.open(path, safe_flags, 0o600)
     try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as exc:
-        raise PlaywrightUnavailable(
-            "Playwright escalation requested but the 'playwright' package is "
-            "not installed. Run: pip install -e \".[dev]\" && playwright install chromium"
-        ) from exc
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        try:
-            context = browser.new_context(
-                user_agent="research_toolkit/2.6.0 strict-live cache (Playwright)"
-            )
-            page = context.new_page()
-            response = page.goto(source_url, wait_until="domcontentloaded", timeout=30_000)
-            # Give SPAs a moment to hydrate; networkidle would be ideal but
-            # many CDN-served sites never reach idle.
-            page.wait_for_timeout(1500)
-            html = page.content()
-            status = response.status if response is not None else 200
-            content_type = "text/html"
-            if response is not None:
-                ct = response.headers.get("content-type")
-                if isinstance(ct, str):
-                    content_type = ct.split(";", 1)[0].strip() or "text/html"
-            return status, html.encode("utf-8"), content_type, None, None
-        finally:
-            browser.close()
+        os.fchmod(fd, 0o600)
+        mode = os.fstat(fd).st_mode
+        if not stat.S_ISREG(mode):
+            raise PermissionError(f"cache path is not a regular file: {path}")
+        if mode & 0o077:
+            raise PermissionError(f"cache file is not private: {path}")
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd
 
 
 def _private_write(path: Path, data: bytes | str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if isinstance(data, str):
-        path.write_text(data, encoding="utf-8")
-    else:
-        path.write_bytes(data)
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    payload = data.encode("utf-8") if isinstance(data, str) else data
+    fd = _open_private_fd(path, os.O_WRONLY | os.O_TRUNC)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
 
 
 def cache_one(
@@ -703,15 +774,15 @@ def cache_one(
     prior_cache_id: str | None = None,
     prior_sha256: str | None = None,
     escalate_on_failure: bool = False,
-    extract_pdfs: bool = True,
+    extract_pdfs: bool = False,
     docling_cache_dir: str | None = None,
     extraction_log_path: Path | None = None,
     run_id: str | None = None,
+    rights_status: str = "unknown",
+    visibility: str = "public",
+    license_value: str | None = None,
 ) -> dict:
-    """Cache a URL. Supports 304-first conditional GET when prior etag /
-    last-modified are provided. v2.2.1 adds optional Playwright escalation.
-    v2.3 adds PDF cascade extraction (#11) and unconditional JS-shell stub
-    detection (#10).
+    """Cache a URL under fail-closed retrieval and persistence boundaries.
 
     - On HTTP 304 → emit a `revisit` record (server-not-modified) referring
       to prior_cache_id. Zero new bytes.
@@ -721,24 +792,16 @@ def cache_one(
     - On HTTP 200 with new content → emit a fresh `capture` record with
       raw/text/metadata files written.
 
-    When ``escalate_on_failure=True``:
-    - HTTP 403 / 429 from urllib → retry via Playwright.
-    - urllib succeeds but content is suspect (blank / too short / JS-required
-      marker) → retry via Playwright.
-    - The resulting capture record carries ``fetch_method: playwright_rendered``
-      so audits know JS rendering was needed.
-    - If Playwright is not installed, escalation degrades gracefully (the
-      403/429 case re-raises the original HTTP error; the suspect-content
-      case falls back to a ``stub`` record) with a stderr WARN — so callers
-      may pass this flag by default without requiring Playwright.
+    ``escalate_on_failure=True`` fails closed. Browser rendering remains
+    disabled until Chromium is contained by an audited process/resource
+    sandbox and a default-deny network boundary.
 
     v2.3:
     - JS-shell suspect detection now runs even without `escalate_on_failure`;
       a suspect HTML page lands at `extraction_status: stub` with a stderr
       WARN so downstream stages can skip it (closes #10).
-    - PDFs get the equation-aware cascade in `_extract_pdf_text` when
-      `extract_pdfs=True` (default). `--no-extract-pdfs` preserves the
-      pre-v2.3 `raw_only` behavior for byte-stable fixtures (closes #11).
+    - PDFs are raw-only by default. The equation-aware cascade runs only when
+      `extract_pdfs=True` is explicitly selected for trusted inputs.
 
     v2.6 (source provenance):
     - Best-effort ``published_online`` (the date content first appeared online,
@@ -750,39 +813,43 @@ def cache_one(
       WITHOUT ``escalate_on_failure`` (urllib handles it). The record then
       carries ``escalation_reason: arxiv_abs_fallback``.
     """
+    validate_retrieval_url(source_url)
+    if rights_status not in ALLOWED_CACHE_RIGHTS_STATUS:
+        raise ValueError(
+            f"rights_status must be one of {sorted(ALLOWED_CACHE_RIGHTS_STATUS)}"
+        )
+    if visibility not in ALLOWED_VISIBILITY:
+        raise ValueError(f"visibility must be one of {sorted(ALLOWED_VISIBILITY)}")
+    if license_value is not None and not license_value.strip():
+        raise ValueError("license_value must be non-empty when provided")
+    if escalate_on_failure:
+        raise PlaywrightUnavailable(
+            "browser escalation is disabled: Chromium requires a verified process, "
+            "resource, and default-deny network sandbox before it may execute "
+            "untrusted source content"
+        )
+
+    recorded_url = record_safe_url(source_url)
+    restricted = visibility != "public" or rights_status != "public"
     fetch_method = URLLIB_FETCH_METHOD
     escalation_reason: str | None = None
-    try:
-        status, raw, content_type, etag, last_modified = _fetch(
-            source_url, if_etag=if_etag, if_last_modified=if_last_modified
+    status, raw, content_type, etag, last_modified, effective_url = (
+        _unpack_fetch_result(
+            _fetch(source_url, if_etag=if_etag, if_last_modified=if_last_modified),
+            source_url,
         )
-    except HTTPError as exc:
-        if escalate_on_failure and exc.code in ESCALATABLE_HTTP_STATUSES:
-            escalation_reason = f"urllib HTTP {exc.code}"
-            try:
-                status, raw, content_type, etag, last_modified = _fetch_via_playwright(source_url)
-                fetch_method = PLAYWRIGHT_FETCH_METHOD
-            except PlaywrightUnavailable as pw_exc:
-                # Default-on escalation must not break installs without
-                # Playwright: degrade to the non-escalated behavior.
-                print(
-                    f"WARN: {source_url} HTTP {exc.code}; Playwright escalation "
-                    f"unavailable ({pw_exc}); degrading to non-escalated behavior",
-                    file=sys.stderr,
-                )
-                raise exc
-        else:
-            raise
+    )
+    validate_retrieval_url(effective_url)
+    recorded_final_url = record_safe_url(effective_url)
+    final_url_observed = effective_url != source_url
 
     # v2.3 #10: suspect detection ALWAYS runs on urllib results (not just when
-    # escalation is requested). If suspect AND escalation enabled → Playwright.
-    # If suspect AND no escalation → flagged as `stub` in the manifest with a
-    # stderr WARN so the caller knows the cache is degraded.
+    # escalation is requested). Suspect content is flagged as `stub` in the
+    # manifest; executing it in a browser is not an allowed recovery path.
     #
     # v2.6: ``effective_url`` is the URL the recorded content actually came from
     # (may shift to the arXiv abs page on fallback below); it drives the
-    # publication-date lookup. Default = the requested URL.
-    effective_url = source_url
+    # publication-date lookup. Default is the redirect-resolved final URL.
     stub_reason: str | None = None
     if fetch_method == URLLIB_FETCH_METHOD and status not in (304,):
         is_suspect, reason = _content_is_suspect(raw, content_type)
@@ -797,38 +864,46 @@ def cache_one(
                 abs_url = f"https://arxiv.org/abs/{arxiv_id}"
                 if abs_url != source_url:
                     try:
-                        a_status, a_raw, a_ct, a_etag, a_last = _fetch(abs_url)
+                        (
+                            a_status,
+                            a_raw,
+                            a_ct,
+                            a_etag,
+                            a_last,
+                            a_final,
+                        ) = _unpack_fetch_result(_fetch(abs_url), abs_url)
                     except (HTTPError, URLError, OSError):
-                        a_status, a_raw, a_ct, a_etag, a_last = 0, b"", "", None, None
+                        a_status, a_raw, a_ct, a_etag, a_last, a_final = (
+                            0,
+                            b"",
+                            "",
+                            None,
+                            None,
+                            abs_url,
+                        )
                     if a_status == 200 and a_raw:
                         a_suspect, _a_reason = _content_is_suspect(a_raw, a_ct)
                         if not a_suspect:
-                            status, raw, content_type = a_status, a_raw, a_ct or "text/html"
+                            status, raw, content_type = (
+                                a_status,
+                                a_raw,
+                                a_ct or "text/html",
+                            )
                             etag, last_modified = a_etag, a_last
-                            effective_url = abs_url
+                            effective_url = a_final
+                            validate_retrieval_url(a_final)
+                            recorded_final_url = record_safe_url(a_final)
+                            final_url_observed = a_final != source_url
                             escalation_reason = ARXIV_ABS_FALLBACK_REASON
                             is_suspect = False
-            if is_suspect and escalate_on_failure:
-                escalation_reason = reason
-                try:
-                    status, raw, content_type, etag, last_modified = _fetch_via_playwright(source_url)
-                    fetch_method = PLAYWRIGHT_FETCH_METHOD
-                except PlaywrightUnavailable as pw_exc:
-                    # Degrade to the same stub outcome as no-escalation.
-                    print(
-                        f"WARN: {source_url} suspect content ({reason}); Playwright "
-                        f"escalation unavailable ({pw_exc}); degrading to stub",
-                        file=sys.stderr,
-                    )
-                    stub_reason = reason
-            elif is_suspect:
+            if is_suspect:
                 stub_reason = reason
 
     # 304 Not Modified → revisit record (server-not-modified)
     if status == 304 and prior_cache_id:
         return {
             "cache_id": f"cache_{prior_cache_id.removeprefix('cache_')}_r{fetched_at.replace('-', '')}",
-            "source_url": source_url,
+            "source_url": recorded_url,
             "fetched_at": fetched_at,
             "record_type": "revisit",
             "revisit_profile": "server-not-modified",
@@ -837,6 +912,15 @@ def cache_one(
             "http_status": 304,
             "http_etag": etag,
             "http_last_modified": last_modified,
+            "restricted": restricted,
+            "rights_status": rights_status,
+            "visibility": visibility,
+            **({"license": license_value} if license_value else {}),
+            **(
+                {"final_url": recorded_final_url}
+                if final_url_observed
+                else {}
+            ),
         }
 
     digest = _sha256(raw)
@@ -845,7 +929,7 @@ def cache_one(
     if prior_cache_id and prior_sha256 and digest == prior_sha256:
         return {
             "cache_id": f"cache_{prior_cache_id.removeprefix('cache_')}_r{fetched_at.replace('-', '')}",
-            "source_url": source_url,
+            "source_url": recorded_url,
             "fetched_at": fetched_at,
             "record_type": "revisit",
             "revisit_profile": "identical-payload-digest",
@@ -854,6 +938,15 @@ def cache_one(
             "http_status": 200,
             "http_etag": etag,
             "http_last_modified": last_modified,
+            "restricted": restricted,
+            "rights_status": rights_status,
+            "visibility": visibility,
+            **({"license": license_value} if license_value else {}),
+            **(
+                {"final_url": recorded_final_url}
+                if final_url_observed
+                else {}
+            ),
         }
 
     # New capture
@@ -871,13 +964,12 @@ def cache_one(
         extract_pdfs=extract_pdfs,
         docling_cache_dir=docling_cache_dir,
     )
-    # v2.3 #10: if the urllib first pass hit a JS-shell stub and escalation
-    # wasn't enabled, override the status (text extraction itself succeeded —
-    # we just want downstream stages to know the content is degraded).
+    # If the HTTP response is a JS shell, override the status: text extraction
+    # succeeded mechanically, but browser execution is not an allowed recovery.
     if stub_reason and extraction_status == EXTRACTION_STATUS_OK:
         extraction_status = EXTRACTION_STATUS_STUB
         extraction_warnings = list(extraction_warnings) + [
-            f"JS-shell stub detected (no Playwright escalation): {stub_reason}"
+            f"JS-shell stub detected (browser execution disabled): {stub_reason}"
         ]
 
     cache_id_value = f"cache_{digest[:16]}"
@@ -889,39 +981,39 @@ def cache_one(
 
     # v2.3 loud-failure surface #1: per-PDF / per-stub WARN to stderr.
     if extraction_status in LOUD_EXTRACTION_STATUSES:
-        warn_msg = (
-            f"WARN: {source_url} extraction degraded "
-            f"({extraction_status})"
-        )
+        warn_msg = f"WARN: {recorded_url} extraction degraded ({extraction_status})"
         if extraction_warnings:
             warn_msg += f" — {extraction_warnings[0]}"
         print(warn_msg, file=sys.stderr)
 
     # v2.3 loud-failure surface #2: persistent extraction log (per-host).
     if extraction_log_path is not None:
-        try:
-            _append_extraction_log(
-                extraction_log_path,
-                cache_id=cache_id_value,
-                source_url=source_url,
-                status=extraction_status,
-                warnings=list(extraction_warnings),
-                run_id=run_id or "",
-            )
-        except OSError as exc:
-            print(f"WARN: failed to append extraction_log: {exc}", file=sys.stderr)
+        _append_extraction_log(
+            extraction_log_path,
+            cache_id=cache_id_value,
+            source_url=recorded_url,
+            status=extraction_status,
+            warnings=list(extraction_warnings),
+            run_id=run_id or "",
+        )
 
     metadata = {
         "schema_version": 2,
         "topic": topic,
-        "source_url": source_url,
+        "source_url": recorded_url,
+        **(
+            {"final_url": recorded_final_url}
+            if final_url_observed
+            else {}
+        ),
         "fetched_at": fetched_at,
         "content_type": content_type,
         "bytes": len(raw),
         "sha256": digest,
         "cache_policy": "max_local_private",
-        "restricted": False,
-        "rights_status": "private_use",
+        "restricted": restricted,
+        "rights_status": rights_status,
+        "visibility": visibility,
         "extraction_status": extraction_status,
         "fetch_method": fetch_method,
         "http_etag": etag,
@@ -929,35 +1021,43 @@ def cache_one(
     }
     if published_online:
         metadata["published_online"] = published_online
+    if license_value:
+        metadata["license"] = license_value
     if escalation_reason:
         metadata["escalation_reason"] = escalation_reason
     if extraction_warnings:
         metadata["extraction_warnings"] = list(extraction_warnings)
 
-    cache_root.mkdir(parents=True, exist_ok=True)
-    try:
-        os.chmod(cache_root, 0o700)
-    except OSError:
-        pass
+    _ensure_private_directory(cache_root)
     _private_write(raw_path, raw)
     _private_write(text_path, text)
     _private_write(metadata_path, json.dumps(metadata, indent=2, sort_keys=True) + "\n")
 
     entry = {
         "cache_id": cache_id_value,
-        "source_url": source_url,
+        "source_url": recorded_url,
+        **(
+            {"final_url": recorded_final_url}
+            if final_url_observed
+            else {}
+        ),
         "fetched_at": fetched_at,
         "record_type": "capture",
-        "content_type": content_type or mimetypes.guess_type(source_url)[0] or "application/octet-stream",
+        "content_type": content_type
+        or mimetypes.guess_type(source_url)[0]
+        or "application/octet-stream",
         "bytes": len(raw),
         "sha256": digest,
         "raw_path": str(raw_path.relative_to(cache_root)),
         "text_path": str(text_path.relative_to(cache_root)),
         "metadata_path": str(metadata_path.relative_to(cache_root)),
-        "restricted": False,
-        "rights_status": "private_use",
+        "restricted": restricted,
+        "rights_status": rights_status,
+        "visibility": visibility,
         "extraction_status": extraction_status,
     }
+    if license_value:
+        entry["license"] = license_value
     # Only emit fetch_method when it deviates from the urllib default — keeps
     # existing fixtures byte-stable.
     if fetch_method != URLLIB_FETCH_METHOD:
@@ -982,56 +1082,12 @@ def cache_one(
 
 
 def _print_yaml_entry(entry: dict) -> None:
-    print("- cache_id: " + entry["cache_id"])
-    is_revisit = entry.get("record_type") == "revisit"
-    if is_revisit:
-        keys = (
-            "source_url",
-            "fetched_at",
-            "record_type",
-            "revisit_profile",
-            "refers_to_cache_id",
-            "refers_to_fetched_at",
-            "http_status",
-            "http_etag",
-            "http_last_modified",
-        )
-    else:
-        keys = (
-            "source_url",
-            "fetched_at",
-            "record_type",
-            "content_type",
-            "bytes",
-            "sha256",
-            "raw_path",
-            "text_path",
-            "metadata_path",
-            "restricted",
-            "rights_status",
-            "extraction_status",
-            "extraction_warnings",
-            "fetch_method",
-            "escalation_reason",
-            "published_online",
-            "http_etag",
-            "http_last_modified",
-            "refers_to_cache_id",
-        )
-    for key in keys:
-        if key not in entry:
-            continue
-        value = entry[key]
-        if value is None:
-            continue
-        if isinstance(value, bool):
-            value = str(value).lower()
-        if key == "extraction_warnings" and isinstance(value, list):
-            print(f"  {key}:")
-            for item in value:
-                print(f"    - {item}")
-            continue
-        print(f"  {key}: {value}")
+    """Emit one manifest-ready entry through a real YAML serializer."""
+    print(
+        yaml.safe_dump(
+            [entry], sort_keys=False, allow_unicode=True, default_flow_style=False
+        ).rstrip()
+    )
 
 
 def main(argv: list[str]) -> int:
@@ -1063,15 +1119,22 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--escalate-on-failure",
         action="store_true",
-        help="v2.2.1: if urllib returns 403/429 OR suspect content (blank / too short / "
-        "JS-required marker), retry via headless Chromium (Playwright). Requires "
-        "'pip install -e \".[dev]\" && playwright install chromium'.",
+        help="disabled: browser execution requires a verified process/resource "
+        "sandbox and default-deny network boundary",
     )
-    parser.add_argument(
-        "--no-extract-pdfs",
+    pdf_group = parser.add_mutually_exclusive_group()
+    pdf_group.add_argument(
+        "--extract-pdfs",
         action="store_true",
-        help="v2.3: skip PDF text extraction (PDFs land at extraction_status: "
-        "raw_only). Default behavior extracts via pdfplumber + Docling cascade.",
+        default=False,
+        help="opt in to local PDF parsing for trusted inputs; raw-only caching is "
+        "the default because parser resource isolation is not yet guaranteed",
+    )
+    pdf_group.add_argument(
+        "--no-extract-pdfs",
+        dest="extract_pdfs",
+        action="store_false",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--strict-extraction",
@@ -1093,6 +1156,25 @@ def main(argv: list[str]) -> int:
         "Honors $DOCLING_CACHE_DIR env var. For cross-machine cache sync, point "
         "both machines at the same Dropbox/Drive dir.",
     )
+    parser.add_argument(
+        "--rights-status",
+        choices=sorted(ALLOWED_CACHE_RIGHTS_STATUS),
+        default="unknown",
+        help="Redistribution/use rights determination. Defaults to unknown; a public "
+        "URL never implies public redistribution rights.",
+    )
+    parser.add_argument(
+        "--visibility",
+        choices=sorted(ALLOWED_VISIBILITY),
+        default="public",
+        help="Access visibility of the retrieved source, independent of rights.",
+    )
+    parser.add_argument(
+        "--license",
+        dest="license_value",
+        default=None,
+        help="Optional observed license identifier or concise license note.",
+    )
     args = parser.parse_args(argv[1:])
 
     root = Path(args.cache_root).expanduser().resolve()
@@ -1102,7 +1184,7 @@ def main(argv: list[str]) -> int:
         else _default_extraction_log_path(root)
     )
     run_id = uuid.uuid4().hex[:12]
-    extract_pdfs = not args.no_extract_pdfs
+    extract_pdfs = args.extract_pdfs
     failures = 0
     strict_violations = 0
     for source_url in args.source_url:
@@ -1121,13 +1203,23 @@ def main(argv: list[str]) -> int:
                 docling_cache_dir=args.docling_cache_dir,
                 extraction_log_path=extraction_log_path,
                 run_id=run_id,
+                rights_status=args.rights_status,
+                visibility=args.visibility,
+                license_value=args.license_value,
             )
-        except (URLError, TimeoutError, OSError) as exc:
+        except (URLError, TimeoutError, OSError, ValueError) as exc:
             failures += 1
-            print(f"ERROR caching {source_url}: {exc}", file=sys.stderr)
+            print(
+                f"ERROR caching {redact_url(source_url)}: "
+                f"{redact_exception(exc, source_url)}",
+                file=sys.stderr,
+            )
             continue
         _print_yaml_entry(entry)
-        if args.strict_extraction and entry.get("extraction_status") in STRICT_FAIL_STATUSES:
+        if (
+            args.strict_extraction
+            and entry.get("extraction_status") in STRICT_FAIL_STATUSES
+        ):
             strict_violations += 1
     return 1 if (failures or strict_violations) else 0
 

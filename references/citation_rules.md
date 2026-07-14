@@ -183,7 +183,7 @@ reasons so future authors recognize the pattern:
 | `survey of what we already have` | A survey / review paper covers the same primary sources you've already cited individually. Adds breadth-of-citation but no new mechanism. | Escalate; the human decides whether to cite as a secondary corroboration or skip entirely. |
 | `borderline scope` | Real source, technically relevant, but its claim_family is closer to a sibling dossier (e.g., a security-of-RAG paper showing up during a search for evaluation methodology). | Escalate; consider whether to move to the sibling dossier or drop. |
 | `vendor marketing` | Vendor blog / press release with no methodology, no benchmarks, no reproducible artifacts. | Reject. The mention is interesting; the citation isn't load-bearing. |
-| `login-gated / paywalled` | Real source but you can't access it without authentication beyond what the toolkit's cache can handle. | Escalate; the human can decide to obtain access or find an open mirror. Set `rights_status: restricted` if cached via authenticated access. |
+| `login-gated / paywalled` | Real source but you cannot access it through the public raw-cache boundary. | Escalate to a human to find an open official mirror or commission a separately reviewed authenticated adapter. Do not add credentials, signed URLs, or a logged-in browser to the generic cache path. If an approved adapter later captures it, keep `rights_status: restricted` and the body out of exports. |
 
 These four cover ~80% of `escalate_to_manual` cases observed across the
 v2.2 dogfood arc (Phases 2-4) and the consumer:guides experimentation

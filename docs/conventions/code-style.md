@@ -50,10 +50,10 @@ paragraphs describe purpose, key behaviors, usage examples.
 Good:
 
 ```python
-"""Cache public source artifacts into the strict-live global content cache.
+"""Cache bounded raw bytes from public sources.
 
-Default path is dependency-free (urllib). v2.2.1 adds optional Playwright
-escalation for JS-rendered sites...
+The supported path uses public-only HTTP(S) and leaves document parsing opt-in.
+Browser execution is disabled until its process and network sandbox is verified.
 """
 ```
 

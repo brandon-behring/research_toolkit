@@ -24,7 +24,7 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 4. Initialize a new boundary when needed:
 
    ```bash
-   research-toolkit research run <dossier> --initialize \
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" research run <dossier> --initialize \
      --dossier-id <id> --topic "<topic>" --run-id <run-id> --date <YYYY-MM-DD>
    ```
 
@@ -38,6 +38,25 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 6. Log every query, result, acceptance, rejection, escalation, and source
    snapshot. Prefer primary and official sources; use secondary material for
    discovery or explicitly bounded context.
+   Capture public source bytes through the bounded plugin script and state
+   rights/access explicitly; never infer either from reachability:
+
+   ```bash
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" cache-source <URL> \
+     --topic <topic> --rights-status unknown --visibility public \
+     --no-extract-pdfs
+   ```
+
+   Treat every query value as potentially sensitive. Prefer a query-free
+   canonical URL and never submit a signed/authenticated URL. The retriever
+   rejects generic queries before DNS and accepts only its small allowlist of
+   public resource identifiers. Cache output records sanitized requested
+   provenance plus sanitized `final_url` whenever the effective URL changes;
+   canonical identity remains a separate review decision.
+   Do not pass `--escalate-on-failure`: browser execution is disabled pending a
+   verified process sandbox and default-deny network boundary. PDF parsing is
+   also outside the default path; omitting `--no-extract-pdfs` requires an
+   explicit, recorded source-specific risk decision.
 7. Separate source authority, independence, study design, limitations, rights,
    and currency. Preserve counterevidence.
 8. Create atomic claims and many-to-many evidence links. A real excerpt is not
@@ -46,19 +65,26 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
    quantitative, security, compliance, and synthesis claims.
 10. Build consumer bindings and deterministic derived artifacts. Never edit a
     generated artifact directly.
-11. Run `research-toolkit audit <dossier>` after each canonical stage and halt
-    on failure. Cap a failing stage at three narrow retries and leave a
-    resumable checkpoint.
+11. Run `${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit audit <dossier>` after each
+    canonical stage and halt on failure. Cap a failing stage at three narrow
+    retries and leave a resumable checkpoint.
 12. Hand off to `/research-toolkit:release`; do not publish from this skill.
 
 **HARD RULE:** Never advance, export, or claim completion while a validation or
 required semantic-review gate is red.
 
+**RETRIEVAL HARD RULE:** A JS-only or query-unsafe source is unresolved, not
+permission to run a browser or weaken the URL boundary. Review redirects that
+change source identity, authority, scope, or rights before acceptance.
+
 ## Validation
 
+The canonical `research-toolkit audit` gate must be green; invoke it through
+the isolated bundled launcher shown below.
+
 ```bash
-research-toolkit audit <dossier>
-research-toolkit impact <dossier> --claim-id <claim-id>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" audit <dossier>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" impact <dossier> --claim-id <claim-id>
 ```
 
 ## Output / handoff

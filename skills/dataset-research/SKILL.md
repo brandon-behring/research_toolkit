@@ -23,14 +23,20 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 3. Initialize the deterministic boundary:
 
    ```bash
-   research-toolkit dataset run <dossier> --initialize \
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" dataset run <dossier> --initialize \
      --dossier-id <id> --topic "<topic>" --run-id <run-id> --date <YYYY-MM-DD>
    ```
 
 4. Discover across appropriate registries and primary dataset sources. Record
    queries, versions, checksums, access conditions, licenses, and exclusions.
-   Preserve every source URL exactly; never substitute a remembered domain
-   (the historical Cornell→UCR failure is the canonical warning).
+   Never substitute a remembered domain for the verified public canonical
+   location (the historical Cornell→UCR failure is the canonical warning), but
+   never persist credentials, signed parameters, or unsanitized query values.
+   Generic queries fail before DNS; only allowlisted public identifiers are
+   retrievable. Cache output records sanitized requested and changed final
+   provenance; review identity-changing redirects before release. Browser
+   execution is disabled pending a verified process sandbox and default-deny
+   network boundary.
 5. Validate dataset cards and primary artifacts rather than copying aggregator
    claims. Record schema, units, provenance, population, collection method,
    missingness, known biases, and version history.
@@ -44,14 +50,14 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 8. Create atomic claims, evidence links, and independent reviews under the same
    contract as research dossiers. Never infer a license or usage permission
    from accessibility.
-9. Run `research-toolkit audit <dossier>` and halt on failure. Hand the reviewed
-   dossier to `/research-toolkit:release`.
+9. Run `${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit audit <dossier>` and halt on
+   failure. Hand the reviewed dossier to `/research-toolkit:release`.
 
 ## Validation
 
 ```bash
-research-toolkit audit <dossier>
-research-toolkit dataset run <dossier>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" audit <dossier>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" dataset run <dossier>
 ```
 
 ## Output / handoff

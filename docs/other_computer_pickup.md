@@ -8,8 +8,12 @@ via a separate tarball uploaded to Google Drive.
 
 - Python 3.11+
 - git with an SSH key configured for `github.com:brandon-behring`
-- Optional: Playwright (only needed for v2.2.1's JS-rendered escalation
-  path; `pip install -e ".[dev]" && playwright install chromium`)
+- Optional and explicit-risk only: pdfplumber via `pip install -e ".[pdf]"` or
+  Docling via `pip install -e ".[rich-pdf]"`. The normal environment caches PDF
+  bytes as `raw_only`; untrusted PDF parsing is not part of the default install.
+- Browser execution is disabled pending a verified process sandbox and
+  default-deny network boundary. Do not install or configure a browser runtime
+  for this plugin.
 
 ## Step 1 — Clone and validate the plugin
 

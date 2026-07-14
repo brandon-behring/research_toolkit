@@ -19,6 +19,10 @@
 #   online (arXiv v1 submission / Crossref issued / page publish date), distinct
 #   from fetched_at (when this cache copy was captured). Display-only content-age
 #   anchor; omit when unknown.
+# - visibility — access state (public | authenticated | private), independent
+#   of redistribution/use rights.
+# - license — observed license identifier or concise terms note. Do not infer
+#   a license from URL reachability.
 
 schema_version: 2
 topic: '<topic slug>'
@@ -37,8 +41,10 @@ entries:
   raw_path: blobs/sha256/<sha256>
   text_path: text/sha256/<sha256>.txt
   metadata_path: metadata/sha256/<sha256>.json
-  restricted: false
-  rights_status: private_use
+  restricted: true            # false only when rights_status + visibility are public
+  rights_status: unknown       # public | private_use | restricted | unknown | cache_only
+  visibility: public           # public | authenticated | private
+  license: unknown             # observed identifier/terms; optional, never guessed
   extraction_status: ok       # ok | partial | raw_only | failed
   published_online: 2025-01-02  # ISO YYYY-MM-DD; date the content first appeared
                                 # online (arXiv v1 / Crossref issued / page publish

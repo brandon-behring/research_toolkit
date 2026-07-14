@@ -438,44 +438,57 @@ structural anti-hallucination guarantee. Errors here are almost always
 "the manifest got written before the supporting artifacts caught up;
 rebuild bottom-up."
 
-## cache_source.py: --escalate-on-failure but Playwright not installed
+## A legacy browser flag or fetch method appears in old material
 
-**Symptom:** running `cache_source.py --escalate-on-failure <url>` against
-a JS-rendered URL raises:
-`RuntimeError: Playwright escalation requested but the 'playwright' package
-is not installed.`
+**Symptom:** a JS-only source or old runbook suggests
+`--escalate-on-failure`, or a historical manifest contains
+`fetch_method: playwright_rendered`.
 
-**Cause:** v2.2.1's Playwright escalation is gated behind the optional
-`dev` extras; the bare `pip install -e .` install doesn't pull it in.
+**Cause:** an old runbook or artifact predates retirement of the browser path.
+The current compatibility script fails closed, and the current cache-manifest
+validator rejects `playwright_rendered`; no callable browser implementation is
+shipped. Request interception alone does not contain WebSocket, WebRTC,
+WebTransport, or every other browser egress path, and hostile JavaScript
+requires a verified process sandbox.
 
-**Fix:** install Playwright + Chromium browser:
-```bash
-pip install -e ".[dev]"
-playwright install chromium
-```
+**Fix:** do not install a browser runtime and do not pass the flag. Find a
+static official source, cache bounded raw bytes, or leave the source unresolved.
+Move historical browser-rendered records and bytes into a separately labelled,
+read-only quarantine; do not keep them in a manifest that claims current
+validation. They are not approval to create a new capture. Re-enablement
+requires a verified OS process sandbox, default-deny network isolation,
+resource ceilings, and adversarial end-to-end tests.
 
-Re-run the same command. cache_source.py will lazy-import playwright when
-escalation triggers (urllib 403/429 or suspect content).
+## A source URL contains a query or redirects
 
-## cache_source.py escalated to Playwright but still got empty / garbage
+**Symptom:** a URL contains signed/authentication parameters, unfamiliar query
+keys, or redirects to a destination that would change source identity, rights,
+or authority.
 
-**Symptom:** Playwright-rendered cache has fetch_method: playwright_rendered
-but the extracted text is still empty, garbled, or login-gated.
+**Cause:** the generic retriever rejects non-allowlisted queries before DNS.
+Only a small domain-specific allowlist of public resource identifiers is
+accepted; a signed URL is not made safe by redaction.
 
-**Causes:**
-- Site requires authentication (login wall after page load)
-- Captcha / Cloudflare turnstile check
-- Geographic block (IP-based)
-- The page's JS waits for user interaction (click, scroll) before rendering content
-- The URL redirects to a different domain that's still JS-locked
+**Fix:** use a query-free canonical URL or an allowlisted public identifier;
+refuse signed/authenticated URLs. Cache output records sanitized requested
+provenance, represents every other query only as the exact
+`?redacted=REDACTED` marker, and adds sanitized `final_url` when the effective
+URL changes.
+Review a redirect that changes identity, authority, or rights before release.
 
-**Fix:** None of these are auto-fixable. Options:
-- Treat as `restricted: true` in the manifest entry; document the access
-  barrier in evidence_ledger's `rights_status: restricted`.
-- Manually paste extracted text into a local file and reference it as
-  `extraction_method: manual_override` in evidence_ledger.
-- Surface as a friction item in BURN_IN; consider v2.3 candidate to add
-  authenticated session support to Playwright invocation.
+## Retrieval can exceed the apparent 30-second timeout
+
+**Symptom:** a timed-out request blocks later retrieval attempts in the same
+process.
+
+**Cause:** one absolute deadline now covers DNS, headers, and body reads, but an
+OS resolver/header call has no portable cancellation primitive. The toolkit
+caps each watchdog class at one live worker, so a wedged call fails closed and
+can temporarily deny later reads instead of leaking unbounded threads.
+
+**Fix:** keep the source unresolved and restart in an approved default-deny
+egress environment if the OS call does not return. Do not treat a delayed or
+eventual HTTP success as proof that the source crossed the intended boundary.
 
 ## Test suite has 2 xfailed cases — is that normal?
 
@@ -531,9 +544,16 @@ ships **source-only** on PyPI (no binary wheels for darwin x86_64
 Python 3.12). pip falls back to building from source, which hits a known
 libc++ header path issue in the docling-parse C++ codebase.
 
-**Fix (already applied in pyproject.toml):** pin `docling>=2.0,<2.30`.
-The 2.29.x line works with `docling-parse 4.7.2` which has binary wheels.
-This is what `pip install -e ".[dev]"` will install by default.
+**Fix (already applied in pyproject.toml):** the opt-in `rich-pdf` extra pins
+`docling>=2.0,<2.30`. The 2.29.x line works with `docling-parse 4.7.2`, which
+has binary wheels. Install it only for equation/OCR-sensitive PDF work:
+
+```bash
+pip install -e ".[rich-pdf]"
+```
+
+The core and `dev` installs intentionally do not pull Docling or its large ML
+runtime.
 
 If you need docling-parse 5.x specifically (e.g., for a newer Docling
 feature), workarounds:
@@ -556,11 +576,11 @@ ok_text_only` with a WARN suggesting installation.
 
 | Status | What it means | Fix |
 |---|---|---|
-| `ok_text_only` | math detected, Docling unavailable | install `docling` or accept text-only extraction |
+| `ok_text_only` | math detected, Docling unavailable | install `.[rich-pdf]` or accept text-only extraction |
 | `degraded` | image-PDF or near-empty text | find a non-scanned source; or accept the degraded entry |
 | `partial` | encrypted PDF | find a non-encrypted source; password-removal isn't automated |
 | `failed` | both extractors errored | check the source URL fetched real PDF bytes (some servers return error HTML with `Content-Type: application/pdf`) |
-| `stub` | HTML page is a JS shell | re-cache with `--escalate-on-failure` to render via Playwright |
+| `stub` | HTML page is a JS shell | find a static official source or leave unresolved; browser execution is disabled |
 
 The same WARN goes to `<cache_root>/extraction_log_<hostname>.jsonl` for
 later analysis. The optional PDF-caching step of `/research-gather` reads
@@ -571,8 +591,9 @@ this log and prints an aggregated summary at end-of-run.
 **Symptom:** The first PDF cached after a fresh install hangs for
 ~30-60 seconds before completing.
 
-**Cause:** Docling (Stage 2 of the PDF cascade) downloads ~600 MB of
-models on first use. Subsequent runs hit the local cache and are fast.
+**Cause:** the opt-in Docling stage downloads ~600 MB of models on first use.
+Subsequent runs hit the local cache and are fast. The core, `dev`, and `pdf`
+installs do not incur this download.
 
 **Fix:** Pre-pull the models proactively via `python
 scripts/precache_docling_models.py`. For multi-machine workflows, point

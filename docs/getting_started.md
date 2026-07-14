@@ -25,6 +25,23 @@ claude plugin validate --strict .
 .venv/bin/pytest
 ```
 
+`.[dev]` is intentionally raw-capture-only. Add `.[pdf]` or `.[rich-pdf]` only
+after explicitly accepting the risk of parsing untrusted PDF bytes in-process.
+Browser execution is disabled pending a verified process sandbox and
+default-deny network boundary; do not install a browser runtime or use
+`--escalate-on-failure`. Installed skills use the bundled
+`bin/research-toolkit` launcher, which runs from the plugin copy with Python and
+PyYAML or falls back to an isolated `uvx` core install.
+
+For the safe capture path, use a public URL without credentials or ephemeral
+signed parameters and pass `--no-extract-pdfs`. Generic query strings are
+rejected before DNS; only explicitly allowlisted public-resource identifiers
+are retrievable. Every other persisted query becomes exactly
+`?redacted=REDACTED`; no original query key or value remains. A cache record's
+`source_url` is sanitized requested
+provenance, and `final_url` is emitted whenever the effective URL changes.
+Canonical identity is still a separate semantic decision.
+
 Use a Claude Code marketplace or development-plugin path to install the plugin.
 Do not symlink individual Markdown files into `~/.claude/skills`.
 
@@ -127,11 +144,16 @@ version controls.
 Import into a separate directory:
 
 ```bash
-python -m research_toolkit.legacy_import ./legacy ./canonical
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" import-legacy \
+  ./legacy ./canonical
 ```
 
-Rerunning the same import is a no-op. A differing target fails rather than
-overwriting it. Imported claims are `unresolved` until semantic review.
+Rerunning the same import is a no-op. The command validates a private staging
+tree before touching the target, and a differing target fails rather than
+being overwritten. Durable URL queries are represented only by
+`?redacted=REDACTED`, managed directories/files are verified as `0700`/`0600`,
+legacy derived files must be rebuilt, and imported claims remain `unresolved`
+until semantic review.
 
 ## Gate a release
 

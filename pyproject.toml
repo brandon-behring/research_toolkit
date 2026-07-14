@@ -4,11 +4,23 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "research_toolkit"
-version = "3.0.0a1"
+version = "3.0.0a2"
 description = "Portable research contracts, deterministic dossier tooling, and a Claude Code workflow plugin."
 requires-python = ">=3.11"
 dependencies = [
   "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+# Installing either runtime PDF extra is an explicit opt-in to parsing
+# untrusted PDF bytes in-process. The dev extra includes pdfplumber solely so
+# the opt-in parser's regression tests run in a clean development install;
+# production capture remains raw-only unless the operator passes the explicit
+# extraction flag.
+pdf = [
+  "pdfplumber>=0.11",
+]
+rich-pdf = [
   "pdfplumber>=0.11",
   # docling 2.30+ requires docling-parse 5.x which currently ships source-only
   # on PyPI (no wheels for darwin x86_64 py3.12); the source build fails with
@@ -16,11 +28,9 @@ dependencies = [
   # binary wheels. Re-evaluate when docling-parse 5.x ships wheels.
   "docling>=2.0,<2.30",
 ]
-
-[project.optional-dependencies]
 dev = [
   "pytest>=8.0",
-  "playwright>=1.40",
+  "pdfplumber>=0.11",
   "reportlab>=4.0",
   "pypdf>=4.0",
 ]

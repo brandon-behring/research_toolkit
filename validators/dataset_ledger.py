@@ -56,7 +56,12 @@ import yaml
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from validators._common import URL_RE, cli_main
+from validators._common import URL_RE
+from research_toolkit.retrieval_security import (
+    RetrievalSecurityError,
+    durable_value_errors,
+    validate_record_url,
+)
 from validators.v2_common import (
     is_v2_mapping,
     validate_strict_live_entry,
@@ -131,6 +136,7 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
 
     if not isinstance(data, dict) or "entries" not in data:
         return ["top-level must be a mapping with key 'entries:'"]
+    errors.extend(durable_value_errors(data, "dataset_ledger"))
 
     v2 = is_v2_mapping(data)
     if v2:
@@ -195,6 +201,11 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
         if isinstance(url, str) and url.strip():
             if not URL_PATTERN.match(url.strip()):
                 errors.append(f"{loc}.primary_url: not a valid http(s) URL: {url!r}")
+            else:
+                try:
+                    validate_record_url(url.strip(), allow_public_query=True)
+                except RetrievalSecurityError as exc:
+                    errors.append(f"{loc}.primary_url: unsafe durable URL: {exc}")
 
         schema_url = entry.get("schema_url")
         if isinstance(schema_url, str) and schema_url.strip():
@@ -202,6 +213,13 @@ def validate(path: Path, *, strict: bool = False) -> list[str]:
                 errors.append(
                     f"{loc}.schema_url: not a valid http(s) URL: {schema_url!r}"
                 )
+            else:
+                try:
+                    validate_record_url(
+                        schema_url.strip(), allow_public_query=True
+                    )
+                except RetrievalSecurityError as exc:
+                    errors.append(f"{loc}.schema_url: unsafe durable URL: {exc}")
 
         status = entry.get("status")
         if isinstance(status, str) and status not in ALLOWED_STATUS:

@@ -38,6 +38,72 @@ def test_v2_fixture_passes_all_validators() -> None:
     assert freshness.validate(FIXTURE, strict=True, today=date(2026, 5, 19)) == []
 
 
+def test_legacy_validators_reject_non_redacted_query_values(tmp_path: Path) -> None:
+    cases = (
+        ("bib_ledger.yml", bib_ledger, "entries", "primary_url"),
+        ("dataset_ledger.yml", dataset_ledger, "entries", "primary_url"),
+        ("evidence_ledger.yml", evidence_ledger, "entries", "source_url"),
+        ("gather_trace.yml", gather_trace, "fetches", "source_url"),
+    )
+    for filename, module, collection, field in cases:
+        project = tmp_path / filename.removesuffix(".yml")
+        shutil.copytree(FIXTURE, project)
+        path = project / filename
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        payload[collection][0][field] = "https://example.com/source?token=top-secret"
+        path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+        errors = module.validate(path)
+        assert any(
+            field in error and "query values must be REDACTED" in error
+            for error in errors
+        ), (filename, errors)
+
+
+def test_legacy_validators_allow_exact_public_identifier_queries(tmp_path: Path) -> None:
+    cases = (
+        ("bib_ledger.yml", bib_ledger, "entries", "primary_url"),
+        ("dataset_ledger.yml", dataset_ledger, "entries", "primary_url"),
+        ("evidence_ledger.yml", evidence_ledger, "entries", "source_url"),
+        ("gather_trace.yml", gather_trace, "fetches", "source_url"),
+    )
+    for filename, module, collection, field in cases:
+        project = tmp_path / f"public-{filename.removesuffix('.yml')}"
+        shutil.copytree(FIXTURE, project)
+        path = project / filename
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        payload[collection][0][field] = "https://www.youtube.com/watch?v=public-id"
+        path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+        errors = module.validate(path)
+        assert not any("unsafe durable URL" in error for error in errors), (
+            filename,
+            errors,
+        )
+
+
+def test_legacy_validators_scan_urls_embedded_in_free_text(tmp_path: Path) -> None:
+    cases = (
+        ("bib_ledger.yml", bib_ledger, "entries", "title"),
+        ("dataset_ledger.yml", dataset_ledger, "entries", "name"),
+        ("evidence_ledger.yml", evidence_ledger, "entries", "excerpt"),
+        ("gather_trace.yml", gather_trace, "fetches", "query"),
+    )
+    for filename, module, collection, field in cases:
+        project = tmp_path / f"embedded-{filename.removesuffix('.yml')}"
+        shutil.copytree(FIXTURE, project)
+        path = project / filename
+        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        payload[collection][0][field] = (
+            "See https://example.com/source?token=TOP-SECRET"
+        )
+        path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+        errors = module.validate(path)
+        assert any(f".{field}.embedded_url" in error for error in errors), (
+            filename,
+            errors,
+        )
+        assert all("TOP-SECRET" not in error for error in errors)
+
+
 def test_v2_bib_ledger_rejects_missing_entry_freshness_field(tmp_path: Path) -> None:
     project = tmp_path / "project"
     shutil.copytree(FIXTURE, project)
@@ -168,6 +234,21 @@ def test_claim_graph_rejects_claim_without_evidence(tmp_path: Path) -> None:
     assert any("evidence_ids" in e for e in errors), errors
 
 
+def test_claim_graph_rejects_secret_query_in_source_url(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "claim_graph.jsonl"
+    records = [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
+    ]
+    source = next(row for row in records if row["record_type"] == "source")
+    source["source_url"] = "https://example.com/source?token=TOP-SECRET"
+    _write_jsonl(path, records)
+    errors = claim_graph.validate(path)
+    assert any("source_url.embedded_url" in error for error in errors), errors
+    assert all("TOP-SECRET" not in error for error in errors)
+
+
 def test_research_kb_export_rejects_missing_payload(tmp_path: Path) -> None:
     project = tmp_path / "project"
     shutil.copytree(FIXTURE, project)
@@ -177,6 +258,107 @@ def test_research_kb_export_rejects_missing_payload(tmp_path: Path) -> None:
     path.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
     errors = research_kb_export.validate(path)
     assert any("payload" in e for e in errors), errors
+
+
+def test_research_kb_export_rejects_cache_blob_without_rights_policy(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "research_kb_export.jsonl"
+    records = [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    cache_record = next(row for row in records if row["record_type"] == "cache_blob")
+    cache_record["payload"].pop("rights_policy")
+    _write_jsonl(path, records)
+
+    errors = research_kb_export.validate(path)
+    assert any("rights_policy" in error for error in errors), errors
+
+
+def test_research_kb_export_rejects_body_exported_policy(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "research_kb_export.jsonl"
+    records = [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    cache_record = next(row for row in records if row["record_type"] == "cache_blob")
+    cache_record["payload"]["rights_policy"]["body_exported"] = True
+    _write_jsonl(path, records)
+
+    errors = research_kb_export.validate(path)
+    assert any("body_exported" in error for error in errors), errors
+
+
+def test_research_kb_export_rejects_opaque_cache_linked_source_data(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "research_kb_export.jsonl"
+    records = [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    source_record = next(row for row in records if row["record_type"] == "source")
+    source_record["payload"]["data"] = "PRIVATE CACHED BODY"
+    _write_jsonl(path, records)
+
+    errors = research_kb_export.validate(path)
+    assert any("not metadata-only" in error and "data" in error for error in errors), errors
+
+
+def test_research_kb_export_rejects_body_field_without_cache_reference(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "research_kb_export.jsonl"
+    _write_jsonl(
+        path,
+        [
+            {
+                "export_schema_version": 2,
+                "record_type": "claim",
+                "id": "export_claim_demo",
+                "source_project": "demo",
+                "exported_at": "2026-07-14",
+                "payload": {
+                    "record_type": "claim",
+                    "id": "claim_demo",
+                    "topic": "demo",
+                    "claim_type": "fact",
+                    "text": "Metadata-only claim",
+                    "status": "active",
+                    "evidence_ids": ["ev_demo"],
+                    "entity_ids": ["ent_demo"],
+                    "confidence": {"score": 0.9, "factors": ["reviewed"]},
+                    "raw_body": "PRIVATE BYTES",
+                },
+            }
+        ],
+    )
+    errors = research_kb_export.validate(path)
+    assert any("raw_body" in error and "metadata-only" in error for error in errors), errors
+
+
+def test_research_kb_export_rejects_nested_rights_policy_fields(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "research_kb_export.jsonl"
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    cache_record = next(row for row in records if row["record_type"] == "cache_blob")
+    cache_record["payload"]["rights_policy"]["data"] = "PRIVATE BYTES"
+    _write_jsonl(path, records)
+    errors = research_kb_export.validate(path)
+    assert any("rights policy" in error and "data" in error for error in errors), errors
 
 
 def test_synthesis_export_script_writes_valid_jsonl(tmp_path: Path) -> None:
@@ -225,6 +407,187 @@ def test_synthesis_export_default_output_is_in_dossier(tmp_path: Path) -> None:
     assert research_kb_export.validate(out) == []
 
 
+def test_synthesis_export_propagates_restricted_cache_policy_without_body(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    out = tmp_path / "kb_export.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "synthesis_export.py"),
+            str(project),
+            "--output",
+            str(out),
+            "--date",
+            "2026-05-19",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    payloads = [
+        json.loads(line)["payload"]
+        for line in out.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    cache_blob = next(row for row in payloads if row["record_type"] == "cache_blob")
+    assert cache_blob["rights_policy"] == {
+        "vocabulary": "strict-live-cache-v2",
+        "rights_status": "private_use",
+        "visibility": "public",
+        "restricted": True,
+        "body_exported": False,
+    }
+    assert "raw_path" not in cache_blob
+    assert "text_path" not in cache_blob
+
+
+def test_synthesis_export_metadata_only_does_not_require_private_cache_files(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    shutil.rmtree(project / "cache")
+    out = tmp_path / "kb_export.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "synthesis_export.py"),
+            str(project),
+            "--output",
+            str(out),
+            "--date",
+            "2026-05-19",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    assert research_kb_export.validate(out) == []
+
+
+def test_synthesis_export_rejects_contradictory_cache_policy(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    manifest_path = project / "cache_manifest.yml"
+    manifest = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
+    manifest["entries"][0]["restricted"] = False
+    _write_yaml(manifest_path, manifest)
+    out = tmp_path / "kb_export.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "synthesis_export.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode != 0
+    assert "restricted: must be true" in result.stderr
+    assert not out.exists()
+
+
+def test_synthesis_export_rejects_body_bearing_cache_blob(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    graph_path = project / "claim_graph.jsonl"
+    records = [
+        json.loads(line)
+        for line in graph_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    cache_blob = next(row for row in records if row["record_type"] == "cache_blob")
+    cache_blob["raw_body"] = "private cached source body"
+    _write_jsonl(graph_path, records)
+    out = tmp_path / "kb_export.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "synthesis_export.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode != 0
+    assert "not metadata-only" in result.stderr
+    assert "raw_body" in result.stderr
+
+
+def test_synthesis_export_rejects_body_field_after_cache_ids_are_removed(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    graph_path = project / "claim_graph.jsonl"
+    records = [json.loads(line) for line in graph_path.read_text().splitlines()]
+    source = next(row for row in records if row["record_type"] == "source")
+    source.pop("cache_ids")
+    source["raw_body"] = "PRIVATE BYTES"
+    _write_jsonl(graph_path, records)
+    out = tmp_path / "kb_export.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "synthesis_export.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode != 0
+    assert "raw_body" in result.stderr
+    assert not out.exists()
+    assert not out.exists()
+
+
+def test_synthesis_export_rejects_opaque_cache_linked_source_data(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    graph_path = project / "claim_graph.jsonl"
+    records = [
+        json.loads(line)
+        for line in graph_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    source_record = next(row for row in records if row["record_type"] == "source")
+    source_record["data"] = "PRIVATE CACHED BODY"
+    _write_jsonl(graph_path, records)
+    out = tmp_path / "kb_export.jsonl"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "synthesis_export.py"),
+            str(project),
+            "--output",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode != 0
+    assert "not metadata-only" in result.stderr
+    assert "data" in result.stderr
+    assert not out.exists()
+
+
 def test_build_claim_graph_smoke(tmp_path: Path) -> None:
     project = tmp_path / "project"
     shutil.copytree(FIXTURE, project)
@@ -251,6 +614,66 @@ def test_build_claim_graph_smoke(tmp_path: Path) -> None:
     ]
     record_types = {r.get("record_type") for r in records}
     assert {"entity", "source", "claim", "evidence", "cache_blob"}.issubset(record_types)
+    source_ids = [
+        record["id"] for record in records if record.get("record_type") == "source"
+    ]
+    assert source_ids == [f"src_{index:04d}" for index in range(1, len(source_ids) + 1)]
+
+
+def test_build_claim_graph_rejects_unsafe_url_before_output(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    bib_path = project / "bib_ledger.yml"
+    payload = yaml.safe_load(bib_path.read_text(encoding="utf-8"))
+    payload["entries"][0]["primary_url"] = (
+        "https://example.com/source?access_token=top-secret"
+    )
+    bib_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    output = tmp_path / "claim-graph.jsonl"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_claim_graph.py"),
+            str(project),
+            "--output",
+            str(output),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode != 0
+    assert "unsafe durable URL" in result.stderr
+    assert "top-secret" not in result.stderr
+    assert not output.exists()
+
+
+def test_build_claim_graph_allows_public_identifier_query(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    bib_path = project / "bib_ledger.yml"
+    payload = yaml.safe_load(bib_path.read_text(encoding="utf-8"))
+    payload["entries"][0]["primary_url"] = (
+        "https://www.youtube.com/watch?v=public-id"
+    )
+    bib_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    output = tmp_path / "claim-graph.jsonl"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_claim_graph.py"),
+            str(project),
+            "--output",
+            str(output),
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
+    )
+    assert result.returncode == 0, result.stderr
+    assert output.is_file()
 
 
 def test_build_dashboard_matches_fixture_byte_for_byte(tmp_path: Path) -> None:
@@ -612,6 +1035,26 @@ def test_cache_manifest_rejects_bad_enum(
     assert any(error_marker in e for e in errors), errors
 
 
+@pytest.mark.parametrize(
+    ("field", "url"),
+    [
+        ("source_url", "https://user:pass@example.com/source"),
+        ("final_url", "https://example.com/final?ticket=raw-secret"),
+    ],
+)
+def test_cache_manifest_rejects_unsafe_durable_urls(
+    tmp_path: Path, field: str, url: str
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "cache_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"][0][field] = url
+    _write_yaml(path, data)
+    errors = cache_manifest.validate(path)
+    assert any(f".{field}: unsafe durable URL" in error for error in errors), errors
+
+
 def test_cache_manifest_rejects_duplicate_cache_id(tmp_path: Path) -> None:
     project = tmp_path / "project"
     shutil.copytree(FIXTURE, project)
@@ -621,6 +1064,53 @@ def test_cache_manifest_rejects_duplicate_cache_id(tmp_path: Path) -> None:
     _write_yaml(path, data)
     errors = cache_manifest.validate(path)
     assert any("duplicate cache_id" in e for e in errors), errors
+
+
+@pytest.mark.parametrize(
+    "rights_status,visibility",
+    [
+        ("private_use", "public"),
+        ("restricted", "public"),
+        ("unknown", "public"),
+        ("cache_only", "public"),
+        ("public", "authenticated"),
+        ("public", "private"),
+        ("public", None),
+    ],
+)
+def test_cache_manifest_rejects_unrestricted_nonpublic_body_policy(
+    tmp_path: Path, rights_status: str, visibility: str | None
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "cache_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    entry = data["entries"][0]
+    entry["rights_status"] = rights_status
+    entry["restricted"] = False
+    if visibility is None:
+        entry.pop("visibility", None)
+    else:
+        entry["visibility"] = visibility
+    _write_yaml(path, data)
+
+    errors = cache_manifest.validate(path)
+    assert any("restricted: must be true" in error for error in errors), errors
+
+
+def test_cache_manifest_accepts_explicit_public_unrestricted_policy(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    shutil.copytree(FIXTURE, project)
+    path = project / "cache_manifest.yml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["entries"][0].update(
+        {"rights_status": "public", "visibility": "public", "restricted": False}
+    )
+    _write_yaml(path, data)
+
+    assert cache_manifest.validate(path) == []
 
 
 def _load_claim_graph_records() -> list[dict]:
@@ -1270,7 +1760,7 @@ def _scaffold_synthesis_project(
             "raw_path": f"blobs/sha256/{digest}",
             "text_path": f"text/sha256/{digest}.txt",
             "metadata_path": f"metadata/sha256/{digest}.json",
-            "restricted": False,
+            "restricted": True,
             "rights_status": "private_use",
             "extraction_status": "ok",
         })

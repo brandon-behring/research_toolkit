@@ -35,13 +35,13 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep
    canonical backlog contract replaces it:
 
    ```bash
-   python ${CLAUDE_PLUGIN_ROOT}/validators/topic_backlog.py <output>
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" validate-topic-backlog --strict <output>
    ```
 
 ## Validation
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/validators/topic_backlog.py <output>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" validate-topic-backlog --strict <output>
 ```
 
 ## Output / handoff

@@ -19,18 +19,37 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 2. Select due records without mutation:
 
    ```bash
-   research-toolkit freshness poll <dossier> --today <YYYY-MM-DD> --json
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" freshness poll <dossier> \
+     --today <YYYY-MM-DD> --json
    ```
 
-3. Retrieve due sources under the security and rights boundary. Record the
-   requested, canonical, and final URLs plus raw and normalized digests.
+3. Retrieve due public sources through
+   `${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit cache-source` under the security
+   and rights boundary. State `--rights-status` and `--visibility`; never infer
+   them from HTTP success. Use the default-safe form:
+
+   ```bash
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" cache-source <sanitized-public-url> \
+     --topic <topic> --rights-status unknown --visibility public \
+     --no-extract-pdfs
+   ```
+
+   Treat every query value as potentially sensitive and refuse signed or
+   authenticated URLs. Generic queries fail before DNS; only allowlisted public
+   identifiers are retrievable. The command records sanitized requested
+   provenance and sanitized `final_url` whenever the effective URL changes;
+   review any identity/authority/rights change. URL fingerprints are forbidden
+   and do not make an unsafe query suitable for export. Browser
+   execution and `--escalate-on-failure` are disabled pending a verified process
+   sandbox and default-deny network boundary. PDF parsing requires a separate,
+   explicit risk decision.
 4. Classify each result as `unchanged`, `cosmetic`, `material`, `breaking`,
    `unreachable`, or `retracted`. Do not equate HTTP success or a recent fetch
    date with semantic freshness.
 5. Run impact analysis for changed or unavailable sources:
 
    ```bash
-   research-toolkit impact <dossier> --source-id <source-id>
+   "${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" impact <dossier> --source-id <source-id>
    ```
 
    Review every affected evidence link, claim, synthesis, and consumer; source
@@ -47,11 +66,16 @@ allowed-tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 **HARD RULE:** Scheduled or unattended polling is read-only. Never publish,
 push, edit claims, or accept semantic changes automatically.
 
+**RETRIEVAL HARD RULE:** Do not turn a JS-only, query-unsafe, or
+identity-changing redirect into an apparently accepted refresh. Keep it
+unresolved and route it to human review.
+
 ## Validation
 
 ```bash
-research-toolkit audit <dossier>
-research-toolkit freshness poll <dossier> --today <YYYY-MM-DD>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" audit <dossier>
+"${CLAUDE_PLUGIN_ROOT}/bin/research-toolkit" freshness poll <dossier> \
+  --today <YYYY-MM-DD>
 ```
 
 ## Output / handoff

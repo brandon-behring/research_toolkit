@@ -14,7 +14,6 @@ import argparse
 from collections import defaultdict
 import json
 from pathlib import Path
-import re
 import sys
 from typing import Any
 
@@ -23,6 +22,10 @@ if __package__ in (None, ""):
 
 from validators import claim_graph
 from validators.v2_common import load_yaml_mapping
+from research_toolkit.retrieval_security import (
+    RetrievalSecurityError,
+    validate_record_url,
+)
 
 
 SOURCE_QUALITY_SCORE = {
@@ -31,10 +34,6 @@ SOURCE_QUALITY_SCORE = {
     "secondary": 0.60,
     "user_note": 0.50,
 }
-
-
-def _slug(text: str) -> str:
-    return re.sub(r"[^a-z0-9_]+", "_", text.lower()).strip("_") or "item"
 
 
 def _entity_type_for_bib(entry: dict[str, Any]) -> str:
@@ -79,6 +78,47 @@ def _load_optional(path: Path) -> dict[str, Any]:
     if errors:
         raise SystemExit(f"{path.name}: {'; '.join(errors)}")
     return data or {}
+
+
+def _validate_durable_urls(value: Any, *, loc: str) -> None:
+    """Reject unsafe URL fields before any graph record is constructed."""
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_loc = f"{loc}.{key}"
+            normalized = str(key).lower().replace("-", "_")
+            if normalized.endswith("_url") and isinstance(child, str):
+                try:
+                    validate_record_url(child.strip(), allow_public_query=True)
+                except RetrievalSecurityError as exc:
+                    raise SystemExit(f"{child_loc}: unsafe durable URL: {exc}") from exc
+            elif normalized.endswith("_urls") and isinstance(child, list):
+                for index, url in enumerate(child):
+                    if not isinstance(url, str):
+                        continue
+                    try:
+                        validate_record_url(url.strip(), allow_public_query=True)
+                    except RetrievalSecurityError as exc:
+                        raise SystemExit(
+                            f"{child_loc}[{index}]: unsafe durable URL: {exc}"
+                        ) from exc
+            elif normalized == "attribution_map" and isinstance(child, dict):
+                for claim_key, urls in child.items():
+                    if not isinstance(urls, list):
+                        continue
+                    for index, url in enumerate(urls):
+                        if not isinstance(url, str):
+                            continue
+                        try:
+                            validate_record_url(url.strip(), allow_public_query=True)
+                        except RetrievalSecurityError as exc:
+                            raise SystemExit(
+                                f"{child_loc}.{claim_key}[{index}]: "
+                                f"unsafe durable URL: {exc}"
+                            ) from exc
+            _validate_durable_urls(child, loc=child_loc)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _validate_durable_urls(child, loc=f"{loc}[{index}]")
 
 
 def _load_synthesis_entries(project_dir: Path) -> dict[str, dict[str, Any]]:
@@ -291,6 +331,15 @@ def build(project_dir: Path) -> list[dict[str, Any]]:
     # through to the existing tiebreak behavior.
     synthesis_entries = _load_synthesis_entries(project_dir)
     pre_selections = _load_pre_selection(project_dir)
+    for filename, value in (
+        ("bib_ledger.yml", bib_entries),
+        ("dataset_ledger.yml", dataset_entries),
+        ("evidence_ledger.yml", evidence_entries),
+        ("cache_manifest.yml", cache_entries),
+        ("synthesis_entry.yml", list(synthesis_entries.values())),
+        ("pre_selection_manifest.yml", list(pre_selections.values())),
+    ):
+        _validate_durable_urls(value, loc=filename)
     all_warnings: list[str] = []
 
     records: list[dict[str, Any]] = []
@@ -351,13 +400,15 @@ def build(project_dir: Path) -> list[dict[str, Any]]:
         for cid in entry.get("cache_ids") or []:
             if isinstance(cid, str):
                 sources_by_url[url].add(cid)
-    for url in sorted(sources_by_url.keys()):
-        cache_ids = sorted(sources_by_url[url])
-        if not cache_ids:
-            continue
+    source_rows = [
+        (url, sorted(cache_ids))
+        for url, cache_ids in sorted(sources_by_url.items())
+        if cache_ids
+    ]
+    for ordinal, (url, cache_ids) in enumerate(source_rows, 1):
         records.append({
             "record_type": "source",
-            "id": f"src_{_slug(url)}",
+            "id": f"src_{ordinal:04d}",
             "topic": topic,
             "source_url": url,
             "cache_ids": cache_ids,

@@ -39,7 +39,12 @@ import yaml
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from validators._common import URL_RE, cli_main
+from validators._common import cli_main
+from research_toolkit.retrieval_security import (
+    RetrievalSecurityError,
+    durable_value_errors,
+    validate_record_url,
+)
 
 ALLOWED_VOLATILITY = {"stable", "evolving", "fast-moving"}
 ALLOWED_STATUS = {"unverified", "verified", "mismatched"}
@@ -52,7 +57,6 @@ REQUIRED_FIELDS = (
     "tier_summary",
     "status",
 )
-URL_PATTERN = re.compile(rf"^{URL_RE}$")
 TIER_SUMMARY_PATTERN = re.compile(r"^T\d+:\s*\d+(\s*,\s*T\d+:\s*\d+)*$")
 TIER_ENTRY_PATTERN = re.compile(r"T(\d+):\s*(\d+)")
 
@@ -83,6 +87,7 @@ def validate(path: Path) -> list[str]:
 
     if not isinstance(data, dict) or "entries" not in data:
         return ["top-level must be a mapping with key 'entries:'"]
+    errors.extend(durable_value_errors(data, "synthesis_entry"))
 
     entries = data["entries"]
     if not isinstance(entries, list) or not entries:
@@ -121,9 +126,16 @@ def validate(path: Path) -> list[str]:
             )
         else:
             for i, url in enumerate(urls):
-                if not isinstance(url, str) or not URL_PATTERN.match(url.strip()):
+                if not isinstance(url, str):
                     errors.append(
-                        f"{loc}.source_urls[{i}]: not a valid http(s) URL: {url!r}"
+                        f"{loc}.source_urls[{i}]: must be a string URL"
+                    )
+                    continue
+                try:
+                    validate_record_url(url.strip(), allow_public_query=True)
+                except RetrievalSecurityError as exc:
+                    errors.append(
+                        f"{loc}.source_urls[{i}]: not a valid/safe http(s) URL: {exc}"
                     )
 
         # title: non-empty string

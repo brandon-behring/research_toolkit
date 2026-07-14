@@ -379,7 +379,8 @@ def test_e2e_builder_pipeline_builds_trustworthy_dossier(tmp_path: Path) -> None
     assert export_path.exists()
     assert research_kb_export.validate(export_path) == []
 
-    # Every export record wraps a claim_graph record verbatim (lossless v2 envelope).
+    # Every export record preserves claim-graph metadata. Cache records add the
+    # explicit no-body rights policy required by the v2 envelope boundary.
     cg_records = [
         json.loads(line) for line in cg_path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
@@ -390,7 +391,19 @@ def test_e2e_builder_pipeline_builds_trustworthy_dossier(tmp_path: Path) -> None
     for rec in export_records:
         assert rec["export_schema_version"] == 2
         assert rec["source_project"] == "project"
-        assert rec["payload"] in cg_records  # verbatim payload
+        payload = dict(rec["payload"])
+        policy = payload.pop("rights_policy", None)
+        assert payload in cg_records
+        if payload["record_type"] == "cache_blob":
+            assert policy == {
+                "vocabulary": "strict-live-cache-v2",
+                "rights_status": "unknown",
+                "visibility": "unknown",
+                "restricted": True,
+                "body_exported": False,
+            }
+        else:
+            assert policy is None
 
     # --- Whole-chain integrity assertions ---
     _assert_integrity(project, cache_root)

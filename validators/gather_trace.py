@@ -17,6 +17,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from validators._common import URL_RE
+from research_toolkit.retrieval_security import (
+    RetrievalSecurityError,
+    durable_value_errors,
+    validate_record_url,
+)
 from validators.v2_common import (
     load_yaml_mapping,
     parse_iso_date,
@@ -93,8 +98,14 @@ def _validate_fetch(
                 errors.append(err)
 
     source_url = fetch.get("source_url")
-    if isinstance(source_url, str) and not URL_PATTERN.match(source_url):
-        errors.append(f"{loc}.source_url: not a valid http(s) URL: {source_url!r}")
+    if isinstance(source_url, str):
+        if not URL_PATTERN.match(source_url):
+            errors.append(f"{loc}.source_url: not a valid http(s) URL: {source_url!r}")
+        else:
+            try:
+                validate_record_url(source_url, allow_public_query=True)
+            except RetrievalSecurityError as exc:
+                errors.append(f"{loc}.source_url: unsafe durable URL: {exc}")
 
     if "fetched_at" in fetch:
         _, err = parse_iso_date(fetch["fetched_at"], f"{loc}.fetched_at")
@@ -160,6 +171,7 @@ def validate(path: Path) -> list[str]:
         return errors
     assert data is not None
 
+    errors.extend(durable_value_errors(data, "gather_trace"))
     errors.extend(validate_strict_live_top(data))
 
     fetches = data.get("fetches")

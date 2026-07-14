@@ -28,7 +28,7 @@ discover → intake → capture → normalize → evidence/claims
 |---|---|---|
 | discover | scope, queries, coverage, source candidates | run/query records validate |
 | intake | authority, independence, rights, relevance | `SourceRecord` validates |
-| capture | source retrieval and escalation choice | bytes, paths, and hashes validate |
+| capture | bounded raw retrieval and explicit parser-risk choice | bytes, paths, and hashes validate |
 | normalize | extraction-quality judgment | normalized digest validates |
 | evidence/claims | atomic propositions and support selection | IDs and references validate |
 | independent audit | entailment, currency, methods, bias | `ClaimReviewRecord` validates |

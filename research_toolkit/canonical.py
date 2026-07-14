@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -14,6 +15,11 @@ import yaml
 
 from research_toolkit import PLUGIN_VERSION, __version__
 from research_toolkit.contracts import SCHEMA_VERSION, validate_record
+from research_toolkit.retrieval_security import (
+    RetrievalSecurityError,
+    durable_value_errors,
+    validate_record_url,
+)
 
 JSONL_CONTRACTS = {
     "sources.jsonl": "source-record",
@@ -30,6 +36,30 @@ RELEASE_FILES = (
     "derived/synthesis-export.jsonl",
     "release.json",
 )
+
+_SYNTHESIS_BODY_FIELDS = {
+    "blob",
+    "body",
+    "body_text",
+    "bytes_base64",
+    "content",
+    "data",
+    "document",
+    "excerpt",
+    "html",
+    "markdown",
+    "quote",
+    "raw",
+    "raw_body",
+    "raw_bytes",
+    "raw_content",
+    "raw_path",
+    "text_path",
+}
+
+def _url_fingerprint_errors(value: Any, loc: str) -> list[str]:
+    """Retain the internal name while enforcing the full durable-value scan."""
+    return durable_value_errors(value, loc)
 
 
 def sha256_file(path: Path) -> str:
@@ -102,6 +132,105 @@ def _load_contract_file(root: Path, filename: str) -> tuple[list[dict[str, Any]]
     return records, errors
 
 
+def _validate_durable_url(
+    value: Any,
+    loc: str,
+    *,
+    allow_public_query: bool = False,
+    allow_legacy_urn: bool = False,
+) -> list[str]:
+    if not isinstance(value, str):
+        return []
+    try:
+        validate_record_url(
+            value,
+            allow_public_query=allow_public_query,
+            allow_legacy_urn=allow_legacy_urn,
+        )
+    except RetrievalSecurityError as exc:
+        return [f"{loc}: unsafe durable URL: {exc}"]
+    return []
+
+
+def _normalized_field_name(value: Any) -> str:
+    """Normalize snake, kebab, and camel/Pascal field names consistently."""
+    text = str(value)
+    text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", text)
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", text)
+    return re.sub(r"[^A-Za-z0-9]+", "_", text).strip("_").lower()
+
+
+def _synthesis_body_errors(value: Any, loc: str) -> list[str]:
+    """Reject cached-body material from the metadata-only synthesis export."""
+    errors: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_loc = f"{loc}.{key}"
+            normalized = _normalized_field_name(key)
+            if (
+                normalized in _SYNTHESIS_BODY_FIELDS
+                or normalized.endswith("_body")
+                or normalized.endswith("_base64")
+            ):
+                errors.append(
+                    f"{child_loc}: metadata-only synthesis export contains "
+                    "a cached-body field"
+                )
+            else:
+                errors.extend(_synthesis_body_errors(child, child_loc))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            errors.extend(_synthesis_body_errors(child, f"{loc}[{index}]"))
+    return errors
+
+
+def _validate_release_artifact_content(path: Path, relative: str) -> list[str]:
+    """Parse and inspect every text release artifact, not just its digest."""
+    errors: list[str] = []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return [f"release artifact {relative}: must be UTF-8 text"]
+
+    values: list[Any] = []
+    try:
+        if path.suffix == ".jsonl":
+            for number, line in enumerate(text.splitlines(), 1):
+                if not line.strip():
+                    continue
+                try:
+                    values.append(json.loads(line))
+                except json.JSONDecodeError as exc:
+                    errors.append(
+                        f"release artifact {relative}:{number}: invalid JSON: "
+                        f"{exc.msg}"
+                    )
+        elif path.suffix == ".json":
+            values.append(json.loads(text))
+        elif path.suffix in {".yaml", ".yml"}:
+            values.append(yaml.safe_load(text))
+        else:
+            values.append(text)
+    except (json.JSONDecodeError, yaml.YAMLError) as exc:
+        errors.append(f"release artifact {relative}: cannot parse: {exc}")
+
+    for index, value in enumerate(values):
+        loc = f"release artifact {relative}[{index}]"
+        errors.extend(durable_value_errors(value, loc))
+        if relative == "derived/synthesis-export.jsonl":
+            errors.extend(_synthesis_body_errors(value, loc))
+    if relative == "derived/synthesis-export.jsonl":
+        # Release validation must enforce the same closed envelope and
+        # per-record metadata allowlists as the standalone export gate.
+        from validators import research_kb_export
+
+        errors.extend(
+            f"release artifact {relative}: {error}"
+            for error in research_kb_export.validate(path)
+        )
+    return errors
+
+
 def _validate_release_artifacts(root: Path, release: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     for index, artifact in enumerate(release.get("artifacts", [])):
@@ -122,6 +251,7 @@ def _validate_release_artifacts(root: Path, release: dict[str, Any]) -> list[str
         expected = artifact.get("sha256")
         if isinstance(expected, str) and sha256_file(path) != expected:
             errors.append(f"release.json.artifacts[{index}].sha256: digest mismatch for {relative}")
+        errors.extend(_validate_release_artifact_content(path, relative))
     return errors
 
 
@@ -133,18 +263,44 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
     manifest, manifest_errors = _load_object(root / "dossier.yaml")
     errors.extend(manifest_errors)
     if manifest:
+        errors.extend(_url_fingerprint_errors(manifest, "dossier.yaml"))
         errors.extend(validate_record(manifest, "dossier-manifest"))
 
     loaded: dict[str, list[dict[str, Any]]] = {}
     for filename in JSONL_CONTRACTS:
         loaded[filename], file_errors = _load_contract_file(root, filename)
         errors.extend(file_errors)
+        for index, record in enumerate(loaded[filename]):
+            errors.extend(
+                _url_fingerprint_errors(record, f"{filename}[{index}]")
+            )
 
     sources = loaded["sources.jsonl"]
     evidence = loaded["evidence.jsonl"]
     claims = loaded["claims.jsonl"]
     reviews = loaded["reviews.jsonl"]
     watches = loaded["watch.jsonl"]
+
+    for index, item in enumerate(sources):
+        for field in ("requested_url", "canonical_url", "final_url"):
+            if field in item:
+                errors.extend(
+                    _validate_durable_url(
+                        item.get(field),
+                        f"sources.jsonl[{index}].{field}",
+                        allow_public_query=True,
+                        allow_legacy_urn=True,
+                    )
+                )
+    for index, item in enumerate(watches):
+        errors.extend(
+            _validate_durable_url(
+                item.get("canonical_url"),
+                f"watch.jsonl[{index}].canonical_url",
+                allow_public_query=True,
+                allow_legacy_urn=True,
+            )
+        )
 
     for records, key, label in (
         (sources, "source_id", "sources"),
@@ -208,6 +364,9 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
         errors.extend(f"{manifest_path.relative_to(root)}: {error}" for error in run_errors)
         if run:
             errors.extend(
+                _url_fingerprint_errors(run, str(manifest_path.relative_to(root)))
+            )
+            errors.extend(
                 f"{manifest_path.relative_to(root)}: {error}"
                 for error in validate_record(run, "research-run-manifest")
             )
@@ -219,6 +378,12 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
             for error in decision_errors
         )
         for index, decision in enumerate(decisions):
+            errors.extend(
+                _url_fingerprint_errors(
+                    decision,
+                    f"{run_dir.relative_to(root)}/search-decisions.jsonl[{index}]",
+                )
+            )
             required = {"decision_id", "query", "source_url", "decision", "reason", "decided_at"}
             missing = sorted(required - set(decision))
             if missing:
@@ -226,6 +391,14 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
                     f"{run_dir.relative_to(root)}/search-decisions.jsonl[{index}]: "
                     f"missing fields {missing}"
                 )
+            errors.extend(
+                _validate_durable_url(
+                    decision.get("source_url"),
+                    f"{run_dir.relative_to(root)}/search-decisions.jsonl[{index}].source_url",
+                    allow_public_query=True,
+                    allow_legacy_urn=True,
+                )
+            )
 
         events, event_errors = read_jsonl(run_dir / "refresh-events.jsonl")
         errors.extend(
@@ -233,6 +406,12 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
             for error in event_errors
         )
         for index, event in enumerate(events):
+            errors.extend(
+                _url_fingerprint_errors(
+                    event,
+                    f"{run_dir.relative_to(root)}/refresh-events.jsonl[{index}]",
+                )
+            )
             errors.extend(
                 f"{run_dir.relative_to(root)}/refresh-events.jsonl[{index}]: {error}"
                 for error in validate_record(event, "refresh-event")
@@ -259,6 +438,11 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
         binding_ids = {binding.get("binding_id") for binding in bindings}
         for index, binding in enumerate(bindings):
             errors.extend(
+                _url_fingerprint_errors(
+                    binding, f"derived/consumer-bindings.jsonl[{index}]"
+                )
+            )
+            errors.extend(
                 f"derived/consumer-bindings.jsonl[{index}]: {error}"
                 for error in validate_record(binding, "consumer-binding")
             )
@@ -283,6 +467,7 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
         lock, lock_errors = _load_object(lock_path)
         errors.extend(lock_errors)
         if lock:
+            errors.extend(_url_fingerprint_errors(lock, "research-lock.json"))
             errors.extend(validate_record(lock, "research-lock"))
 
     if require_release:
@@ -306,9 +491,24 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
             if item.get("status") == "unresolved":
                 errors.append(f"claims: unresolved claim blocks release: {item.get('claim_id')!r}")
         for item in sources:
-            if item.get("rights_status") == "unknown":
+            rights_status = item.get("rights_status")
+            visibility = item.get("visibility")
+            if rights_status != "public":
                 errors.append(
-                    f"sources: unknown rights status blocks release: {item.get('source_id')!r}"
+                    "sources: non-public rights status blocks release: "
+                    f"{item.get('source_id')!r} ({rights_status!r})"
+                )
+            if visibility != "public":
+                errors.append(
+                    "sources: non-public visibility blocks release: "
+                    f"{item.get('source_id')!r} ({visibility!r})"
+                )
+        for item in evidence:
+            rights_status = item.get("rights_status")
+            if rights_status != "public":
+                errors.append(
+                    "evidence: non-public excerpt rights block release: "
+                    f"{item.get('evidence_id')!r} ({rights_status!r})"
                 )
         for item in bindings:
             if item.get("status") != "active":
@@ -321,6 +521,7 @@ def validate_dossier(root: Path, *, require_release: bool = False) -> list[str]:
         release, release_errors = _load_object(release_path)
         errors.extend(release_errors)
         if release:
+            errors.extend(_url_fingerprint_errors(release, "release.json"))
             errors.extend(validate_record(release, "research-release-manifest"))
             errors.extend(_validate_release_artifacts(root, release))
             failed_validators = [

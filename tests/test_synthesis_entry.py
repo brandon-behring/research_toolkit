@@ -117,6 +117,23 @@ entries:
     assert any("source_urls[0]" in e and "not a valid" in e for e in errors), errors
 
 
+def test_rejects_secret_query_in_source_or_nested_attribution_url(
+    tmp_path: Path,
+) -> None:
+    body = VALID_MINIMAL.replace(
+        "https://www.anthropic.com/engineering/multi-agent-research-system",
+        "https://example.com/source?token=TOP-SECRET",
+    ) + (
+        "  attribution_map:\n"
+        "    'Claim':\n"
+        "    - https://example.org/source?signature=TOP-SECRET\n"
+    )
+    errors = synthesis_entry.validate(_write(tmp_path, body))
+    assert any("source_urls[0]" in error for error in errors), errors
+    assert any("attribution_map" in error for error in errors), errors
+    assert all("TOP-SECRET" not in error for error in errors)
+
+
 def test_rejects_invalid_volatility(tmp_path: Path) -> None:
     body = VALID_MINIMAL.replace("volatility: evolving", "volatility: super-volatile")
     p = _write(tmp_path, body)
