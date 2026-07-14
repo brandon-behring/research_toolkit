@@ -1,4 +1,4 @@
-.PHONY: install symlinks test e2e smoke dataset-smoke backlog-smoke v2-smoke builders-smoke audit audit-strict burn-in metrics lint clean help
+.PHONY: install test plugin-check contracts e2e smoke dataset-smoke backlog-smoke v2-smoke builders-smoke audit audit-strict burn-in metrics lint clean help
 
 PYTHON ?= python3
 VENV   ?= .venv
@@ -7,13 +7,12 @@ PY     := $(VENV)/bin/python
 # Real-world projects under ~/Claude/research_<topic>/ that exist on this machine.
 # `make audit` runs cross_stage --strict against any that exist.
 REAL_TOPICS := eval_methodology peft calibration rlhf
-SKILLS := research-plan research-gather dossier-build agent-index dossier-audit url-freshness-check dataset-gather dataset-index dataset-research freshness-audit research-kb-export citation-audit topic-discovery
-
 help:
 	@echo "Targets:"
 	@echo "  install         create .venv and install package + dev deps"
-	@echo "  symlinks        symlink all skill bodies into ~/.claude/skills/"
 	@echo "  test            run pytest against tests/"
+	@echo "  plugin-check    validate the Claude plugin manifest + skill contract"
+	@echo "  contracts       validate the bundled v1 JSON Schema set"
 	@echo "  e2e             run the full builder-pipeline end-to-end integration test"
 	@echo "  smoke           run a single validator against the mini fixture"
 	@echo "  dataset-smoke   run dataset_ledger validator against the dataset smoke fixture (v1.6)"
@@ -32,15 +31,15 @@ install:
 	$(VENV)/bin/pip install --upgrade pip
 	$(VENV)/bin/pip install -e ".[dev]"
 
-symlinks:
-	@mkdir -p $$HOME/.claude/skills
-	@for skill in $(SKILLS); do \
-		ln -sf $$PWD/.claude/skills/$$skill.md $$HOME/.claude/skills/$$skill.md; \
-		echo "linked $$skill"; \
-	done
-
 test:
 	$(PY) -m pytest
+
+plugin-check:
+	claude plugin validate --strict .
+	$(PY) -m pytest tests/test_plugin_contract.py
+
+contracts:
+	$(PY) -c 'from research_toolkit.contracts import validate_schema_bundle; errors = validate_schema_bundle(); assert not errors, "\n".join(errors)'
 
 e2e:
 	$(PY) -m pytest tests/test_e2e_build.py -v

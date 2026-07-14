@@ -21,7 +21,7 @@ import pytest
 from validators import cross_stage, dataset_ledger
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SKILLS = REPO_ROOT / ".claude" / "skills"
+SKILLS = REPO_ROOT / "skills"
 TEMPLATES = REPO_ROOT / "templates"
 REFERENCES = REPO_ROOT / "references"
 VALIDATORS_DIR = REPO_ROOT / "validators"
@@ -250,36 +250,27 @@ def test_dataset_ledger_cli_strict_flag(tmp_path: Path) -> None:
 # ---------- Skill-body lint tests ----------
 
 
-def test_dataset_gather_skill_references_dataset_sources() -> None:
-    text = (SKILLS / "dataset-gather.md").read_text(encoding="utf-8")
+def test_dataset_research_skill_references_dataset_sources() -> None:
+    text = (SKILLS / "dataset-research" / "SKILL.md").read_text(encoding="utf-8")
     assert "dataset_sources.md" in text, (
-        "/dataset-gather must reference references/dataset_sources.md"
-    )
-    assert "dataset_ledger.template.yml" in text, (
-        "/dataset-gather must reference templates/dataset_ledger.template.yml"
+        "/research-toolkit:dataset-research must reference dataset_sources.md"
     )
 
 
-def test_dataset_index_skill_references_cross_stage() -> None:
-    """v1.5.1 convention: post-stage validators must include cross_stage."""
-    text = (SKILLS / "dataset-index.md").read_text(encoding="utf-8")
-    assert "cross_stage" in text, (
-        "/dataset-index must reference cross_stage validator (v1.5.1 convention)"
-    )
+def test_dataset_research_skill_references_canonical_audit() -> None:
+    text = (SKILLS / "dataset-research" / "SKILL.md").read_text(encoding="utf-8")
+    assert "research-toolkit audit" in text
 
 
-def test_dataset_research_wrapper_mentions_both_substages() -> None:
-    """The one-shot wrapper must reference both /dataset-gather and /dataset-index."""
-    text = (SKILLS / "dataset-research.md").read_text(encoding="utf-8")
-    assert "/dataset-gather" in text and "/dataset-index" in text, (
-        "/dataset-research wrapper must mention both sub-stages it orchestrates"
-    )
+def test_dataset_research_skill_uses_decision_protocol() -> None:
+    text = (SKILLS / "dataset-research" / "SKILL.md").read_text(encoding="utf-8")
+    assert "decision_protocol.md" in text
 
 
-def test_all_three_dataset_skills_exist() -> None:
-    for skill in ("dataset-gather", "dataset-index", "dataset-research"):
-        path = SKILLS / f"{skill}.md"
-        assert path.exists(), f"missing {path}"
+def test_clean_break_has_one_dataset_workflow_skill() -> None:
+    assert (SKILLS / "dataset-research" / "SKILL.md").is_file()
+    assert not (SKILLS / "dataset-gather").exists()
+    assert not (SKILLS / "dataset-index").exists()
 
 
 # ---------- Integration: smoke fixture validates ----------
@@ -297,7 +288,7 @@ def test_smoke_fixture_passes_dataset_validator() -> None:
 # ---------- v1.7: anti-domain-substitution rule lint ----------
 
 
-def test_dataset_index_skill_has_anti_domain_substitution_rule() -> None:
+def test_dataset_research_skill_has_anti_domain_substitution_rule() -> None:
     """v1.7 BURN_IN finding from v1.6 dogfood: Stage 4 substituted Cornell
     for UCR (Eamonn Keogh's actual affiliation). v1.7 codified the rule:
     Source URL is byte-for-byte from the ledger; never auto-correct domains.
@@ -305,11 +296,8 @@ def test_dataset_index_skill_has_anti_domain_substitution_rule() -> None:
     This lint test asserts the rule is present in the /dataset-index skill
     body so a future skill-body refactor doesn't accidentally drop it.
     """
-    text = (SKILLS / "dataset-index.md").read_text(encoding="utf-8")
-    assert "NO domain substitution" in text or "no domain auto-correct" in text.lower(), (
-        "/dataset-index skill body must codify the v1.7 'no domain substitution from "
-        "memory' rule. See tests/test_v1_6_dataset_skills.py docstring for context."
-    )
+    text = (SKILLS / "dataset-research" / "SKILL.md").read_text(encoding="utf-8")
+    assert "never substitute a remembered domain" in text.lower()
     # Also verify the Cornell→UCR example is preserved as the canonical worked failure.
     assert "cornell" in text.lower() and "ucr" in text.lower(), (
         "Skill body should reference the Cornell→UCR example so a cold-reading "
@@ -320,12 +308,12 @@ def test_dataset_index_skill_has_anti_domain_substitution_rule() -> None:
 # ---------- v1.9 Item 1: compound-license rule ----------
 
 
-def test_dataset_gather_skill_has_compound_license_rule() -> None:
+def test_dataset_research_skill_has_compound_license_rule() -> None:
     """v1.9: /dataset-gather must codify the compound-license check (read prose
     for restrictive caveats beyond YAML license field). Codified after the
     Nectar v1.8 audit finding (apache-2.0 in YAML + non-commercial in prose).
     """
-    text = (SKILLS / "dataset-gather.md").read_text(encoding="utf-8")
+    text = (SKILLS / "dataset-research" / "SKILL.md").read_text(encoding="utf-8")
     assert "compound-license" in text.lower(), (
         "/dataset-gather must reference 'compound-license' rule"
     )

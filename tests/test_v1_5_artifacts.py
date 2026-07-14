@@ -15,7 +15,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -47,12 +46,12 @@ def test_getting_started_mentions_all_6_skills() -> None:
     """Sanity: walkthrough should reference each skill at least once."""
     text = (DOCS / "getting_started.md").read_text(encoding="utf-8")
     for skill in (
-        "/research-plan",
-        "/research-gather",
-        "/dossier-build",
-        "/agent-index",
-        "/dossier-audit",
-        "/url-freshness-check",
+        "/research-toolkit:research",
+        "/research-toolkit:audit",
+        "/research-toolkit:freshness",
+        "/research-toolkit:topic-discovery",
+        "/research-toolkit:dataset-research",
+        "/research-toolkit:release",
     ):
         assert skill in text, f"getting_started.md missing {skill}"
 

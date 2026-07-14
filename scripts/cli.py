@@ -9,6 +9,7 @@ other verbs.
 Usage::
 
     research-toolkit --help              # list subcommands
+    research-toolkit research run --help # canonical workflow boundary
     research-toolkit <subcommand> --help # delegate to the script's own parser
     research-toolkit assemble sources.json proj/
 
@@ -64,12 +65,51 @@ _SUMMARIES: dict[str, str] = {
     "compose-kg": "Merge per-project claim graphs into a cross-project KG snapshot.",
 }
 
+# Clean-break workflow surfaces. These commands validate and operate on the v1
+# canonical contract. The flat registry above remains available because it is
+# the deterministic implementation behind existing dossiers; it is not a
+# legacy Claude slash-command compatibility layer.
+_WORKFLOW_REGISTRY: dict[tuple[str, ...], tuple[str, str]] = {
+    ("research", "run"): ("research_toolkit.commands", "research_run_main"),
+    ("audit",): ("research_toolkit.commands", "audit_main"),
+    ("freshness", "poll"): ("research_toolkit.commands", "freshness_poll_main"),
+    ("impact",): ("research_toolkit.commands", "impact_main"),
+    ("release", "check"): ("research_toolkit.commands", "release_check_main"),
+    ("corpus", "check"): ("research_toolkit.commands", "corpus_check_main"),
+    ("dataset", "run"): ("research_toolkit.commands", "dataset_run_main"),
+}
+
+_WORKFLOW_SUMMARIES: dict[tuple[str, ...], str] = {
+    ("research", "run"): "Initialize or preflight a canonical research run.",
+    ("audit",): "Validate canonical records and cross-record references.",
+    ("freshness", "poll"): "List due source watches without mutating a dossier.",
+    ("impact",): "Trace a source or claim to downstream consumers.",
+    ("release", "check"): "Gate a release on contracts, artifacts, and hashes.",
+    ("corpus", "check"): "Validate every canonical dossier below a root.",
+    ("dataset", "run"): "Initialize or preflight a canonical dataset run.",
+}
+
 
 def _resolve(name: str) -> Callable[[list[str]], int]:
     """Import the target module and return its dispatch callable."""
     module_path, attr, _ = _REGISTRY[name]
     module = importlib.import_module(module_path)
     return getattr(module, attr)
+
+
+def _resolve_workflow(command: tuple[str, ...]) -> Callable[[list[str]], int]:
+    """Import a canonical workflow command lazily."""
+    module_path, attr = _WORKFLOW_REGISTRY[command]
+    module = importlib.import_module(module_path)
+    return getattr(module, attr)
+
+
+def _match_workflow(argv: list[str]) -> tuple[tuple[str, ...], list[str]] | None:
+    """Return the longest workflow prefix and its remaining argv."""
+    for command in sorted(_WORKFLOW_REGISTRY, key=len, reverse=True):
+        if tuple(argv[: len(command)]) == command:
+            return command, argv[len(command) :]
+    return None
 
 
 # Subcommands whose target does NOT use argparse (no built-in ``--help``).
@@ -109,6 +149,13 @@ def _print_top_help(stream: object) -> None:
     print("", file=stream)
     print("Unified entry point for the research_toolkit pipeline.", file=stream)
     print("", file=stream)
+    print("canonical workflows:", file=stream)
+    workflow_width = max(len(" ".join(name)) for name in _WORKFLOW_REGISTRY)
+    for name in _WORKFLOW_REGISTRY:
+        label = " ".join(name)
+        print(f"  {label:<{workflow_width}}  {_WORKFLOW_SUMMARIES[name]}", file=stream)
+    print("", file=stream)
+    print("deterministic compatibility commands:", file=stream)
     print("subcommands:", file=stream)
     width = max(len(name) for name in _REGISTRY)
     for name in _REGISTRY:
@@ -127,6 +174,18 @@ def main(argv: list[str]) -> int:
             return _dispatch(argv[1], ["--help"])
         _print_top_help(sys.stdout)
         return 0
+
+    workflow = _match_workflow(argv)
+    if workflow is not None:
+        command, rest = workflow
+        func = _resolve_workflow(command)
+        try:
+            return func(rest)
+        except SystemExit as exc:
+            code = exc.code
+            if code is None:
+                return 0
+            return code if isinstance(code, int) else 1
 
     sub = argv[0]
     if sub not in _REGISTRY:

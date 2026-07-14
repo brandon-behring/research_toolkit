@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://research-toolkit.local/schemas/v1/consumer-binding.schema.json",
+  "title": "ConsumerBinding v1",
+  "type": "object",
+  "required": ["schema_version", "binding_id", "dossier_id", "claim_id", "consumer_repo", "consumer_path", "anchor", "content_sha256", "release_role", "last_verified_at", "status"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0.0"},
+    "binding_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "dossier_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "claim_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "consumer_repo": {"type": "string", "minLength": 1},
+    "consumer_path": {"type": "string", "minLength": 1},
+    "anchor": {"type": "string", "minLength": 1},
+    "content_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "release_role": {"type": "string", "enum": ["reader-facing", "internal", "index"]},
+    "last_verified_at": {"type": "string", "format": "date-time"},
+    "status": {"type": "string", "enum": ["active", "stale", "removed"]}
+  },
+  "additionalProperties": false
+}

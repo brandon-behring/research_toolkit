@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://research-toolkit.local/schemas/v1/refresh-event.schema.json",
+  "title": "RefreshEvent v1",
+  "type": "object",
+  "required": ["schema_version", "event_id", "source_id", "checked_at", "old_digest", "new_digest", "change_class", "affected_claim_ids", "affected_consumer_binding_ids", "disposition"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0.0"},
+    "event_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "source_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "checked_at": {"type": "string", "format": "date-time"},
+    "old_digest": {"type": ["string", "null"]},
+    "new_digest": {"type": ["string", "null"]},
+    "change_class": {"type": "string", "enum": ["unchanged", "cosmetic", "material", "breaking", "unreachable", "retracted"]},
+    "affected_claim_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "affected_consumer_binding_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "disposition": {"type": "string", "enum": ["accepted", "review-required", "waived", "failed"]},
+    "waiver_id": {"type": ["string", "null"]},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://research-toolkit.local/schemas/v1/research-run-manifest.schema.json",
+  "title": "ResearchRunManifest v1",
+  "type": "object",
+  "required": ["schema_version", "run_id", "topic", "started_at", "status", "toolkit", "repositories", "environment", "decision_log", "searches", "inputs", "outputs", "attempts"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0.0"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "topic": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "status": {"type": "string", "enum": ["planned", "running", "halted", "failed", "complete"]},
+    "toolkit": {
+      "type": "object",
+      "required": ["commit", "skills_version", "cli_version"],
+      "properties": {
+        "commit": {"type": "string", "minLength": 1},
+        "skills_version": {"type": "string", "minLength": 1},
+        "cli_version": {"type": "string", "minLength": 1},
+        "dirty_digest": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "commit"],
+        "properties": {"name": {"type": "string"}, "commit": {"type": "string"}, "dirty_digest": {"type": "string"}},
+        "additionalProperties": false
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": ["python", "os", "model", "effort", "tool_policy"],
+      "properties": {
+        "python": {"type": "string"}, "os": {"type": "string"}, "lock_digest": {"type": "string"},
+        "claude_cli": {"type": "string"}, "model": {"type": "string"}, "effort": {"type": "string"},
+        "tool_policy": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "decision_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["question", "options", "recommendation", "selected", "impact"],
+        "properties": {
+          "question": {"type": "string"}, "options": {"type": "array", "items": {"type": "string"}},
+          "recommendation": {"type": "string"}, "selected": {"type": "string"}, "impact": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "searches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["query", "run_at", "provider", "result_ids"],
+        "properties": {
+          "query": {"type": "string"}, "run_at": {"type": "string", "format": "date-time"},
+          "provider": {"type": "string"}, "result_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "inputs": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}, "additionalProperties": false}},
+    "outputs": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}, "additionalProperties": false}},
+    "attempts": {"type": "array", "items": {"type": "object", "required": ["stage", "attempt", "exit_code"], "properties": {"stage": {"type": "string"}, "attempt": {"type": "integer", "minimum": 1}, "exit_code": {"type": "integer"}, "log_sha256": {"type": "string"}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

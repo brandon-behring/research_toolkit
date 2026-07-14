@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://research-toolkit.local/schemas/v1/dossier-manifest.schema.json",
+  "title": "DossierManifest v1",
+  "type": "object",
+  "required": ["schema_version", "dossier_id", "topic", "kind", "status", "created_at"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0.0"},
+    "dossier_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "topic": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "enum": ["research", "dataset", "youtube"]},
+    "status": {"type": "string", "enum": ["planning", "researching", "needs-review", "reviewed", "released", "retired"]},
+    "created_at": {"type": "string", "format": "date"},
+    "description": {"type": "string"},
+    "legacy_input_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "additionalProperties": false
+}

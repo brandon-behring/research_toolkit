@@ -11,19 +11,22 @@ via a separate tarball uploaded to Google Drive.
 - Optional: Playwright (only needed for v2.2.1's JS-rendered escalation
   path; `pip install -e ".[dev]" && playwright install chromium`)
 
-## Step 1 — Clone the toolkit and wire skills
+## Step 1 — Clone and validate the plugin
 
 ```bash
 git clone git@github.com:brandon-behring/research_toolkit.git ~/Claude/research_toolkit
 cd ~/Claude/research_toolkit
 make install       # pip install -e ".[dev]"
-make symlinks      # symlinks all skill bodies into ~/.claude/skills/
+make plugin-check  # current Claude manifest + exactly six packaged skills
 ```
 
-Verify Claude Code sees the skills:
+Install through the configured Claude Code marketplace or load the checkout as
+a development plugin. Do not create loose `~/.claude/skills/*.md` symlinks.
+Verify the package itself before installation:
 
 ```bash
-ls ~/.claude/skills/research-*.md ~/.claude/skills/dossier-*.md ~/.claude/skills/agent-*.md
+claude plugin validate --strict .
+find skills -mindepth 2 -maxdepth 2 -name SKILL.md -print
 ```
 
 ## Step 2 — Restore the dossier tarball
@@ -51,8 +54,9 @@ This restores:
 
 ```bash
 cd ~/Claude/research_toolkit
-make v2-smoke      # all validators green; 224+ tests pass implicitly
-make test          # full test suite
+make v2-smoke      # compatibility validator chain
+make contracts     # canonical v1 schema bundle
+make test          # legacy + canonical regression suite
 ```
 
 Then verify a dossier end-to-end (catches absolute-path breakage and

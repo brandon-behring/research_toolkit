@@ -127,6 +127,6 @@ Interest-bias term sets (the user's stated research interests):
 - A backlog that re-lists a topic with an existing `~/Claude/research_<slug>/`
   dir means dedup (Step 3) was skipped.
 
-The downstream `/research-plan` → `/research-gather` chain catches over-broad
+The downstream `/research-toolkit:research` workflow catches over-broad
 topics (un-scopable taxonomy) and missing landmark papers; this protocol's job
 is only to surface the *right candidates*, not to research them.

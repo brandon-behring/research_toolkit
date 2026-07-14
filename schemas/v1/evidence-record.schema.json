@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://research-toolkit.local/schemas/v1/evidence-record.schema.json",
+  "title": "EvidenceRecord v1",
+  "type": "object",
+  "required": ["schema_version", "evidence_id", "source_id", "excerpt", "extraction_method", "link_confidence", "supports", "retrieved_at", "rights_status"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0.0"},
+    "evidence_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "source_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "excerpt": {"type": "string", "minLength": 1},
+    "extraction_method": {"type": "string", "minLength": 1},
+    "link_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "supports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "evidence_role", "strength"],
+        "properties": {
+          "claim_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+          "evidence_role": {"type": "string", "enum": ["supports", "contradicts", "context"]},
+          "strength": {"type": "string", "enum": ["full", "partial", "weak", "unknown"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "retrieved_at": {"type": "string", "format": "date-time"},
+    "rights_status": {"type": "string", "enum": ["public", "private-use", "restricted", "unknown"]},
+    "anchor": {
+      "type": "object",
+      "required": ["start", "end", "sha256"],
+      "properties": {
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

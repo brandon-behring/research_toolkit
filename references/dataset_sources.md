@@ -1,15 +1,15 @@
 # Dataset sources catalog (v1.7)
 
-Reference doc for `/dataset-gather`. Catalogs the source categories the skill
+Reference for `/research-toolkit:dataset-research`. Catalogs the source categories the skill
 searches, with per-source discovery method + metadata-extraction strategy +
 known gotchas.
 
-Read this BEFORE invoking `/dataset-gather` if you want to understand what
+Read this before invoking `/research-toolkit:dataset-research` to understand what
 coverage to expect; the skill body assumes this doc exists and references it.
 
 ## Discovery priority order
 
-When `/dataset-gather` runs against a topic, it searches sources in this order
+When `/research-toolkit:dataset-research` runs against a topic, it searches sources in this order
 (roughly by metadata richness + ease of programmatic access):
 
 1. HuggingFace datasets (rich API; mostly NLP + vision)

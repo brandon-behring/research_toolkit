@@ -34,6 +34,8 @@ def test_cli_help_lists_subcommands(capsys) -> None:
     # A representative spread of the core pipeline verbs must be listed.
     for verb in ("assemble", "render-index", "verify-citations", "freshness", "export"):
         assert verb in out, f"--help missing subcommand {verb!r}"
+    for workflow in ("research run", "audit", "freshness poll", "release check"):
+        assert workflow in out, f"--help missing workflow {workflow!r}"
 
 
 def test_cli_no_args_prints_help(capsys) -> None:
@@ -74,6 +76,13 @@ def test_cli_freshness_help_uses_fallback(capsys) -> None:
     assert rc == 0
     out = capsys.readouterr().out
     assert "freshness" in out and "project_dir" in out
+
+
+def test_cli_nested_workflow_help_delegates(capsys) -> None:
+    rc = cli.main(["research", "run", "--help"])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "--initialize" in out and "--run-id" in out
 
 
 # ---------- real subcommand run ----------

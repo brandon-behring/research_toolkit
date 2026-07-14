@@ -1,10 +1,8 @@
 """Regression tests for v1.5.1 patch.
 
-Three changes covered:
-1. /agent-index skill body references the cross_stage validator in its
-   Validation section (lint test).
-2. /research-gather + /dossier-build skill bodies reference the medium
-   fixture as a worked example (lint tests).
+Three clean-break migration controls covered:
+1. The consolidated research skill references the canonical audit gate.
+2. Research and audit load the canonical contract and semantic-review rule.
 3. validators/audit_trail.py enforces sequential round numbering starting
    at 1 with no gaps (4 unit tests).
 
@@ -15,49 +13,32 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from validators import audit_trail
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SKILLS = REPO_ROOT / ".claude" / "skills"
+SKILLS = REPO_ROOT / "skills"
 
 
 # ---------- Skill-body lint tests ----------
 
 
-def test_agent_index_skill_references_cross_stage() -> None:
-    """v1.5.1: /agent-index Validation section now points at cross_stage validator."""
-    text = (SKILLS / "agent-index.md").read_text(encoding="utf-8")
-    assert "cross_stage" in text, (
-        "/agent-index skill body should reference the cross_stage validator. "
-        "If you intentionally removed it, update this test."
-    )
-    # Must be in the Validation section, not just a stray mention.
+def test_research_skill_references_canonical_audit_gate() -> None:
+    text = (SKILLS / "research" / "SKILL.md").read_text(encoding="utf-8")
     validation_section_idx = text.find("## Validation")
     assert validation_section_idx >= 0, "Skill body missing Validation section"
     after = text[validation_section_idx:]
-    assert "cross_stage" in after, (
-        "cross_stage reference should be in the Validation section, not earlier"
-    )
+    assert "research-toolkit audit" in after
 
 
-def test_research_gather_skill_references_medium_fixture() -> None:
-    """v1.5.1: /research-gather points at medium fixture as a worked example."""
-    text = (SKILLS / "research-gather.md").read_text(encoding="utf-8")
-    assert "medium_topic_calibration_subset" in text, (
-        "/research-gather skill body should reference the medium fixture as a "
-        "v1.1+ schema worked example."
-    )
+def test_research_skill_references_canonical_contract() -> None:
+    text = (SKILLS / "research" / "SKILL.md").read_text(encoding="utf-8")
+    assert "canonical_contract.md" in text
 
 
-def test_dossier_build_skill_references_medium_fixture() -> None:
-    """v1.5.1: /dossier-build points at medium fixture as a worked example."""
-    text = (SKILLS / "dossier-build.md").read_text(encoding="utf-8")
-    assert "medium_topic_calibration_subset" in text, (
-        "/dossier-build skill body should reference the medium fixture as a "
-        "rendered worked example."
-    )
+def test_audit_skill_distinguishes_presence_from_entailment() -> None:
+    text = (SKILLS / "audit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "byte presence from" in text
+    assert "semantic entailment" in text
 
 
 # ---------- audit_trail sequential-round tests ----------

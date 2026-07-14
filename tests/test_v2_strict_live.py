@@ -989,23 +989,19 @@ def test_cache_manifest_rejects_bad_revisit_profile(tmp_path: Path) -> None:
     assert any("revisit_profile" in e for e in errors), errors
 
 
-def test_v2_skills_codify_strict_live_cache_and_export_rules() -> None:
-    skills = REPO_ROOT / ".claude" / "skills"
-    gather = (skills / "research-gather.md").read_text(encoding="utf-8")
-    dataset = (skills / "dataset-gather.md").read_text(encoding="utf-8")
-    freshness_skill = (skills / "freshness-audit.md").read_text(encoding="utf-8")
-    export_skill = (skills / "synthesis-export.md").read_text(encoding="utf-8")
+def test_v3_skills_codify_canonical_evidence_and_release_rules() -> None:
+    skills = REPO_ROOT / "skills"
+    research = (skills / "research" / "SKILL.md").read_text(encoding="utf-8")
+    dataset = (skills / "dataset-research" / "SKILL.md").read_text(encoding="utf-8")
+    freshness_skill = (skills / "freshness" / "SKILL.md").read_text(encoding="utf-8")
+    release_skill = (skills / "release" / "SKILL.md").read_text(encoding="utf-8")
 
-    for text in (gather, dataset, freshness_skill):
-        assert "strict-live" in text.lower()
-        assert "cache" in text.lower()
+    for text in (research, dataset, freshness_skill):
         assert "evidence" in text.lower()
-    # RS1 (2026-06-12): the export skill is /synthesis-export, writing in-dossier;
-    # the envelope validator keeps its historical module name.
-    assert "synthesis-kb" in export_skill
-    assert "synthesis_export.py" in export_skill
-    assert "synthesis_export.jsonl" in export_skill
-    assert "validators/research_kb_export.py" in export_skill
+        assert "review" in text.lower()
+    assert "release check" in release_skill
+    assert "synthesis" in release_skill
+    assert "research-lock.json" in release_skill
 
 
 # ----- v2.2 Phase A: gather_trace.yml (Self-RAG adaptive retrieval) -----

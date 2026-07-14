@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://research-toolkit.local/schemas/v1/source-watch-record.schema.json",
+  "title": "SourceWatchRecord v1",
+  "type": "object",
+  "required": ["schema_version", "source_id", "canonical_url", "volatility", "cadence_days", "owner", "last_retrieved_at", "last_semantic_review_at", "next_check_at", "events", "status"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0.0"},
+    "source_id": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"},
+    "canonical_url": {"type": "string", "format": "uri"},
+    "volatility": {"type": "string", "enum": ["volatile", "active", "stable", "archival"]},
+    "cadence_days": {"type": "integer", "minimum": 1},
+    "owner": {"type": "string", "minLength": 1},
+    "last_retrieved_at": {"type": "string", "format": "date-time"},
+    "last_semantic_review_at": {"type": ["string", "null"], "format": "date-time"},
+    "next_check_at": {"type": "string", "format": "date"},
+    "events": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "status": {"type": "string", "enum": ["active", "paused", "retired"]},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,9 @@
+{
+  "name": "research-toolkit",
+  "version": "3.0.0-alpha.1",
+  "description": "Auditable research dossiers with decision-complete planning, versioned evidence contracts, semantic review, freshness monitoring, and release gates.",
+  "author": {
+    "name": "Brandon Behring"
+  },
+  "license": "MIT"
+}

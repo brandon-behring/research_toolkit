@@ -3,6 +3,12 @@
 Common failure modes distilled from BURN_IN_NOTES.md. Each entry: symptom →
 cause → fix.
 
+> Historical compatibility reference: sections naming pre-v3 slash commands
+> describe legacy dossiers and deterministic v1/v2 producers. The current
+> Claude interface is the six `/research-toolkit:*` plugin skills. Use
+> `research-toolkit audit`, `freshness poll`, and `release check` for canonical
+> dossiers; do not recreate loose skill symlinks.
+
 ## URL extraction returns 0 URLs (silent fail)
 
 **Symptom:** `/url-freshness-check` reports `total: 0` despite the artifact
