@@ -134,10 +134,10 @@ Refresh any stale primary sources (re-cache + re-anchor), rebuild the dashboard,
 then re-run `--strict`. Gate: the final `freshness.py --strict` exits 0 (no
 stale blockers, evidence/cache referential integrity holds, anchors verify).
 
-### Stage 8 — export (`scripts/research_kb_export.py`)
+### Stage 8 — export (`scripts/synthesis_export.py`)
 
 ```bash
-python ~/Claude/research_toolkit/scripts/research_kb_export.py <proj>
+python ~/Claude/research_toolkit/scripts/synthesis_export.py <proj>
 python ~/Claude/research_toolkit/validators/research_kb_export.py \
   <project_dir>/synthesis_export.jsonl
 ```
