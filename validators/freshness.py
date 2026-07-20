@@ -106,6 +106,12 @@ def validate(
                 else:
                     warnings.append(f"WARN {stale}")
 
+            # Content age warns normally and escalates under --strict. This is
+            # deliberate and paired-tested (tests/test_v2_strict_live.py:105-127):
+            # the helper content_age_warning_for_entry never itself returns an
+            # error, and this caller decides the severity. A 2018 paper tiered
+            # `stable` (10y) never trips it; one tiered `active` (3y) does, which
+            # is the intended signal that the tier is wrong for the source.
             content_age = content_age_warning_for_entry(entry, today=today)
             if content_age:
                 msg = f"{loc}: {content_age}"
