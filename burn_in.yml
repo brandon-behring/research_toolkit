@@ -740,3 +740,42 @@ entries:
   severity: low
   status: surfaced
   notes: 'Mostly positive evidence: the client= interface is adapter-friendly as designed (consumer generate_openai.py, gpt-4.1-mini). Candidate fix: suffix manifests per attempt or archive the prior manifest on provider switch so recoveries keep both records.'
+
+# ---------------------------------------------------------------------------
+# P5 VLM-survey gathers (external burn-in, 2026-07-20) — five dossiers merged
+# from per-track partials OUTSIDE assemble_artifacts, then driven through
+# Stage 4-8. Findings from that run.
+
+- id: p5vlm-render-evidence-id
+  phase: P5 vlm-survey external burn-in
+  stage: agent-index
+  finding: 'render_agent_index printed a computed ev_{topic}_{n} Evidence bullet while agent_index_display resolves the printed id against evidence_ledger.yml (its Linkage-2 fallback is dead for rendered output — manifest selections carry no family/bibkey/evidence_id), so dossiers merged outside assemble (ledger ids like ev_vcf_a1_001) could never pass the display gate'
+  severity: high
+  status: applied
+  fix_version: 'unreleased (main; branch feat/render-evidence-id-override)'
+  fix_commit: f821cac
+  notes: 'sources.json entries may now carry evidence_id; the renderer prints it when present, computed fallback unchanged (the 24 existing systems dossiers are unaffected). Regression: test_render_evidence_bullet_honors_explicit_evidence_id.'
+
+- id: p5vlm-playwright-ubuntu2604
+  phase: P5 vlm-survey external burn-in
+  stage: research-gather
+  finding: 'playwright install chromium fails on ubuntu26.04-x64 ("Playwright does not support chromium on ubuntu26.04-x64"); cache_source --escalate-on-failure only worked after hand-symlinking chromium_headless_shell-1228 -> 1223 under ~/.cache/ms-playwright'
+  severity: medium
+  status: surfaced
+  notes: 'Candidate fix: document the symlink workaround (or pin a supported playwright) in the escalation path. Even with a working chromium, ScienceDirect bot-walls (833KB shell page) — OpenAlex fallback captures were used instead.'
+
+- id: p5vlm-abs-abstract-only
+  phase: P5 vlm-survey external burn-in
+  stage: research-gather
+  finding: 'arXiv /abs/ captures extract abstract-only text; body excerpts need a second capture (arxiv.org/html/<id>v1 — versionless 404s — or ar5iv), and some HTML renders serve wrong content (a CVPR author-response template; 8KB ar5iv stubs), so any render must be substring-checked before trust'
+  severity: medium
+  status: surfaced
+  notes: 'Worked around in the P5 dispatch briefs (both cache_ids on the bib entry; evidence points at the capture it quotes). Candidate toolkit fix: a body-capture helper or an --expect-substring guard on cache_source. Qwen-line papers resist HTML body capture in both generations.'
+
+- id: p5vlm-ugrep-long-regex
+  phase: P5 vlm-survey external burn-in
+  stage: research-gather
+  finding: 'system grep is ugrep; long regexes hit complexity limits or hang, so excerpt byte-verification must use Python substring checks, never grep'
+  severity: low
+  status: surfaced
+  notes: 'Recorded as an environment fact and mandated in the P5 dispatch briefs; nothing in-repo to fix.'

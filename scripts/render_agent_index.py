@@ -127,6 +127,10 @@ def _entry_md(src: dict[str, Any], config: dict[str, Any], cache_root: Path) -> 
         mech = _clean(src["excerpt"])
     pub = src.get("published_online")
     pub_line = f"  - **Published online:** {pub}\n" if pub else ""
+    # Custom-merged dossiers carry ledger evidence_ids that predate the computed
+    # ev_{topic}_{n} convention; the display validator resolves whatever id is
+    # printed here against evidence_ledger.yml, so the source's own id must win.
+    evidence_id = src.get("evidence_id") or f"ev_{config['topic']}_{src['n']}"
     return (
         f"- **{src['title']}** — {src['authors']} ({src['venue']}).\n"
         f"  - **Source:** {src['primary_url']}\n"
@@ -135,7 +139,7 @@ def _entry_md(src: dict[str, Any], config: dict[str, Any], cache_root: Path) -> 
         f"  - **Result:** {results[bibkey]}\n"
         f"  - **Status:** {status}\n"
         f"{pub_line}"
-        f"  - **Evidence:** ev_{config['topic']}_{src['n']}\n"
+        f"  - **Evidence:** {evidence_id}\n"
     )
 
 
