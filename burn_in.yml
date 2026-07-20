@@ -779,3 +779,11 @@ entries:
   severity: low
   status: surfaced
   notes: 'Recorded as an environment fact and mandated in the P5 dispatch briefs; nothing in-repo to fix.'
+
+- id: p5vlm-render-single-evidence-bullet
+  phase: P5 vlm-survey external burn-in
+  stage: agent-index
+  finding: 'render_agent_index emits ONE Evidence id per source (the display entry), while bib entries carry multiple evidence_ids — a Result bullet synthesized from several evidence entries cites only the first anchorable one (codex stage-4 review of the five VLM dossiers, finding 5)'
+  severity: low
+  status: surfaced
+  notes: 'Candidate fix: emit the full bib evidence_ids list on the Evidence bullet — the hand-built decoder-dossier index precedents multiple ids per bullet; agent_index_display only needs the printed ids to resolve, so a list is compatible.'
