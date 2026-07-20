@@ -232,6 +232,20 @@ def test_render_surfaces_published_online_only_when_present(tmp_path):
     assert "Published online" not in fam2               # ben-michael does not
 
 
+def test_render_evidence_bullet_honors_explicit_evidence_id(tmp_path):
+    sources_path, config_path, project_dir, _, _ = _setup(tmp_path)
+    doc = json.loads(sources_path.read_text(encoding="utf-8"))
+    doc["sources"][0]["evidence_id"] = "ev_vcf_a1_007"  # ledger-native id, not ev_{topic}_{n}
+    sources_path.write_text(json.dumps(doc), encoding="utf-8")
+    rc = rai.main([str(sources_path), str(project_dir), "--config", str(config_path)])
+    assert rc == 0
+    fam1 = (project_dir / "agent_index" / "01_synthetic_control.md").read_text()
+    fam2 = (project_dir / "agent_index" / "02_extensions.md").read_text()
+    assert "**Evidence:** ev_vcf_a1_007" in fam1
+    assert "ev_sc_demo_0001" not in fam1
+    assert "**Evidence:** ev_sc_demo_0002" in fam2  # fallback unchanged for the other source
+
+
 # ---------- Mechanism display override + guard ----------
 
 def test_render_uses_mechanism_display_override_when_substring(tmp_path):
