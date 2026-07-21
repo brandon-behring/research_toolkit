@@ -62,6 +62,20 @@ A unified `research-toolkit` CLI (`scripts/cli.py`,
 `build-dashboard`, `freshness`, `export`, `resume-gather`, `compose-kg`, …) so
 the chain can be run by hand without `python scripts/<x>.py` per stage.
 
+**Auxiliary producer (off the linear chain):**
+
+| Producer | Kind | Consumes | Primary artifact | Verified by |
+|---|---|---|---|---|
+| `scripts/emit_bibtex.py` (`emit-bibtex`) | producer | `bib_ledger.yml` + cache | a biblatex `.bib` | `validators/bibtex_out.py` |
+
+`emit-bibtex` is a deterministic ledger→BibTeX transform for manuscript
+authoring, not a gated pipeline stage. The ledger `authors` field is a display
+string, so it reconstructs real author lists from the cached arXiv Highwire
+`citation_author` tags (the same bytes the excerpt anchors point into), falling
+back to a live arXiv Atom lookup (re-cached, so still anchored) and then to the
+ledger display string (flagged on stderr). It escapes `& % # _ $` only — never
+braces (that destroys BibTeX brace-protection).
+
 ## What is agent-authored vs deterministic
 
 | Decision | Who makes it | Why |

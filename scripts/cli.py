@@ -21,6 +21,7 @@ import importlib
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from typing import TextIO
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -47,6 +48,7 @@ _REGISTRY: dict[str, tuple[str, str, str]] = {
     "backlog-stamp": ("scripts.backlog_stamp", "main", SHAPE_FULL),
     "resume-gather": ("scripts.resume_gather_from_cache", "main", SHAPE_SLICED),
     "compose-kg": ("scripts.compose_cross_project_kg", "main", SHAPE_SLICED),
+    "emit-bibtex": ("scripts.emit_bibtex", "main", SHAPE_SLICED),
 }
 
 # One-line help shown by ``research-toolkit --help`` (no module import needed).
@@ -62,6 +64,7 @@ _SUMMARIES: dict[str, str] = {
     "backlog-stamp": "Stamp a topic_backlog.yml entry as handed off / done.",
     "resume-gather": "Rebuild a sources-JSON skeleton from the content-addressed cache.",
     "compose-kg": "Merge per-project claim graphs into a cross-project KG snapshot.",
+    "emit-bibtex": "Emit a biblatex .bib from bib_ledger.yml (authors from cached Highwire tags).",
 }
 
 
@@ -104,7 +107,7 @@ def _dispatch(name: str, rest: list[str]) -> int:
         return code if isinstance(code, int) else 1
 
 
-def _print_top_help(stream: object) -> None:
+def _print_top_help(stream: TextIO) -> None:
     print("usage: research-toolkit <subcommand> [args...]", file=stream)
     print("", file=stream)
     print("Unified entry point for the research_toolkit pipeline.", file=stream)

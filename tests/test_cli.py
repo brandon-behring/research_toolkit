@@ -143,7 +143,7 @@ def test_pyproject_declares_console_entry_point() -> None:
 @pytest.mark.parametrize("verb", sorted({
     "cache-source", "assemble", "render-index", "build-claim-graph",
     "verify-citations", "build-dashboard", "freshness", "export",
-    "backlog-stamp", "resume-gather", "compose-kg",
+    "backlog-stamp", "resume-gather", "compose-kg", "emit-bibtex",
 }))
 def test_cli_core_verbs_registered(verb: str) -> None:
     assert verb in cli._REGISTRY
