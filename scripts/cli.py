@@ -21,6 +21,7 @@ import importlib
 import sys
 from collections.abc import Callable
 from pathlib import Path
+from typing import TextIO
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -106,7 +107,7 @@ def _dispatch(name: str, rest: list[str]) -> int:
         return code if isinstance(code, int) else 1
 
 
-def _print_top_help(stream: object) -> None:
+def _print_top_help(stream: TextIO) -> None:
     print("usage: research-toolkit <subcommand> [args...]", file=stream)
     print("", file=stream)
     print("Unified entry point for the research_toolkit pipeline.", file=stream)

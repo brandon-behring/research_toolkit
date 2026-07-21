@@ -47,3 +47,29 @@ def test_bibtex_out_detects_escaped_braces() -> None:
 def test_bibtex_out_validate_rejects_a_directory(tmp_path) -> None:
     errors = bibtex_out.validate(tmp_path)
     assert any("got directory" in e for e in errors), errors
+
+
+# --- regression tests for the adversarial-review findings ---
+
+
+def test_bibtex_out_detects_unbalanced_braces() -> None:
+    errors = bibtex_out.validate_text("@misc{k,\n  author={A},\n  title={unterminated,\n}\n")
+    assert any("unbalanced braces" in e for e in errors), errors
+
+
+def test_bibtex_out_field_name_inside_a_value_is_not_the_field() -> None:
+    # 'author =' / 'title =' appearing INSIDE a note value must not satisfy the
+    # required-field check.
+    errors = bibtex_out.validate_text("@misc{k,\n  note={words author = and title = only},\n}\n")
+    assert any("missing required field 'author'" in e for e in errors), errors
+    assert any("missing required field 'title'" in e for e in errors), errors
+
+
+def test_parse_entries_handles_one_line_and_skips_string() -> None:
+    got = bibtex_out.parse_entries('@string{p = "X"}\n@misc{k, author={A}, title={T},}\n')
+    assert [(t, k) for t, k, _b in got] == [("misc", "k")]  # @string skipped; one-line parsed
+
+
+def test_parse_entries_respects_nested_braces_in_a_value() -> None:
+    got = bibtex_out.parse_entries("@misc{k,\n  title={The {DNA} of X},\n  author={A},\n}\n")
+    assert len(got) == 1 and got[0][1] == "k"

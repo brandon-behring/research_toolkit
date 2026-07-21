@@ -136,3 +136,47 @@ def test_to_last_first_normalises_atom_name_order() -> None:
     assert emit_bibtex._to_last_first("Michael Tschannen") == "Tschannen, Michael"
     assert emit_bibtex._to_last_first("Zhai, Xiaohua") == "Zhai, Xiaohua"  # already Family, Given
     assert emit_bibtex._to_last_first("Plato") == "Plato"  # single token unchanged
+
+
+# --- regression tests for the adversarial-review findings ---
+
+
+def test_highwire_keeps_apostrophe_in_double_quoted_value() -> None:
+    tag = '<meta name="citation_author" content="O\'Connor, Alice" />'
+    assert emit_bibtex._highwire(tag, "author") == ["O'Connor, Alice"]
+
+
+def test_highwire_ignores_data_prefixed_attributes() -> None:
+    assert emit_bibtex._highwire('<meta data-name="citation_author" data-content="Fake" />', "author") == []
+
+
+def test_bib_escape_handles_backslash_tilde_caret() -> None:
+    assert emit_bibtex.bib_escape(r"C:\t A~B x^2") == r"C:\textbackslash{}t A\textasciitilde{}B x\textasciicircum{}2"
+
+
+def test_author_field_brace_protects_a_corporate_and_name() -> None:
+    out = emit_bibtex._author_field(["Research and Development Team", "Doe, Jane"])
+    assert out == "{Research and Development Team} and Doe, Jane"
+
+
+def test_to_last_first_keeps_surname_particles() -> None:
+    assert emit_bibtex._to_last_first("Ludwig van Beethoven") == "van Beethoven, Ludwig"
+    assert emit_bibtex._to_last_first("Juan de la Cruz") == "de la Cruz, Juan"
+
+
+def test_emit_bibtex_dedup_prefers_cache_resolved_regardless_of_order(tmp_path) -> None:
+    good = _make_dossier(tmp_path)  # 'siglip2' with cached Highwire authors
+    d0 = tmp_path / "d0"
+    d0.mkdir()
+    (d0 / "bib_ledger.yml").write_text(  # SAME bibkey, display-only, passed FIRST
+        yaml.safe_dump({"entries": [{
+            "bibkey": "siglip2", "primary_url": "https://arxiv.org/abs/2502.14786",
+            "title": "display only", "authors": "Tschannen et al. (2025)",
+        }]}),
+        encoding="utf-8",
+    )
+    out = tmp_path / "refs.bib"
+    emit_bibtex.main([str(d0), str(good), "--no-live", "--out", str(out)])
+    text = out.read_text()
+    assert "Tschannen, Michael and Zhai, Xiaohua" in text  # cache-resolved wins despite order
+    assert "Tschannen et al." not in text

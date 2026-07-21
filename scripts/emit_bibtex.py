@@ -41,10 +41,16 @@ if __package__ in (None, ""):
 import yaml
 
 from validators._common import ARXIV_ID_RE
-from validators.bibtex_out import validate_text
+from validators.bibtex_out import parse_entries, validate_text
 
 _DEFAULT_CACHE_ROOT = Path.home() / "Claude" / "research_cache"
-_BIB_ESCAPE = {"&": r"\&", "%": r"\%", "#": r"\#", "_": r"\_", "$": r"\$"}
+# Escape BibTeX-special chars in field VALUES. Braces are NEVER escaped (that
+# destroys brace-protection). Backslash/tilde/caret ARE escaped -- a raw `\`, `~`
+# or `^` in a cached title would otherwise be a TeX command / active char.
+_BIB_ESCAPE = {
+    "\\": r"\textbackslash{}", "&": r"\&", "%": r"\%", "#": r"\#", "_": r"\_",
+    "$": r"\$", "~": r"\textasciitilde{}", "^": r"\textasciicircum{}",
+}
 _ARXIV_ATOM_API = "http://export.arxiv.org/api/query?id_list="
 
 
@@ -54,13 +60,18 @@ def bib_escape(value: str) -> str:
 
 
 def _highwire(text: str, field: str) -> list[str]:
-    """All ``content`` values of ``<meta name="citation_<field>">`` (either attr order)."""
+    """All ``content`` values of ``<meta name="citation_<field>">`` (either attr order).
+
+    The content capture backreferences the opening quote (``(["'])(.*?)\\1``), so
+    an apostrophe inside a double-quoted value (``content="O'Connor, Alice"``) is
+    kept, not truncated; a negative lookbehind on the attribute names rejects
+    ``data-name=`` / ``data-content=``."""
     out: list[str] = []
     for pat in (
-        rf'<meta[^>]+name=["\']citation_{field}["\'][^>]+content=["\']([^"\']*)["\']',
-        rf'<meta[^>]+content=["\']([^"\']*)["\'][^>]+name=["\']citation_{field}["\']',
+        rf'<meta[^>]*?(?<![-\w])name=["\']citation_{field}["\'][^>]*?(?<![-\w])content=(["\'])(.*?)\1',
+        rf'<meta[^>]*?(?<![-\w])content=(["\'])(.*?)\1[^>]*?(?<![-\w])name=["\']citation_{field}["\']',
     ):
-        out += [unescape(m.group(1)) for m in re.finditer(pat, text, re.I)]
+        out += [unescape(m.group(2)) for m in re.finditer(pat, text, re.I)]
     return out
 
 
@@ -76,13 +87,18 @@ def _to_last_first(name: str) -> str:
     """Normalise an author name to ``Family, Given`` for BibTeX.
 
     Highwire tags are already ``Surname, Forename`` (returned unchanged); arXiv
-    Atom gives ``Forename Surname`` -- split on the last space (standard, imperfect
-    for multi-word surnames like 'van der Berg')."""
+    Atom gives ``Forename Surname``. Lowercase surname particles (van, de, von,
+    della, ...) are pulled into the family name, so ``Ludwig van Beethoven`` ->
+    ``van Beethoven, Ludwig`` rather than mis-splitting 'van' into the given name."""
     name = name.strip()
     if "," in name or " " not in name:
         return name
-    given, _, family = name.rpartition(" ")
-    return f"{family}, {given}"
+    parts = name.split()
+    k = len(parts) - 1
+    while k > 1 and parts[k - 1][:1].islower():
+        k -= 1
+    given, family = " ".join(parts[:k]), " ".join(parts[k:])
+    return f"{family}, {given}" if given else family
 
 
 def _from_blob(text: str) -> tuple[list[str], str | None, str | None, str | None]:
@@ -219,10 +235,20 @@ def resolve_entry(
     }
 
 
+def _author_field(authors: list[str]) -> str:
+    """Join authors with ' and '; brace-protect any name that itself contains
+    ' and ' (a corporate/literal name) so BibTeX does not read it as a separator."""
+    parts = []
+    for a in authors:
+        esc = bib_escape(a)
+        parts.append(f"{{{esc}}}" if " and " in a else esc)
+    return " and ".join(parts)
+
+
 def format_entry(record: dict[str, Any]) -> str:
     """Render one resolved record as a biblatex ``@misc`` block (seed shape)."""
     lines = [f"@misc{{{record['bibkey']},"]
-    lines.append(f"  author       = {{{' and '.join(bib_escape(a) for a in record['authors'])}}},")
+    lines.append(f"  author       = {{{_author_field(record['authors'])}}},")
     lines.append(f"  title        = {{{bib_escape(record['title'])}}},")
     if record["year"]:
         lines.append(f"  year         = {{{record['year']}}},")
@@ -259,27 +285,31 @@ def emit(
 ) -> tuple[dict[str, dict], list[str], dict[str, list[str]]]:
     """Resolve every ledger entry across ``sources``; dedup by bibkey.
 
+    Dedup prefers a cache/live-resolved record over a display-string one, so the
+    order dossiers are passed cannot bury an authoritative record behind a
+    display-string duplicate.
+
     Returns (bibkey -> record, warnings, reverse_collisions[url -> bibkeys])."""
-    records: dict[str, dict] = {}
-    warnings: list[str] = []
+    by_key: dict[str, list[dict]] = {}
     by_url: dict[str, list[str]] = {}
+    warnings: list[str] = []
     for src in sources:
         entries, manifest, cache_root = _load_dossier(src)
         if not entries:
             warnings.append(f"no bib_ledger entries under {src}")
         for entry in entries:
-            bibkey = entry["bibkey"]
-            by_url.setdefault((entry.get("primary_url") or "").strip(), []).append(bibkey)
-            if bibkey in records:
-                existing = records[bibkey]
-                new = resolve_entry(entry, manifest, cache_root, use_live=use_live, write_back=write_back)
-                if new["title"] and existing["title"] and new["title"] != existing["title"]:
-                    warnings.append(f"duplicate bibkey {bibkey}: differing titles across dossiers; kept first")
-                continue
-            record = resolve_entry(entry, manifest, cache_root, use_live=use_live, write_back=write_back)
-            records[bibkey] = record
-            if record["display"]:
-                warnings.append(f"display-string authors (hand-fix): {bibkey} = {entry.get('authors')!r}")
+            by_url.setdefault((entry.get("primary_url") or "").strip(), []).append(entry["bibkey"])
+            rec = resolve_entry(entry, manifest, cache_root, use_live=use_live, write_back=write_back)
+            by_key.setdefault(entry["bibkey"], []).append(rec)
+
+    records: dict[str, dict] = {}
+    for bibkey, recs in by_key.items():
+        best = next((r for r in recs if not r["display"]), recs[0])  # prefer resolved
+        records[bibkey] = best
+        if best["display"]:
+            warnings.append(f"display-string authors (hand-fix): {bibkey}")
+        if len({r["title"] for r in recs if r["title"]}) > 1:
+            warnings.append(f"duplicate bibkey {bibkey}: differing titles across dossiers; kept the resolved/first")
     reverse = {u: sorted(set(ks)) for u, ks in by_url.items() if u and len(set(ks)) > 1}
     return records, warnings, reverse
 
@@ -287,40 +317,41 @@ def emit(
 # --------------------------------------------------------------------------- #
 # --reconcile: audit our output against external .bib files, keyed by arXiv id
 # --------------------------------------------------------------------------- #
-_BIB_ENTRY_RE = re.compile(r"@(\w+)\s*\{\s*([^,\s]+)\s*,(.*?)\n\}", re.S)
 _EPRINT_RE = re.compile(r"eprint\s*=\s*[{\"]?\s*([0-9]{4}\.[0-9]{4,5})", re.I)
 _ARXIV_IN_URL_RE = re.compile(r"arxiv\.org/(?:abs|pdf)/([0-9]{4}\.[0-9]{4,5})", re.I)
-_FIELD_RE = lambda f: re.compile(rf"\b{f}\s*=\s*[{{\"](.+?)[}}\"]\s*,", re.S | re.I)  # noqa: E731
+_TITLE_RE = re.compile(r"\btitle\s*=\s*[{\"](.+?)[}\"]\s*,", re.S | re.I)
 
 
-def _index_by_arxiv(text: str, source: str) -> dict[str, dict]:
-    idx: dict[str, dict] = {}
-    for _typ, key, body in _BIB_ENTRY_RE.findall(text):
-        aid = None
+def _external_index(text: str, source: str) -> list[tuple[str, dict]]:
+    """(arxiv_id, record) for each entry in an external .bib with an eprint/arXiv URL.
+
+    Uses the brace-balanced parser and returns a LIST, so two external entries
+    that share an arXiv id (a reverse collision) both survive the comparison."""
+    out: list[tuple[str, dict]] = []
+    for _typ, key, body in parse_entries(text):
         m = _EPRINT_RE.search(body) or _ARXIV_IN_URL_RE.search(body)
-        if m:
-            aid = m.group(1)
-        if not aid:
+        if not m:
             continue
-        title = _FIELD_RE("title").search(body)
-        idx[aid] = {"source": source, "key": key, "title": " ".join(title.group(1).split()) if title else ""}
-    return idx
+        t = _TITLE_RE.search(body)
+        out.append((m.group(1), {"source": source, "key": key,
+                                  "title": " ".join(t.group(1).split()) if t else ""}))
+    return out
 
 
 def reconcile(records: dict[str, dict], external: list[Path]) -> list[str]:
-    """Report where the same arXiv id appears under differing keys/titles."""
+    """Report where the same arXiv id appears under differing keys across sources."""
     index: dict[str, list[dict]] = {}
-    for aid, rec in {(r["eprint"] or ""): r for r in records.values() if r["eprint"]}.items():
-        index.setdefault(aid, []).append({"source": "emit-bibtex", "key": rec["bibkey"], "title": rec["title"]})
+    for rec in records.values():  # iterate directly -- a shared eprint keeps BOTH keys
+        if rec["eprint"]:
+            index.setdefault(rec["eprint"], []).append(
+                {"source": "emit-bibtex", "key": rec["bibkey"], "title": rec["title"]})
     for path in external:
         if not path.exists():
             continue
-        for aid, rec in _index_by_arxiv(path.read_text(errors="replace"), path.name).items():
+        for aid, rec in _external_index(path.read_text(errors="replace"), path.name):
             index.setdefault(aid, []).append(rec)
     report: list[str] = []
     for aid, hits in sorted(index.items()):
-        if len(hits) < 2:
-            continue
         keys = {h["key"] for h in hits}
         if len(keys) > 1:
             report.append(f"arXiv {aid}: differing keys {sorted(keys)} across {[h['source'] for h in hits]}")
@@ -343,8 +374,9 @@ def main(argv: list[str]) -> int:
             print(f"error: source does not exist: {src}", file=sys.stderr)
             return 2
 
-    records, warnings, reverse = emit(sources, use_live=not args.no_live, write_back=not args.no_live)
-
+    # Usage checks run BEFORE the side-effecting emit (whose live fallback may
+    # re-cache): a missing --seed or a --no-overwrite refusal must not touch the
+    # cache or the network first.
     seed_keys: set[str] = set()
     seed_text = ""
     if args.seed:
@@ -353,7 +385,15 @@ def main(argv: list[str]) -> int:
             print(f"error: seed does not exist: {seed_path}", file=sys.stderr)
             return 2
         seed_text = seed_path.read_text(encoding="utf-8").rstrip()
-        seed_keys = {k for _t, k, _b in _BIB_ENTRY_RE.findall(seed_text)}
+        seed_keys = {k for _t, k, _b in parse_entries(seed_text)}
+    out_path: Path | None = None
+    if args.out:
+        out_path = Path(args.out).expanduser().resolve()
+        if out_path.exists() and args.no_overwrite:
+            print(f"error: refusing to overwrite (--no-overwrite): {out_path}", file=sys.stderr)
+            return 2
+
+    records, warnings, reverse = emit(sources, use_live=not args.no_live, write_back=not args.no_live)
 
     blocks = [format_entry(records[k]) for k in sorted(records) if k not in seed_keys]
     body = "\n\n".join(blocks) + "\n"
@@ -382,14 +422,10 @@ def main(argv: list[str]) -> int:
         file=sys.stderr,
     )
 
-    if args.out:
-        out = Path(args.out).expanduser().resolve()
-        if out.exists() and args.no_overwrite:
-            print(f"error: refusing to overwrite (--no-overwrite): {out}", file=sys.stderr)
-            return 2
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(text, encoding="utf-8")
-        print(f"emit-bibtex: wrote {out}", file=sys.stderr)
+    if out_path is not None:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(text, encoding="utf-8")
+        print(f"emit-bibtex: wrote {out_path}", file=sys.stderr)
     else:
         sys.stdout.write(text)
     return 0
