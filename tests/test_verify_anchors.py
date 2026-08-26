@@ -124,15 +124,36 @@ def test_defect_and_cold_are_not_conflated(tmp_path):
 
 # ------------------------------------------------------------------ reporting
 
-def test_supports_row_without_an_anchor_is_counted_not_silently_dropped(tmp_path):
+def _unanchored(tmp_path, method):
     d = tmp_path / "research_y"
-    d.mkdir()
+    d.mkdir(exist_ok=True)
     yaml.safe_dump({"cache_root": str(tmp_path), "entries": []},
                    (d / "cache_manifest.yml").open("w"))
-    yaml.safe_dump({"entries": [{"evidence_id": "e", "supports": [{"claim_id": "c"}]}]},
+    sup = {"claim_id": "c"}
+    if method:
+        sup["extraction_method"] = method
+    yaml.safe_dump({"entries": [{"evidence_id": "e", "supports": [sup]}]},
                    (d / "evidence_ledger.yml").open("w"))
-    code, res = va.run(tmp_path, None)
-    assert res["summary"]["no_anchor"] == 1 and res["summary"]["atoms"] == 0
+    return va.run(tmp_path, None)
+
+
+def test_supports_row_without_an_anchor_is_counted_not_silently_dropped(tmp_path):
+    code, res = _unanchored(tmp_path, None)
+    assert res["summary"]["no_anchor_other"] == 1 and res["summary"]["atoms"] == 0
+
+
+def test_paraphrase_without_an_anchor_is_correct_not_a_gap(tmp_path):
+    """A paraphrase cannot carry a verbatim span. Bucketing it with genuinely unanchored
+    rows invites the next reader to see a gap where there is none."""
+    code, res = _unanchored(tmp_path, "paraphrase")
+    assert res["summary"]["no_anchor_paraphrase"] == 1
+    assert res["summary"]["no_anchor_other"] == 0
+
+
+def test_neither_unanchored_bucket_is_a_failure(tmp_path):
+    for method in (None, "paraphrase"):
+        code, _ = _unanchored(tmp_path, method)
+        assert code == 0
 
 
 def test_render_marks_pass_and_fail(tmp_path):

@@ -25,6 +25,11 @@ CACHE_ROOT IS THREE-STATE, not two:
                                portability bug, and reporting it as "cold cache" is how a
                                dossier gets a green tick over spans nobody can read
 
+UNANCHORED SUPPORTS ARE SPLIT, NOT TOTALLED. A support whose `extraction_method` is
+`paraphrase` cannot carry a verbatim span — no anchor there is *correct*, not missing. Reporting
+one combined count invites the next reader to see a gap where there is none, so the two are
+reported separately and only the `other` bucket is a question. Neither is a failure.
+
 Usage:
     python verify_anchors.py [--root DIR] [--dossier NAME ...] [--report OUT.md] [--json]
 
@@ -73,7 +78,8 @@ def verify_dossier(dossier: Path) -> dict:
     idx, declared, root, root_state = manifest_index(dossier)
     r = {"dossier": dossier.name, "cache_root": declared, "root_state": root_state,
          "atoms": 0, "verified": 0, "missing_blob": 0, "mismatch": 0,
-         "no_anchor": 0, "unknown_cache_id": 0, "failures": []}
+         "no_anchor_paraphrase": 0, "no_anchor_other": 0,
+         "unknown_cache_id": 0, "failures": []}
 
     ev = load(dossier / "evidence_ledger.yml")
     cache: dict[Path, bytes] = {}
@@ -85,7 +91,11 @@ def verify_dossier(dossier: Path) -> dict:
             cid, off, want = (anchor.get("cache_id"), anchor.get("text_path_offset"),
                               anchor.get("sha256_of_span"))
             if not (cid and off and want):
-                r["no_anchor"] += 1
+                # A paraphrase CANNOT carry a verbatim span — no anchor is correct there, not
+                # missing. Split so the total is never read as a gap: only `other` is a question.
+                key = ("no_anchor_paraphrase" if sup.get("extraction_method") == "paraphrase"
+                       else "no_anchor_other")
+                r[key] += 1
                 continue
             r["atoms"] += 1
             if root_state != "ok":
@@ -117,7 +127,8 @@ def run(root: Path, only: list[str] | None) -> tuple[int, dict]:
                       and (not only or d.name in only))
     rows = [verify_dossier(d) for d in dossiers]
     agg = {k: sum(r[k] for r in rows)
-           for k in ("atoms", "verified", "missing_blob", "mismatch", "no_anchor", "unknown_cache_id")}
+           for k in ("atoms", "verified", "missing_blob", "mismatch",
+                     "no_anchor_paraphrase", "no_anchor_other", "unknown_cache_id")}
     agg["dossiers"] = len(rows)
     agg["root_defect"] = sum(r["root_state"] == "defect" for r in rows)
     agg["root_cold"] = sum(r["root_state"] == "cold" for r in rows)
@@ -137,7 +148,8 @@ def render(res: dict) -> str:
            f"| cache_id not in manifest | {s['unknown_cache_id']} |",
            f"| cache_root MANIFEST DEFECT (absolute, unresolvable) | {s['root_defect']} |",
            f"| cache_root cold (`~`-relative, absent — skipped) | {s['root_cold']} |",
-           f"| supports[] rows carrying no anchor | {s['no_anchor']} |", ""]
+           f"| no anchor — `extraction_method: paraphrase` (correct, not a gap) | {s['no_anchor_paraphrase']} |",
+           f"| no anchor — other extraction_method (worth a look) | {s['no_anchor_other']} |", ""]
     bad = [d for d in res["dossiers"] if d["failures"] or d["root_state"] == "defect"]
     if bad:
         out += ["## Problems", ""]
